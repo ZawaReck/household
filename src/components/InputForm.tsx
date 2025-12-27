@@ -1,11 +1,19 @@
-import React from "react";
+import React, { useEffect} from "react";
 import type { Transaction } from "../types/Transaction";
 
-interface InpurtFormProps {
+interface InputFormProps {
     onAddTransaction: (Transaction: Omit<Transaction, "id">) => void;
+    onUpdateTransaction: (transaction: Transaction) => void;
+    editingTransaction: Transaction | null;
+    setEditingTransaction: (transaction: Transaction | null) => void;
 }
 
-export const InputForm: React.FC<InpurtFormProps> = ({ onAddTransaction }) => {
+export const InputForm: React.FC<InputFormProps> = ({
+    onAddTransaction,
+    onUpdateTransaction,
+    editingTransaction,
+    setEditingTransaction
+}) => {
     const [amount, setAmount] = React.useState("");
     const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
     const [name, setName] = React.useState("");
@@ -13,8 +21,45 @@ export const InputForm: React.FC<InpurtFormProps> = ({ onAddTransaction }) => {
     const [source, setSource] = React.useState("財布");
     const [memo, setMemo] = React.useState("");
 
+    useEffect(() => {
+        if (editingTransaction) {
+            setAmount(editingTransaction.amount.toString());
+            setDate(editingTransaction.date);
+            setName(editingTransaction.name || "");
+            setCategory(editingTransaction.category);
+            setSource(editingTransaction.source);
+            setMemo(editingTransaction.memo);
+        }else {
+            setAmount("");
+            setName("");
+            setMemo("");
+        }
+    }, [editingTransaction]);
+
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (editingTransaction) {
+            onUpdateTransaction({
+            id: editingTransaction.id,
+            amount: Number(amount),
+            date,
+            name,
+            category,
+            source,
+            memo,
+            isSpecial: false,
+        });
+        } else {
+            onAddTransaction({
+            amount: Number(amount),
+            date,
+            name,
+            category,
+            source,
+            memo,
+            isSpecial: false
+        });
+        }
         const newTransaction = {
             amount: Number(amount),
             date,
@@ -79,6 +124,19 @@ export const InputForm: React.FC<InpurtFormProps> = ({ onAddTransaction }) => {
                 placeholder="Memo"
             />
             <button type="submit">保存</button>
+            <div className="form-buttons">
+                <button type="submit">
+                    {editingTransaction ? "更新" : "追加"}
+                </button>
+                {editingTransaction && (
+                    <button
+                        type="button"
+                        onClick={() => setEditingTransaction(null)}
+                    >
+                        キャンセル
+                    </button>
+                )}
+            </div>
         </form>
     );
 }

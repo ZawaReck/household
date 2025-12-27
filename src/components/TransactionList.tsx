@@ -4,24 +4,32 @@ import type { Transaction } from "../types/Transaction";
 interface InputFormProps {
     transactions: Transaction[];
     onDeleteTransaction: (id: string) => void;
+    onEditTransaction: (transaction: Transaction) => void;
 }
 
-export const TransactionList: React.FC<InputFormProps> = ({ transactions, onDeleteTransaction }) => {
+export const TransactionList: React.FC<InputFormProps> = ({ transactions, onDeleteTransaction, onEditTransaction }) => {
     return (
         <div>
             <h2>Transaction List</h2>
             <ul>
                 {transactions.map((transaction) => (
                     <li key={transaction.id}>
-                        <div>
+                        <div className="transaction-details" onClick={() => onEditTransaction(transaction)}>
                             <span>{transaction.date}</span>
                             <span>【{transaction.category}】</span>
                             <span>【{transaction.source}】</span>
                             <span>{transaction.memo}</span>
                             <span>{transaction.amount.toLocaleString()}円</span>
                         </div>
+                        <div className="transaction-butttons">
+                            <button
+                                className="editーbutton"
+                                onClick={() => onEditTransaction(transaction)}>
+                                    編集
+                                </button>
+                        </div>
                         <button
-                            className="delete"
+                            className="delete-button"
                             onClick={() => {
                                 if (window.confirm("本当に削除しますか？")) {
                                     onDeleteTransaction(transaction.id);

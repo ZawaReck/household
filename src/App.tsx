@@ -1,4 +1,4 @@
-import React from "react";
+import React, {useState} from "react";
 import { InputForm } from "./components/InputForm";
 import { TransactionList } from "./components/TransactionList";
 import type { Transaction } from "./types/Transaction";
@@ -15,19 +15,37 @@ export const App: React.FC = () => {
         setTransactions((prev) => [...prev, newTransaction]);
     };
 
+    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+
     const handleDeleteTransaction = (id: string) => {
         setTransactions((prev) => prev.filter((transaction) => transaction.id !== id));
     };
 
+    const handleUpdateTransaction = (updatedTransaction: Transaction) => {
+    // transactions配列をマップし、IDが一致する項目を更新後のデータに置き換える
+    const updatedTransactions = transactions.map((transaction) =>
+        transaction.id === updatedTransaction.id ? updatedTransaction : transaction
+    );
+    setTransactions(updatedTransactions);
+    // 編集モードを終了する
+    setEditingTransaction(null);
+    };
+
     return (
-        <div className="App">
-            <h1>家計簿</h1>
-            <InputForm onAddTransaction={handleAddTransaction} />
-            <hr />
-            <TransactionList
-              transactions={transactions}
-              onDeleteTransaction={handleDeleteTransaction}
-            />
+    <div className="app-container">
+        <h1>PWA家計簿アプリ</h1>
+        <InputForm
+            onAddTransaction={handleAddTransaction}
+            onUpdateTransaction={handleUpdateTransaction}
+            editingTransaction={editingTransaction}
+        setEditingTransaction={setEditingTransaction}
+        />
+        <hr />
+        <TransactionList
+            transactions={transactions}
+            onDeleteTransaction={handleDeleteTransaction}
+            onEditTransaction={setEditingTransaction} // 編集ボタンが押されたらStateをセット
+        />
         </div>
     );
 };
