@@ -60,17 +60,7 @@ export const InputForm: React.FC<InputFormProps> = ({
             isSpecial: false
         });
         }
-        const newTransaction = {
-            amount: Number(amount),
-            date,
-            name,
-            category,
-            source,
-            memo,
-            isSpecial: false, // or set this based on your logic/UI
-        };
 
-        onAddTransaction(newTransaction);
         setAmount("");
         setName("");
         setMemo("");
@@ -123,7 +113,6 @@ export const InputForm: React.FC<InputFormProps> = ({
                 onChange={(e) => setMemo(e.target.value)}
                 placeholder="Memo"
             />
-            <button type="submit">保存</button>
             <div className="form-buttons">
                 <button type="submit">
                     {editingTransaction ? "更新" : "追加"}

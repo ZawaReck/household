@@ -1,11 +1,21 @@
-import React, {useState} from "react";
+import React, {useState, useEffect} from "react";
 import { InputForm } from "./components/InputForm";
 import { TransactionList } from "./components/TransactionList";
 import type { Transaction } from "./types/Transaction";
 import './App.css';
 
 export const App: React.FC = () => {
-    const [transactions, setTransactions] = React.useState<Transaction[]>([]);
+
+    const [transactions, setTransactions] = useState<Transaction[]>(() => {
+            const savedData = localStorage.getItem("transactions");
+            return savedData ? JSON.parse(savedData) : [];
+        });
+
+        useEffect(() => {
+            localStorage.setItem("transactions", JSON.stringify(transactions));
+        }, [transactions]);
+
+        const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
     const handleAddTransaction = (transaction: Omit<Transaction, "id">) => {
         const newTransaction: Transaction = {
@@ -14,8 +24,6 @@ export const App: React.FC = () => {
         };
         setTransactions((prev) => [...prev, newTransaction]);
     };
-
-    const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
     const handleDeleteTransaction = (id: string) => {
         setTransactions((prev) => prev.filter((transaction) => transaction.id !== id));
