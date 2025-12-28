@@ -1,5 +1,5 @@
 import React, { useEffect} from "react";
-import { useNavigate } from "react-router-dom";
+// import { useNavigate } from "react-router-dom";
 import type { Transaction } from "../types/Transaction";
 
 interface InputFormProps {
@@ -37,7 +37,6 @@ export const InputForm: React.FC<InputFormProps> = ({
 		}
 	}, [editingTransaction]);
 
-	const navigate = useNavigate();
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		const transactionData = {
@@ -60,7 +59,6 @@ export const InputForm: React.FC<InputFormProps> = ({
 		});
 		}
 		setEditingTransaction(null);
-		navigate("/");
 
 		setAmount("");
 		setName("");

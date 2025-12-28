@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from "react";
-import { BrowserRouter as Router, Route, Routes, Link, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
 import { InputForm } from "./components/InputForm";
 import { TransactionList } from "./components/TransactionList";
 import type { Transaction } from "./types/Transaction";
@@ -66,7 +66,6 @@ export const App: React.FC = () => {
               onDeleteTransaction={handleDeleteTransaction}
               onEditTransaction={(transaction) => {
                 setEditingTransaction(transaction);
-                //編集ボタンが押されたら編集ページへ飛ばす
               }}
             />
           } />
