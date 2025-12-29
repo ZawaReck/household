@@ -95,3 +95,33 @@ header {
 
 .summary-card p { margin: 0; font-size: 0.9rem; opacity: 0.8; }
 .summary-card h2 { margin: 5px 0 0; font-size: 2rem; }
+
+/* App.css に追加 */
+.tab-group {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  background: #eee;
+  border-radius: 8px;
+  padding: 5px;
+}
+
+.tab-group button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.tab-group button.active {
+  background: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-weight: bold;
+}
+
+/* 収入は青、支出は赤などのアクセント */
+.type-income { color: #007bff; }
+.type-expense { color: #dc3545; }
+.type-move { color: #6c757d; }

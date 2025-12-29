@@ -15,12 +15,16 @@ export const InputForm: React.FC<InputFormProps> = ({
 	editingTransaction,
 	setEditingTransaction
 }) => {
+	const [type, setType] = React.useState<"expense" | "income" | "move">("expense");
+	const accountOptions = ["財布", "QR", "IC", "クレカ1", "クレカ2", "銀行", "ポイント"];
+	const categoryOptions = ["食料品費", "交通費", "娯楽費", "光熱費", "通信費", "医療費", "教育費", "その他"];
 	const [amount, setAmount] = React.useState("");
 	const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
 	const [name, setName] = React.useState("");
-	const [category, setCategory] = React.useState("食料品費");
-	const [source, setSource] = React.useState("財布");
+	const [category, setCategory] = React.useState(categoryOptions[0]);
+	const [source, setSource] = React.useState(accountOptions[5]);
 	const [memo, setMemo] = React.useState("");
+	const [destination, setDestination] = React.useState(accountOptions[5]);
 
 	useEffect(() => {
 		if (editingTransaction) {
@@ -43,20 +47,24 @@ export const InputForm: React.FC<InputFormProps> = ({
 			amount: Number(amount),
 			date,
 			name,
-			category,
+			category: type === "move" ? "move" : category,
 			source,
+			destination: type === "move" ? destination : undefined,
 			memo,
 			isSpecial: false
 		};
 
 		if (editingTransaction) {
 			onUpdateTransaction({
-			id: editingTransaction.id,
-			...transactionData,
-		});
+				id: editingTransaction.id,
+				...transactionData,
+				type
+			});
 		} else {
-			onAddTransaction({...transactionData
-		});
+			onAddTransaction({
+				...transactionData,
+				type
+			});
 		}
 		setEditingTransaction(null);
 
@@ -66,65 +74,106 @@ export const InputForm: React.FC<InputFormProps> = ({
 	};
 
 	return (
-		<form onSubmit={handleSubmit}>
-			<input
-				type="number"
-				value={amount}
-				onChange={(e) => setAmount(e.target.value)}
-				placeholder="Amount"
-			/>
-			<input
-				type="text"
-				value={name}
-				onChange={(e) => setName(e.target.value)}
-				placeholder="Name"
-			/>
-			<input
-				type="date"
-				value={date}
-				onChange={(e) => setDate(e.target.value)}
-				required
-			/>
-			<select value={category} onChange={(e) => setCategory(e.target.value)}>
-				<option value="食料品費">食料品費</option>
-				<option value="外食費">外食費</option>
-				<option value="教養費">教養費</option>
-				<option value="趣味">趣味</option>
-				<option value="雑貨費">雑貨費</option>
-				<option value="交通費旅費">交通費旅費</option>
-				<option value="服飾費">服飾費</option>
-				<option value="医療関係費">医療関係費</option>
-				<option value="交際費">交際費</option>
-				<option value="その他"></option>
-			</select>
-			<select value={source} onChange={(e) => setSource(e.target.value)}>
-				<option value="財布">財布</option>
-				<option value="QR">QR</option>
-				<option value="IC">IC</option>
-				<option value="クレカ1">クレカ1</option>
-				<option value="クレカ2">クレカ2</option>
-				<option value="ポイント">ポイント</option>
-				<option value="その他"></option>
-			</select>
-			<input
-				type="memo"
-				value={memo}
-				onChange={(e) => setMemo(e.target.value)}
-				placeholder="Memo"
-			/>
-			<div className="form-buttons">
-				<button type="submit">
-				{editingTransaction ? "更新" : "追加"}
+		<div>
+			<div className="tab-group">
+				<button
+					className={type === "expense" ? "active" : ""}
+					onClick={() => setType("expense")}
+				>
+					Out
 				</button>
-				{editingTransaction && (
-					<button
-						type="button"
-						onClick={() => setEditingTransaction(null)}
-					>
-						キャンセル
-					</button>
-				)}
+				<button
+					className={type === "income" ? "active" : ""}
+					onClick={() => setType("income")}
+				>
+					In
+				</button>
+				<button
+					className={type === "move" ? "active" : ""}
+					onClick={() => setType("move")}
+				>
+					Move
+				</button>
 			</div>
-		</form>
+
+			<form onSubmit={handleSubmit}>
+				<input
+					type="number"
+					value={amount}
+					onChange={(e) => setAmount(e.target.value)}
+					placeholder="Amount"
+				/>
+				<input
+					type="text"
+					value={name}
+					onChange={(e) => setName(e.target.value)}
+					placeholder="Name"
+				/>
+				<input
+					type="date"
+					value={date}
+					onChange={(e) => setDate(e.target.value)}
+					required
+				/>
+				{type === "move" && (
+					<div className = "move-fields">
+						<select value={source} onChange={(e) => setSource(e.target.value)}>
+							{accountOptions.map((option) => (
+								<option key={option} value={option}>
+									{option}
+								</option>
+							))}
+						</select>
+						<span>から</span>
+						<select value={destination} onChange={(e) => setDestination(e.target.value)}>
+							{accountOptions.map((option) => (
+								<option key={option} value={option}>
+									{option}
+								</option>
+							))}
+						</select>
+						<span>へ</span>
+					</div>
+				)}
+				{type !== "move" && (
+					<div className="field">
+						<label>カテゴリ</label>
+						<select value={category} onChange={(e) => setCategory(e.target.value)}>//この辺でmoveが選択されているときにカテゴリを無効化する処理を各
+					{categoryOptions.map((option) => (
+						<option key={option} value={option}>
+							{option}
+						</option>
+					))}
+				</select>
+				<select value={source} onChange={(e) => setSource(e.target.value)}>
+					{accountOptions.map((option) => (
+						<option key={option} value={option}>
+							{option}
+						</option>
+					))}
+				</select>
+					</div>
+				)}
+				<input
+					type="memo"
+					value={memo}
+					onChange={(e) => setMemo(e.target.value)}
+					placeholder="Memo"
+				/>
+				<div className="form-buttons">
+					<button type="submit">
+					{editingTransaction ? "更新" : "追加"}
+					</button>
+					{editingTransaction && (
+						<button
+							type="button"
+							onClick={() => setEditingTransaction(null)}
+						>
+							キャンセル
+						</button>
+					)}
+				</div>
+			</form>
+		</div>
 	);
 }

@@ -40,7 +40,11 @@ export const App: React.FC = () => {
 	setEditingTransaction(null);
 	};
 
-	const totalAmount = transactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+	const totalAmount = transactions.reduce((sum, transaction) => {
+    if (transaction.type === "income") return sum + transaction.amount;
+    if (transaction.type === "expense") return sum - transaction.amount;
+    return sum;
+  }, 0);
 
 	return (
 		<Router>
