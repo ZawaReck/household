@@ -1,0 +1,99 @@
+/* src/components/CalendarView.css */
+
+.calendar-view {
+  /* 全体の外枠（一番外側の線） */
+  border: 1.5px solid #2d5a27;
+  background-color: #fff;
+}
+
+/* ナビゲーション部分 */
+.calendar-nav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+  padding: 15px;
+  background-color: #f9fbf9;
+  border-bottom: 1.5px solid #2d5a27;
+}
+
+/* グリッド全体 */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  width: 100%;
+}
+
+/* 曜日のセルの線 */
+.calendar-name{
+  border-bottom: 1.5px solid #2d5a27; /* 下線 */
+  border-right: 1.5px solid #2d5a27;  /* 右線 */
+  background-color: #f0f7f0;
+  text-align: center;
+  padding: 10px 0;
+}
+
+/* 各日付セルの線 */
+.cell {
+  height: 55px;
+  border-bottom: 1.5px solid #2d5a27; /* 下線 */
+  border-right: 1.5px solid #2d5a27;  /* 右線 */
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* ★ 重要：一番右端（土曜日）の列だけは、右線を消す（外枠と重なって太くなるのを防ぐため） */
+.day-name:nth-child(7n),
+.cell:nth-child(7n) {
+  border-right: none;
+}
+
+/* ★ 重要：最後の行の下線も、外枠と重なるので消すと綺麗です */
+.cell:nth-last-child(-n+7) {
+  border-bottom: none;
+}
+
+/* セル内の金額表示エリア */
+.cell-amounts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  /* 金額がない時も高さを確保したい場合は min-height を設定 */
+  min-height: 2.4em;
+  justify-content: flex-end;
+}
+
+.cell.other-month {
+	background-color: #D7E3DB; /* 他月の日付は薄いグレー */
+	color: #999;
+}
+
+.cell.other-month .date-num {
+	color: #006428; /* 他月の日付の数字を薄く */
+}
+
+/* 金額のフォントサイズを少し大きく */
+.cell-amounts span {
+  font-size: 0.85rem;
+  line-height: 1.2;
+  white-space: nowrap; /* 改行させない */
+}
+
+.income-amount {
+	color: #00C950; /* 収入は緑 */
+}
+
+.expense-amount {
+	color: #FF0004; /* 支出は赤 */
+}
+
+/* スマホ版でも形を崩さない設定 */
+@media (max-width: 767px) {
+  .cell {
+    height: 90px;
+    min-height: 90px;
+    padding: 4px;
+  }
+}

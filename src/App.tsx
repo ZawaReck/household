@@ -1,7 +1,7 @@
 import React, {useState, useEffect} from "react";
 import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
 import { InputForm } from "./components/InputForm";
-import { TransactionList } from "./components/TransactionList";
+import { DashboardPage } from "./components/DashboardPage";
 import type { Transaction } from "./types/Transaction";
 import './App.css';
 
@@ -40,12 +40,6 @@ export const App: React.FC = () => {
 	setEditingTransaction(null);
 	};
 
-	const totalAmount = transactions.reduce((sum, transaction) => {
-    if (transaction.type === "income") return sum + transaction.amount;
-    if (transaction.type === "expense") return sum - transaction.amount;
-    return sum;
-  }, 0);
-
 	return (
 		<Router>
 			<div className="app-container">
@@ -57,15 +51,10 @@ export const App: React.FC = () => {
         </nav>
       </header>
 
-      <div className="summary-card">
-        <p>総合計金額</p>
-        <h2>{totalAmount.toLocaleString()} 円</h2>
-      </div>
-
       <main>
         <Routes>
           <Route path="/" element={
-            <TransactionList
+            <DashboardPage
               transactions={transactions}
               onDeleteTransaction={handleDeleteTransaction}
               onEditTransaction={(transaction) => {
@@ -76,17 +65,17 @@ export const App: React.FC = () => {
 
         <Route path="/add" element={
           <InputForm
-            onAddTransaction={handleAddTransaction}
-            onUpdateTransaction={handleUpdateTransaction}
-            editingTransaction={editingTransaction}
-            setEditingTransaction={setEditingTransaction}
+              onAddTransaction={handleAddTransaction}
+              onUpdateTransaction={handleUpdateTransaction}
+              editingTransaction={editingTransaction}
+              setEditingTransaction={setEditingTransaction}
           />
         } />
         </Routes>
       </main>
-		</div>
-	</Router>
-	);
+    </div>
+  </Router>
+  );
 };
 
 export default App;

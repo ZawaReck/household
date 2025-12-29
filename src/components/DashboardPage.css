@@ -1,0 +1,59 @@
+/* --- 基本レイアウト（スマホ：上下並び） --- */
+.dashboard-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 15px;
+}
+
+/* --- PCレイアウト（横幅 768px 以上：左右並び） --- */
+@media (min-width: 768px) {
+  .dashboard-layout {
+    display: flex;
+    flex-direction: row;
+    gap: 40px;
+    padding: 20px;
+    /* ★全体の横幅をさらに広く設定 */
+    max-width: 1800px;
+    margin: 0 auto;
+  }
+
+.dashboard-left {
+    /* ★カレンダー側をリストの約3倍の広さにする */
+    flex: 3;
+    /* 横幅が詰まらないように最小幅を確保 */
+    min-width: 800px;
+  }
+
+.dashboard-right {
+    flex: 1;
+    min-width: 350px;
+  }
+}
+
+/* --- 集計エリアの縦並びスタイル --- */
+.summary-container {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 2px solid #2d5a27;
+  padding-top: 15px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  background: #f9fbf9;
+  border-radius: 4px;
+}
+
+.summary-item.balance {
+  background: #e8eee8;
+  font-size: 1.2rem;
+  border: 1px solid #2d5a27;
+}
+
+.summary-item.out strong { color: #cc0000; }
+.summary-item.income strong { color: #2d5a27; }
