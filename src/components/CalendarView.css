@@ -2,7 +2,7 @@
 
 .calendar-view {
   /* 全体の外枠（一番外側の線） */
-  border: 1.5px solid #2d5a27;
+  border: 1.5px solid #006428;
   background-color: #fff;
 }
 
@@ -14,7 +14,7 @@
   gap: 40px;
   padding: 15px;
   background-color: #f9fbf9;
-  border-bottom: 1.5px solid #2d5a27;
+  border-bottom: 1.5px solid #006428;
 }
 
 /* グリッド全体 */
@@ -26,8 +26,8 @@
 
 /* 曜日のセルの線 */
 .calendar-name{
-  border-bottom: 1.5px solid #2d5a27; /* 下線 */
-  border-right: 1.5px solid #2d5a27;  /* 右線 */
+  border-bottom: 1.5px solid #006428; /* 下線 */
+  border-right: 1.5px solid #006428;  /* 右線 */
   background-color: #f0f7f0;
   text-align: center;
   padding: 10px 0;
@@ -35,13 +35,15 @@
 
 /* 各日付セルの線 */
 .cell {
-  height: 55px;
-  border-bottom: 1.5px solid #2d5a27; /* 下線 */
-  border-right: 1.5px solid #2d5a27;  /* 右線 */
-  padding: 8px;
+  height: 100%; /* 親のgridに合わせて伸縮 */
+  min-height: 80px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  padding: 2px 4px; /* ギチギチに設定 */
+  border-right: 1.5px solid #006428;
+  border-bottom: 1.5px solid #006428;
+  overflow: hidden;
+	box-sizing: border-box;
 }
 
 /* ★ 重要：一番右端（土曜日）の列だけは、右線を消す（外枠と重なって太くなるのを防ぐため） */
@@ -57,12 +59,19 @@
 
 /* セル内の金額表示エリア */
 .cell-amounts {
-  display: flex;
+  flex-grow: 1;
+	display: flex;
   flex-direction: column;
   align-items: flex-end;
   /* 金額がない時も高さを確保したい場合は min-height を設定 */
   min-height: 2.4em;
   justify-content: flex-end;
+	gap: 0;
+}
+
+.small-font {
+	font-size: 0.65rem !important;
+	letter-spacing: -0.05em;
 }
 
 .cell.other-month {
@@ -70,7 +79,13 @@
 	color: #999;
 }
 
+.date-num {
+  align-self: flex-start; /* 左揃え */
+  font-size: 0.8rem;
+}
+
 .cell.other-month .date-num {
+	align-self: flex-start;
 	color: #006428; /* 他月の日付の数字を薄く */
 }
 
@@ -81,11 +96,11 @@
   white-space: nowrap; /* 改行させない */
 }
 
-.income-amount {
+.income {
 	color: #00C950; /* 収入は緑 */
 }
 
-.expense-amount {
+.expense {
 	color: #FF0004; /* 支出は赤 */
 }
 

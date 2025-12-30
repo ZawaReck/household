@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import  type { Transaction } from "../types/Transaction";
 import { CalendarView } from "./CalendarView";
 import { SummaryView} from "./SummaryView";
+import { InputForm } from "./InputForm";
 import { TransactionHistory } from "./TransactionHistory";
 import './DashboardPage.css';
 
@@ -9,6 +10,10 @@ interface Props {
     transactions: Transaction[];
     onDeleteTransaction: (id: string) => void;
     onEditTransaction: (transaction: Transaction) => void;
+    onAddTransaction?: (transaction: Omit<Transaction, "id">) => void;
+    onUpdateTransaction?: (transaction: Transaction) => void;
+    editingTransaction?: Transaction | null;
+    setEditingTransaction?: (transaction: Transaction | null) => void;
 }
 
 export const DashboardPage: React.FC<Props> = ({ transactions, onDeleteTransaction, onEditTransaction }) => {
@@ -33,26 +38,38 @@ export const DashboardPage: React.FC<Props> = ({ transactions, onDeleteTransacti
         }, 0);
 
     return (
-        <div className="dashboard-layout">
-            <div className="dashboard-left">
-                <CalendarView
+        <div className="dashboard-page-root">
+            <section className="colum calendar-section">
+                <div className="scroll-content">
+                    <CalendarView
                     year={year}
                     month={month}
                     monthlyData={monthlyData}
                     onMonthChange={(offset: number) => setCurrentDate(new Date(year, month + offset, 1))}
-                />
-                <SummaryView
-                    monthlyData={monthlyData}
-                    openingBalance={openingBalance}
-                />
-            </div>
-            <div className="dashboard-right">
+                    />
+                    <SummaryView
+                        monthlyData={monthlyData}
+                        openingBalance={openingBalance}
+                    />
+                    </div>
+            </section>
+            <section className="colum history-section">
                 <TransactionHistory
                     monthlyData={monthlyData}
                     onDeleteTransaction={onDeleteTransaction}
                     onEditTransaction={onEditTransaction}
                 />
-            </div>
+            </section>
+            <section className="colum input-section">
+                <div className="sticky-input">
+                    <InputForm
+                        onAddTransaction={() => {}}//Geminiとは違う表記．
+                        onUpdateTransaction={() => {}}
+                        editingTransaction={null}
+                        setEditingTransaction={() => {}}
+                    />
+                </div>
+            </section>
         </div>
     );
 }

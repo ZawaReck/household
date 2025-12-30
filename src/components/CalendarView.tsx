@@ -56,13 +56,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthly
 						<div key={index} className={`cell ${isCurrentMonth ? '' : 'other-month'}`}>
 							<span className="date-num">{date.getDate()}</span>
 							<div className="cell-amounts">
-								{income > 0 && <div className="income-amount">{income.toLocaleString()}</div>}
-								{expense > 0 && <div className="expense-amount">{expense.toLocaleString()}</div>}
+								{income > 0 && (
+									<span className={`income ${income >= 1000000 ? 'small-font' : ''}`}>
+										{income.toLocaleString()}
+									</span>
+								)}
+								{expense > 0 && (
+									<span className={`expense ${expense >= 1000000 ? 'small-font' : ''}`}>
+										{expense.toLocaleString()}
+									</span>
+								)}
 							</div>
 						</div>
 					);
 				})}
 			</div>
-		</div>//other-monthみたいなセルのスタイルを確認
+		</div>
 	);
 }
