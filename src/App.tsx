@@ -59,6 +59,10 @@ export const App: React.FC = () => {
               onEditTransaction={(transaction) => {
                 setEditingTransaction(transaction);
               }}
+              onAddTransaction={handleAddTransaction}
+              onUpdateTransaction={handleUpdateTransaction}
+              editingTransaction={editingTransaction}
+              setEditingTransaction={setEditingTransaction}
             />
           } />
 

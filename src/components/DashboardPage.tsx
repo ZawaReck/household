@@ -10,26 +10,26 @@ interface Props {
     transactions: Transaction[];
     onDeleteTransaction: (id: string) => void;
     onEditTransaction: (transaction: Transaction) => void;
-    onAddTransaction?: (transaction: Omit<Transaction, "id">) => void;
-    onUpdateTransaction?: (transaction: Transaction) => void;
-    editingTransaction?: Transaction | null;
-    setEditingTransaction?: (transaction: Transaction | null) => void;
+    onAddTransaction: (transaction: Omit<Transaction, "id">) => void;
+    onUpdateTransaction: (transaction: Transaction) => void;
+    editingTransaction: Transaction | null;
+    setEditingTransaction: (transaction: Transaction | null) => void;
 }
 
-export const DashboardPage: React.FC<Props> = ({ transactions, onDeleteTransaction, onEditTransaction }) => {
+export const DashboardPage: React.FC<Props> = (props) => {
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
 
     //１．今月のデータ抽出
-    const monthlyData = transactions.filter((transaction) => {
+    const monthlyData = props.transactions.filter((transaction) => {
         const transactionDate = new Date(transaction.date);
         return transactionDate.getFullYear() === year && transactionDate.getMonth() === month;
     });
 
     //2. 繰越金計算
-    const openingBalance = transactions
+    const openingBalance = props.transactions
         .filter((transaction) => new Date(transaction.date) < new Date(year, month, 1))
         .reduce((sum, transaction) => {
             if (transaction.type === "income") return sum + transaction.amount;
@@ -39,7 +39,7 @@ export const DashboardPage: React.FC<Props> = ({ transactions, onDeleteTransacti
 
     return (
         <div className="dashboard-page-root">
-            <section className="colum calendar-section">
+            <section className="column calendar-section">
                 <div className="scroll-content">
                     <CalendarView
                     year={year}
@@ -53,20 +53,20 @@ export const DashboardPage: React.FC<Props> = ({ transactions, onDeleteTransacti
                     />
                     </div>
             </section>
-            <section className="colum history-section">
+            <section className="column history-section">
                 <TransactionHistory
                     monthlyData={monthlyData}
-                    onDeleteTransaction={onDeleteTransaction}
-                    onEditTransaction={onEditTransaction}
+                    onDeleteTransaction={props.onDeleteTransaction}
+                    onEditTransaction={props.onEditTransaction}
                 />
             </section>
-            <section className="colum input-section">
+            <section className="column input-section">
                 <div className="sticky-input">
                     <InputForm
-                        onAddTransaction={() => {}}//Geminiとは違う表記．
-                        onUpdateTransaction={() => {}}
-                        editingTransaction={null}
-                        setEditingTransaction={() => {}}
+                        onAddTransaction={props.onAddTransaction}
+                        onUpdateTransaction={props.onUpdateTransaction}
+                        editingTransaction={props.editingTransaction}
+                        setEditingTransaction={props.setEditingTransaction}
                     />
                 </div>
             </section>
