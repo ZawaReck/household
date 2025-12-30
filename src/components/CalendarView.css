@@ -45,7 +45,7 @@
 }
 
 /* ★ 重要：一番右端（土曜日）の列だけは、右線を消す（外枠と重なって太くなるのを防ぐため） */
-.day-name:nth-child(7n),
+.calendar-name:nth-child(7n),
 .cell:nth-child(7n) {
   border-right: none;
 }

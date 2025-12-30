@@ -44,7 +44,6 @@ export const App: React.FC = () => {
 		<Router>
 			<div className="app-container">
       <header>
-        <h1>Household</h1>
         <nav className="nav-menu">
           <Link to="/">ダッシュボード</Link>
           <Link to="/add">記入</Link>
