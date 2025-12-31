@@ -60,11 +60,11 @@
 /* セル内の金額表示エリア */
 .cell-amounts {
   flex-grow: 1;
-	display: flex;
+	display: block;
   flex-direction: column;
   align-items: flex-end;
   /* 金額がない時も高さを確保したい場合は min-height を設定 */
-  min-height: 2.4em;
+  min-height: 1.2em;
   justify-content: flex-end;
 	gap: 0;
 }

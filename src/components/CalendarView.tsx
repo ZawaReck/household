@@ -20,7 +20,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthly
 	}
 
 	const daysInMonth = new Date(year, month + 1, 0).getDate();
-	for (let i = 0; i <= daysInMonth; i++) {
+	for (let i = 1; i <= daysInMonth; i++) {
 		calendarDays.push(new Date(year, month, i));
 	}
 
@@ -56,17 +56,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthly
 						<div key={index} className={`cell ${isCurrentMonth ? '' : 'other-month'}`}>
 							<span className="date-num">{date.getDate()}</span>
 							<div className="cell-amounts">
-								{income > 0 && (
-									<span className={`income ${income >= 1000000 ? 'small-font' : ''}`}>
-										{income.toLocaleString()}
-									</span>
-								)}
-								{expense > 0 && (
-									<span className={`expense ${expense >= 1000000 ? 'small-font' : ''}`}>
-										{expense.toLocaleString()}
-									</span>
-								)}
-							</div>
+								<span className={`income ${income >= 1000000 ? "small-font" : ""}`}>
+									{income > 0 ? income.toLocaleString() : ""}
+								</span>
+
+								<span className={`expense ${expense >= 1000000 ? "small-font" : ""}`}>
+									{expense > 0 ? expense.toLocaleString() : ""}
+								</span>
+								</div>
 						</div>
 					);
 				})}
