@@ -1,5 +1,11 @@
 /* src/index.css */
 
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+}
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -25,11 +31,12 @@ a:hover {
 }
 
 body {
-  margin: 0;
   display: flex;
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;   /* 横スクロールは基本殺す */
+  overflow-y: hidden;   /* PCでは基本殺す（不足時だけ許可にするなら後述） */
 }
 
 h1 {
