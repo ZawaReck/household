@@ -41,8 +41,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthly
 					<div key={day} className="calendar-name">{day}</div>
 				))}
 				{calendarDays.map((date, index) => {
+					// ローカル日付で YYYY-MM-DD を作る（UTCズレしない）
+					const toLocalDateKey = (d: Date) => {
+						const y = d.getFullYear();
+						const m = String(d.getMonth() + 1).padStart(2, "0");
+						const day = String(d.getDate()).padStart(2, "0");
+						return `${y}-${m}-${day}`;
+					};
+
 					const isCurrentMonth = date.getMonth() === month;
-					const dateStr = isCurrentMonth ? date.toISOString().split('T')[0] : null;
+					const dateStr = isCurrentMonth ? toLocalDateKey(date) : null;
 
 					const dayTransactions = isCurrentMonth ? monthlyData.filter(t => t.date === dateStr) : [];
 					const income = dayTransactions
