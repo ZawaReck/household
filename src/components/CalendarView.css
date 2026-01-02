@@ -36,10 +36,10 @@
 /* 各日付セルの線 */
 .cell {
   height: 100%; /* 親のgridに合わせて伸縮 */
-  min-height: 80px;
+  min-height: unset;
   display: flex;
   flex-direction: column;
-  padding: 2px 4px; /* ギチギチに設定 */
+  padding: 2px 4px;
   border-right: 1.5px solid #006428;
   border-bottom: 1.5px solid #006428;
   overflow: hidden;
@@ -59,7 +59,8 @@
 
 /* セル内の金額表示エリア */
 .cell-amounts {
-  flex-grow: 1;
+  flex-grow: 0;
+  margin-top: 0;
   display: grid;
   grid-template-rows: auto auto; /* 収入行 / 支出行 を常に2行確保 */
   justify-items: end;          /* 水平方向は右揃え */
@@ -93,6 +94,8 @@
 .date-num {
   align-self: flex-start; /* 左揃え */
   font-size: 0.8rem;
+  line-height: 1;
+  margin-bottom: 0.05em;
 }
 
 .cell.other-month .date-num {
@@ -118,8 +121,7 @@
 /* スマホ版でも形を崩さない設定 */
 @media (max-width: 767px) {
   .cell {
-    height: 90px;
-    min-height: 90px;
+    height: auto;
     padding: 4px;
   }
 }
