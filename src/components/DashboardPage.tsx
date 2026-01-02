@@ -67,6 +67,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
                     <InputForm
                         onAddTransaction={props.onAddTransaction}
                         onUpdateTransaction={props.onUpdateTransaction}
+                        onDeleteTransaction={props.onDeleteTransaction}
                         editingTransaction={props.editingTransaction}
                         setEditingTransaction={props.setEditingTransaction}
                     />

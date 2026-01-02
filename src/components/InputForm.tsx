@@ -7,6 +7,7 @@ import type { Transaction } from "../types/Transaction";
 interface InputFormProps {
 	onAddTransaction: (Transaction: Omit<Transaction, "id">) => void;
 	onUpdateTransaction: (transaction: Transaction) => void;
+	onDeleteTransaction: (id: string) => void;
 	editingTransaction: Transaction | null;
 	setEditingTransaction: (transaction: Transaction | null) => void;
 }
@@ -14,6 +15,7 @@ interface InputFormProps {
 export const InputForm: React.FC<InputFormProps> = ({
 	onAddTransaction,
 	onUpdateTransaction,
+	onDeleteTransaction,
 	editingTransaction,
 	setEditingTransaction
 }) => {
@@ -179,6 +181,19 @@ export const InputForm: React.FC<InputFormProps> = ({
 					<button type="submit">
 					{editingTransaction ? "更新" : "追加"}
 					</button>
+					{editingTransaction && (
+						<button
+							type="button"
+							onClick={() => {
+								const ok = window.confirm("この項目を削除しますか？");
+								if (!ok) return;
+								onDeleteTransaction(editingTransaction.id);
+								setEditingTransaction(null);
+							}}
+						>
+							削除
+						</button>
+					)}
 					{editingTransaction && (
 						<button
 							type="button"
