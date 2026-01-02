@@ -1,5 +1,7 @@
 import React, {useState, useEffect} from "react";
-import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes,
+  // Link
+} from "react-router-dom";
 import { InputForm } from "./components/InputForm";
 import { DashboardPage } from "./components/DashboardPage";
 import type { Transaction } from "./types/Transaction";
@@ -43,12 +45,12 @@ export const App: React.FC = () => {
 	return (
 		<Router>
 			<div className="app-container">
-      <header>
+      {/* <header>
         <nav className="nav-menu">
           <Link to="/">ダッシュボード</Link>
           <Link to="/add">記入</Link>
         </nav>
-      </header>
+      </header> */}
 
       <main>
         <Routes>
