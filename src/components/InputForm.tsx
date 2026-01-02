@@ -20,6 +20,13 @@ export const InputForm: React.FC<InputFormProps> = ({
 	setEditingTransaction
 }) => {
 	const [type, setType] = React.useState<"expense" | "income" | "move">("expense");
+	const handleTabClick = (nextType: "expense" | "income" | "move") => {
+		if (editingTransaction && nextType === type) {
+			setEditingTransaction(null);
+		}
+		setType(nextType);
+	};
+
 	const accountOptions = ["財布", "QR", "IC", "クレカ1", "クレカ2", "銀行", "ポイント"];
 	const expenseCategoryOptions = ["食料品費", "交通費旅費", "娯楽費", "光熱費", "通信費", "医療費", "教育費", "その他"];
 	const incomeCategoryOptions = ["月収", "臨時収入", "副次収入", "その他"];
@@ -105,19 +112,19 @@ export const InputForm: React.FC<InputFormProps> = ({
 			<div className="tab-group">
 				<button
 					className={type === "expense" ? "active" : ""}
-					onClick={() => setType("expense")}
+					onClick={() => handleTabClick("expense")}
 				>
 					Out
 				</button>
 				<button
 					className={type === "income" ? "active" : ""}
-					onClick={() => setType("income")}
+					onClick={() => handleTabClick("income")}
 				>
 					In
 				</button>
 				<button
 					className={type === "move" ? "active" : ""}
-					onClick={() => setType("move")}
+					onClick={() => handleTabClick("move")}
 				>
 					Move
 				</button>
