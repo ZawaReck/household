@@ -1,3 +1,5 @@
+/* src/components/SummaryView.tsx */
+
 import React from "react";
 import type { Transaction } from '../types/Transaction';
 import './SummaryView.css';

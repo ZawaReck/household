@@ -1,3 +1,5 @@
+/* src/components/InputForm.tsx */
+
 import React, { useEffect} from "react";
 // import { useNavigate } from "react-router-dom";
 import type { Transaction } from "../types/Transaction";

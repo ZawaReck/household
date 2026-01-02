@@ -1,3 +1,5 @@
+/* src/components/TransactionHistory.tsx */
+
 .history-list {
   display: flex;
   flex-direction: column;

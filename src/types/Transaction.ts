@@ -1,3 +1,5 @@
+/* src/types/Transaction.ts */
+
 export interface Transaction {
   id: string; // Unique identifier for the transaction
   type: "expense" | "income" | "move"; // Type of transaction

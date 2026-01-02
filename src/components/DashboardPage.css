@@ -1,3 +1,5 @@
+/* src/components/DashboardPage.tsx */
+
 /* 全体の背景色と1画面固定の設定 */
 .dashboard-page-root {
   display: grid;

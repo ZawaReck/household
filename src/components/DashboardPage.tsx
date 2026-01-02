@@ -1,3 +1,5 @@
+/* src/components/DashboardPage.tsx */
+
 import React, { useState } from "react";
 import  type { Transaction } from "../types/Transaction";
 import { CalendarView } from "./CalendarView";
