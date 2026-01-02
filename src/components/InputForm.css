@@ -235,29 +235,25 @@
   background: #1f5b2a;
   color: #fff;
 }
-
-.picker-row{
+/* “拠出元行”の中で重ねて出すための土台 */
+.picker-anchor{
+  position: relative;
   width: 100%;
-  height: 64px;
-  border: 0;
+}
+
+/* クリック領域（いまselectの代わり） */
+.picker-trigger{
+  width: 100%;
+  height: 52px;
+  border: none;
+  border-radius: 10px;
+  background: #F9FFFB;
+  color: #245E2D;
+  font-size: 20px;
+  font-weight: 800;
+  text-align: right;      /* 画像寄せにしたいなら */
+  padding: 0 14px;
+  cursor: pointer;
   border-top: 2px solid #245E2D;
   border-bottom: 2px solid #245E2D;
-  background: #F9FFFB;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  cursor: pointer;
-}
-
-.picker-label{
-  font-weight: 900;
-  color: #245E2D;
-  font-size: 18px;
-}
-
-.picker-value{
-  font-weight: 900;
-  color: #245E2D;
-  font-size: 22px;
 }

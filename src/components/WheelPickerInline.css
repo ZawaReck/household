@@ -1,0 +1,65 @@
+/* src/components/WheelPickerInline.css */
+
+.wheel-inline{
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -190%;
+  z-index: 50;
+  background: #F9FFFB;
+  border: 2px solid rgba(36,94,45,0.25);
+  border-radius: 16px;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+  padding: 10px 12px;
+}
+
+/* ウィンドウ枠 */
+.wheel-window{
+  position: relative;
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden; /* ハイライトを内側に */
+}
+
+/* 真ん中の選択帯 */
+.wheel-highlight{
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 14px;
+  background: rgba(36,94,45,0.10);
+  border: 2px solid rgba(36,94,45,0.25);
+  pointer-events: none;
+}
+
+.picker-list{
+  height: 100%;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 0 12px;
+}
+
+/* 行 */
+.picker-item{
+  display: grid;
+  place-items: center;
+  scroll-snap-align: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: rgba(36,94,45,0.35);
+}
+
+.picker-item.is-selected{
+  color: #245E2D;
+}
+
+.picker-item.pad{
+  color: transparent;
+}
+
+.picker-list::-webkit-scrollbar{ display:none; }

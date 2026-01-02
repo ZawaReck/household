@@ -3,7 +3,7 @@
 import React, { useEffect} from "react";
 // import { useNavigate } from "react-router-dom";
 import type { Transaction } from "../types/Transaction";
-import { WheelPickerModal } from "./WheelPickerModal";
+import { WheelPickerInline } from "./WheelPickerInline";
 import "./InputForm.css";
 
 interface InputFormProps {
@@ -190,26 +190,26 @@ export const InputForm: React.FC<InputFormProps> = ({
 							))}
 						</div>
 						<label>支出元/収入先</label>
-{/* // move / 非move どちらでも使える「拠出元」表示を button に置換 */}
-						<button
-							type="button"
-							className="picker-row"
-							onClick={() => setIsSourcePickerOpen(true)}
-						>
-							<span className="picker-label">{type === "income" ? "入金先" : type === "move" ? "移動元" : "拠出元"}</span>
-							<span className="picker-value">{source}</span>
-						</button>
 
-						{/* ホイール（モーダル） */}
-						{isSourcePickerOpen && (
-							<WheelPickerModal
-								title={type === "income" ? "入金先" : type === "move" ? "移動元" : "拠出元"}
-								options={sourceOptions}
-								value={source}
-								onClose={() => setIsSourcePickerOpen(false)}
-								onChange={(v) => setSource(v)}
-							/>
-						)}
+						<div className="picker-anchor">
+							<button
+								type="button"
+								className="picker-trigger"
+								onClick={() => setIsSourcePickerOpen((v) => !v)}
+							>
+								{source}
+							</button>
+
+							{isSourcePickerOpen && (
+								<WheelPickerInline
+									options={sourceOptions}
+									value={source}
+									onChange={(v) => setSource(v)}
+									onClose={() => setIsSourcePickerOpen(false)}
+								/>
+							)}
+						</div>
+
 
 					</div>
 				)}
