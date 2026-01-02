@@ -8,7 +8,8 @@
 .date-header {
   background-color: #D7E3DB !important; /* 指定の背景色 */
   color: #006428 !important; /* 指定の文字色 */
-  padding: 6px 12px;
+  border-bottom: 1px solid #006428;
+  padding: 0.5px 12px;
   font-weight: bold;
   font-size: 0.85rem;
 }
@@ -17,31 +18,107 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
-  border-bottom: 1px solid #e0e0e0;
-  background: white;
+  padding: 10px 12px;
+  border-bottom: 1px solid #006428;
+  color: #006428 !important; /* 指定の文字色 */
+  /* background: white; */
   cursor: pointer;
   transition: background 0.2s;
 }
 
-.transaction-item:hover {
-  background: #f5f5f5;
+/* 行全体の背景色 */
+.transaction-item.type-income {
+  background-color: #C6FFDD;
 }
 
-.item-main {
+.transaction-item.type-expense {
+  background-color: #F9FFFB;
+}
+
+.transaction-item.type-move {
+  background-color: #D7E3DB;
+}
+
+.transaction-item.type-income:hover {
+  background: #b6f5cf;
+}
+
+.transaction-item.type-expense:hover {
+  background: #ecf9f0;
+}
+
+.transaction-item.type-move:hover {
+  background: #d4f2e0;
+}
+
+/* 中身を1行レイアウトに（スワイプ本体の中） */
+.row-layout{
+  display: grid;
+  grid-template-columns: 6em 8em 1fr auto; /* cat / name / amount / badge */
+  align-items: center;
+  column-gap: 0.6ch;
+  width: 100%;
+}
+
+/* category: 7文字ぶん確保 */
+.cat {
+  width: 7em;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  justify-content: space-between;
+  white-space: nowrap;
+
+  text-align: left;
+  /* white-space: nowrap; */
 }
 
-.category-label {
-  font-size: 0.9rem;
-  color: #006428;
+.category-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.item-name {
+.move-arrow {
+  margin-left: 0.3em;
+  color: #006428;   /* 既存トーンに合わせる */
+  font-size: 0.85em;
+  flex-shrink: 0;   /* 押し潰されない */
+  padding: 0px 1em;
+}
+
+
+/* name: 8文字ぶん確保。長い場合は改行して表示 */
+.nm {
+  width: 10em;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.1;
+}
+
+.nm-small{
+  font-size: 0.75rem;
+}
+
+/* amount: 右揃え */
+.amt{
+  width: 7em;
+  justify-self: end;
+  text-align: right;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+.amt-small{
   font-size: 0.8rem;
-  color: #666;
+  letter-spacing: -0.03em;
+}
+
+/* move バッジ */
+.move-badge{
+  justify-self: end;
+  margin-left: 0.4ch;
+  font-size: 0.85rem;
+  opacity: 0.75;
 }
 
 .amount {

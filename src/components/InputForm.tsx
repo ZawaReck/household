@@ -19,7 +19,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 }) => {
 	const [type, setType] = React.useState<"expense" | "income" | "move">("expense");
 	const accountOptions = ["財布", "QR", "IC", "クレカ1", "クレカ2", "銀行", "ポイント"];
-	const categoryOptions = ["食料品費", "交通費", "娯楽費", "光熱費", "通信費", "医療費", "教育費", "その他"];
+	const categoryOptions = ["食料品費", "交通費旅費", "娯楽費", "光熱費", "通信費", "医療費", "教育費", "その他"];
 	const [amount, setAmount] = React.useState("");
 	const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
 	const [name, setName] = React.useState("");
@@ -51,7 +51,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 			name,
 			category: type === "move" ? "move" : category,
 			source,
-			destination: type === "move" ? destination : undefined,
+			destination: type === "move" ? destination : "",
 			memo,
 			isSpecial: false
 		};

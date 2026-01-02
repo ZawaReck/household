@@ -54,6 +54,23 @@ export const TransactionHistory: React.FC<Props> = ({
 	const wheelXById = useRef<Record<string, number>>({});
 	const wheelTimerById = useRef<Record<string, number>>({});
 
+	const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
+
+	const formatDateHeader = (date: string) => {
+		// date は "YYYY-MM-DD"
+		const d = new Date(`${date}T00:00:00`);
+		const y = d.getFullYear();
+		const m = d.getMonth() + 1;
+		const day = d.getDate();
+		const w = WEEKDAYS[d.getDay()];
+
+		const currentYear = new Date().getFullYear();
+		const prefix = y !== currentYear ? `${y}年` : "";
+
+		return `${prefix}${m}月${day}日（${w}）`;
+	};
+
+
   const grouped = useMemo(() => {
     const map = new Map<string, Transaction[]>();
     for (const t of monthlyData) {
@@ -129,7 +146,7 @@ export const TransactionHistory: React.FC<Props> = ({
     <div className="history-list" ref={listRef}>
       {grouped.map(([date, items]) => (
         <React.Fragment key={date}>
-          <div className="date-header">{date}</div>
+          <div className="date-header">{formatDateHeader(date)}</div>
 
           {items.map((t) => {
             const x = getCurrentX(t.id);
@@ -216,7 +233,7 @@ export const TransactionHistory: React.FC<Props> = ({
 
                 {/* 前面（スワイプする本体） */}
                 <div
-                  className="transaction-item swipe-front"
+                  className={`transaction-item swipe-front type-${t.type}`}
                   style={{ transform: `translateX(${x}px)` }}
                   onPointerDown={(e) => onPointerDownRow(e, t.id)}
                   onPointerMove={onPointerMoveRow}
@@ -229,14 +246,33 @@ export const TransactionHistory: React.FC<Props> = ({
                     onEditTransaction(t);
                   }}
                 >
-                  <div className="item-main">
-                    <div className="category-label">{t.category}</div>
-                    <div className="item-name">{t.name}</div>
-                  </div>
+									<div className="row-layout">
+										{t.type === "move" ? (
+											<>
+												<div className="cat is-move">
+													<span className="category-text">{t.source}</span>
+													<span className="move-arrow">→</span>
+												</div>
 
-                  <div className={`amount type-${t.type}`}>
-                    {t.amount.toLocaleString()}円
-                  </div>
+												<div className={`nm ${t.destination.length >= 9 ? "nm-small" : ""}`}>
+													{t.destination}
+												</div>
+											</>
+										) : (
+											<>
+												<div className="cat">
+													<span className="category-text">{t.category}</span>
+												</div>
+
+												<div className={`nm ${t.name.length >= 9 ? "nm-small" : ""}`}>
+													{t.name}
+												</div>
+											</>
+										)}
+										<div className={`amt ${String(t.amount).length >= 7 ? "amt-small" : ""}`}>
+											{t.amount.toLocaleString()}円
+										</div>
+									</div>
                 </div>
               </div>
             );

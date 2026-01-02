@@ -9,5 +9,6 @@ export interface Transaction {
   category: string; // Category of the transaction (e.g., "Food", "Transport")
   source: string; // Source of the transaction (e.g., "Bank", "Cash")
   memo: string; // Optional memo or note for the transaction
+  destination: string; // Destination of the transaction (e.g., "Bank", "Cash")
   isSpecial: boolean; //
 }
