@@ -1,3 +1,5 @@
+/* src/components/CalendarView.tsx */
+
 import React from "react";
 import type { Transaction } from "../types/Transaction";
 import "./CalendarView.css";
@@ -11,23 +13,19 @@ interface CalendarViewProps {
 
 export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange }) => {
 	const firstDayOfMonth = new Date(year, month, 1);
-	const firstDateOfWeek = firstDayOfMonth.getDay();
+	const start = new Date (year, month, 1 - firstDayOfMonth.getDay()); // 週の始まりの日曜日
 
-	const calendarDays = [];
+	const lastDayOfMonth = new Date(year, month + 1, 0);
+	const end = new Date(year, month + 1, 6 - lastDayOfMonth.getDay()); // 週の終わりの土曜日
 
-	for (let i = firstDateOfWeek; i > 0; i--) {
-		calendarDays.push(new Date(year, month, 1 - i));
-	}
 
-	const daysInMonth = new Date(year, month + 1, 0).getDate();
-	for (let i = 1; i <= daysInMonth; i++) {
-		calendarDays.push(new Date(year, month, i));
-	}
+	const calendarDays: Date[] = [];
+	for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+  calendarDays.push(new Date(d));
+}
 
-	const remainingDays = 42 - calendarDays.length;
-	for (let i = 1; i <= remainingDays; i++) {
-		calendarDays.push(new Date(year, month + 1, i));
-	}
+const weeksNeeded = calendarDays.length / 7; // 4,5,6 のどれかになる
+const weeksToRender = weeksNeeded === 6 ? 6 : weeksNeeded === 4 ? 4 : 5;
 
 	return (
 		<div className="calendar-view">
@@ -36,41 +34,38 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthly
 				<span>{year}年 {month + 1}月</span>
 				<button onClick={() => onMonthChange(1)}>▷</button>
 			</div>
-			<div className="calendar-grid">
-				{["日", "月", "火", "水", "木", "金", "土"].map((day) => (
-					<div key={day} className="calendar-name">{day}</div>
-				))}
-				{calendarDays.map((date, index) => {
-					// ローカル日付で YYYY-MM-DD を作る（UTCズレしない）
-					const toLocalDateKey = (d: Date) => {
-						const y = d.getFullYear();
-						const m = String(d.getMonth() + 1).padStart(2, "0");
-						const day = String(d.getDate()).padStart(2, "0");
-						return `${y}-${m}-${day}`;
-					};
+			<div className="calendar-weekdays">
+      {["日", "月", "火", "水", "木", "金", "土"].map((day) => (
+        <div key={day} className="calendar-name">{day}</div>
+      ))}
+    </div>
 
-					const isCurrentMonth = date.getMonth() === month;
-					const dateStr = isCurrentMonth ? toLocalDateKey(date) : null;
+    {/* 日付（ここが 4/5/6 行で伸縮） */}
+    <div className="calendar-days" style={{ ["--weeks" as any]: weeksToRender }}>
+      {calendarDays.map((date, index) => {
+        const isCurrentMonth = date.getMonth() === month;
 
-					const dayTransactions = isCurrentMonth ? monthlyData.filter(t => t.date === dateStr) : [];
-					const income = dayTransactions
-						.filter(t => t.type === "income")
-						.reduce((sum, t) => sum + t.amount, 0);
-					const expense = dayTransactions
-						.filter(t => t.type === "expense")
-						.reduce((sum, t) => sum + t.amount, 0);
+        // ここは「toISOString」ではなくローカル基準の文字列で（ズレ対策済みならそのままでOK）
+        const dateStr = isCurrentMonth
+          ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+          : null;
 
-					return (
-						<div key={index} className={`cell ${isCurrentMonth ? '' : 'other-month'}`}>
-							<span className="date-num">{date.getDate()}</span>
-							<div className="cell-amounts">
-								<span className={`income ${income >= 1000000 ? "small-font" : ""}`}>
-									{income > 0 ? income.toLocaleString() : "\u00A0"}
-								</span>
+        const dayTransactions = isCurrentMonth ? monthlyData.filter(t => t.date === dateStr) : [];
+        const income = dayTransactions.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
+        const expense = dayTransactions.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
 
-								<span className={`expense ${expense >= 1000000 ? "small-font" : ""}`}>
-									{expense > 0 ? expense.toLocaleString() : "\u00A0"}
-								</span>
+        return (
+          <div key={index} className={`cell ${isCurrentMonth ? "" : "other-month"}`}>
+            <span className="date-num">{date.getDate()}</span>
+
+            {/* 収入/支出の行を固定したい実装（あなたの今のgrid方式でOK） */}
+            <div className="cell-amounts">
+              <span className={`income ${income >= 1000000 ? "small-font" : ""}`}>
+                {income > 0 ? income.toLocaleString() : "\u00A0"}
+              </span>
+              <span className={`expense ${expense >= 1000000 ? "small-font" : ""}`}>
+                {expense > 0 ? expense.toLocaleString() : "\u00A0"}
+              </span>
 							</div>
 						</div>
 					);

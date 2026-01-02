@@ -34,7 +34,7 @@
 
 .category-label {
   font-size: 0.9rem;
-  color: #2d5a27;
+  color: #006428;
 }
 
 .item-name {
@@ -48,7 +48,7 @@
 }
 
 /* 収入と支出の色分け */
-.type-income .amount { color: #2d5a27; }
+.type-income .amount { color: #006428; }
 .type-expense .amount { color: #cc0000; }
 
 .move-tag {

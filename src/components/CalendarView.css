@@ -18,7 +18,7 @@
 }
 
 /* グリッド全体 */
-.calendar-grid {
+.calendar-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   width: 100%;
@@ -60,7 +60,7 @@
 /* セル内の金額表示エリア */
 .cell-amounts {
   flex-grow: 0;
-  margin-top: 0;
+  margin-top: auto;
   display: grid;
   grid-template-rows: auto auto; /* 収入行 / 支出行 を常に2行確保 */
   justify-items: end;          /* 水平方向は右揃え */
@@ -68,7 +68,8 @@
   align-content: end;          /* 全体を下寄せ */
 
   min-height: 2.4em;
-  row-gap: 0em;        /* 収入と支出の間の隙間 */
+  /* row-gap: 0em; */
+          /* 収入と支出の間の隙間 */
 }
 
 .cell-amounts span {
@@ -78,6 +79,16 @@
   margin: 0;
   padding: 0;
   line-height: 1;
+}
+
+/* 日付部分（ここが可変週数） */
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(var(--weeks), 1fr);
+
+  /* ここが「カレンダーの表示領域はそのまま」の肝 */
+  height: 270px; /* 好きな固定値にしてOK（スマホはメディアクエリで調整） */
 }
 
 
@@ -95,7 +106,8 @@
   align-self: flex-start; /* 左揃え */
   font-size: 0.8rem;
   line-height: 1;
-  margin-bottom: 0.05em;
+  margin-bottom: -0.7em;
+  /* transform: translateY(0.7em); */
 }
 
 .cell.other-month .date-num {
