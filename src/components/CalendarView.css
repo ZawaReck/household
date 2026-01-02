@@ -68,8 +68,6 @@
   align-content: end;          /* 全体を下寄せ */
 
   min-height: 2.4em;
-  /* row-gap: 0em; */
-          /* 収入と支出の間の隙間 */
 }
 
 .cell-amounts span {

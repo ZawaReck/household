@@ -61,3 +61,33 @@
   border-radius: 10px;
   margin-right: 8px;
 }
+
+.swipe-row {
+  touch-action: pan-y;
+  position: relative;
+  overflow: hidden;
+  background-color: #cc0000;
+}
+
+/* 背面の削除エリア */
+.swipe-delete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 64px;          /* DELETE_REVEAL_PX と合わせる */
+  height: 100%;
+  border: none;
+  background: #cc0000;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 0 !important;
+}
+
+/* 前面（スワイプされる） */
+.swipe-front {
+  position: relative;
+  will-change: transform;
+  touch-action: pan-y; /* 縦スクロールは許可しつつ、横ドラッグはJSで扱う */
+  transition: transform 120ms ease; /* 離したときにカクっと戻らないように */
+}
