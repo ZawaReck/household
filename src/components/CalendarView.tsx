@@ -57,13 +57,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthly
 							<span className="date-num">{date.getDate()}</span>
 							<div className="cell-amounts">
 								<span className={`income ${income >= 1000000 ? "small-font" : ""}`}>
-									{income > 0 ? income.toLocaleString() : ""}
+									{income > 0 ? income.toLocaleString() : "\u00A0"}
 								</span>
 
 								<span className={`expense ${expense >= 1000000 ? "small-font" : ""}`}>
-									{expense > 0 ? expense.toLocaleString() : ""}
+									{expense > 0 ? expense.toLocaleString() : "\u00A0"}
 								</span>
-								</div>
+							</div>
 						</div>
 					);
 				})}
