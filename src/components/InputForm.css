@@ -235,3 +235,29 @@
   background: #1f5b2a;
   color: #fff;
 }
+
+.picker-row{
+  width: 100%;
+  height: 64px;
+  border: 0;
+  border-top: 2px solid #245E2D;
+  border-bottom: 2px solid #245E2D;
+  background: #F9FFFB;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  cursor: pointer;
+}
+
+.picker-label{
+  font-weight: 900;
+  color: #245E2D;
+  font-size: 18px;
+}
+
+.picker-value{
+  font-weight: 900;
+  color: #245E2D;
+  font-size: 22px;
+}
