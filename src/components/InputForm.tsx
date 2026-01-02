@@ -21,11 +21,13 @@ export const InputForm: React.FC<InputFormProps> = ({
 }) => {
 	const [type, setType] = React.useState<"expense" | "income" | "move">("expense");
 	const accountOptions = ["財布", "QR", "IC", "クレカ1", "クレカ2", "銀行", "ポイント"];
-	const categoryOptions = ["食料品費", "交通費旅費", "娯楽費", "光熱費", "通信費", "医療費", "教育費", "その他"];
+	const expenseCategoryOptions = ["食料品費", "交通費旅費", "娯楽費", "光熱費", "通信費", "医療費", "教育費", "その他"];
+	const incomeCategoryOptions = ["月収", "臨時収入", "副次収入", "その他"];
+	const categoryOptions = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
+	const [category, setCategory] = React.useState(expenseCategoryOptions[0]);
 	const [amount, setAmount] = React.useState("");
 	const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
 	const [name, setName] = React.useState("");
-	const [category, setCategory] = React.useState(categoryOptions[0]);
 	const [source, setSource] = React.useState(accountOptions[5]);
 	const [memo, setMemo] = React.useState("");
 	const [destination, setDestination] = React.useState(accountOptions[5]);
@@ -57,6 +59,14 @@ export const InputForm: React.FC<InputFormProps> = ({
 		}
 	}, [editingTransaction]);
 
+	useEffect(() => {
+		if (type === "move") return;
+
+		setCategory((prev) => {
+			const opts = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
+			return opts.includes(prev) ? prev : opts[0];
+		});
+	}, [type]);
 
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
