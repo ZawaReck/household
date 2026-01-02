@@ -36,7 +36,7 @@
 }
 
 .transaction-item.type-move {
-  background-color: #D7E3DB;
+  background-color: #F9FFFB;
 }
 
 .transaction-item.type-income:hover {
@@ -48,7 +48,7 @@
 }
 
 .transaction-item.type-move:hover {
-  background: #d4f2e0;
+  background: #ecf9f0;
 }
 
 /* 中身を1行レイアウトに（スワイプ本体の中） */
