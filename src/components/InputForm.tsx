@@ -30,18 +30,31 @@ export const InputForm: React.FC<InputFormProps> = ({
 
 	useEffect(() => {
 		if (editingTransaction) {
-			setAmount(editingTransaction.amount.toString());
+			setType(editingTransaction.type);
+
+			setAmount(String(editingTransaction.amount));
 			setDate(editingTransaction.date);
 			setName(editingTransaction.name || "");
-			setCategory(editingTransaction.category);
-			setSource(editingTransaction.source);
-			setMemo(editingTransaction.memo);
-		}else {
+			setMemo(editingTransaction.memo || "");
+
+			if (editingTransaction.type === "move") {
+				setSource(editingTransaction.source);
+				setDestination(editingTransaction.destination || "");
+				// move はカテゴリ使わないならここは触らなくてOK
+			} else {
+				setSource(editingTransaction.source);
+				setDestination(""); // 念のため
+				setCategory(editingTransaction.category);
+			}
+		} else {
 			setAmount("");
 			setName("");
 			setMemo("");
+			// 新規入力に戻ったときの初期化（好みで）
+			// setType("expense");
 		}
 	}, [editingTransaction]);
+
 
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
