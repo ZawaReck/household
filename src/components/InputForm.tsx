@@ -3,6 +3,7 @@
 import React, { useEffect} from "react";
 // import { useNavigate } from "react-router-dom";
 import type { Transaction } from "../types/Transaction";
+import "./InputForm.css";
 
 interface InputFormProps {
 	onAddTransaction: (Transaction: Omit<Transaction, "id">) => void;
@@ -27,7 +28,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 		setType(nextType);
 	};
 
-	const accountOptions = ["財布", "QR", "IC", "クレカ1", "クレカ2", "銀行", "ポイント"];
+	const sourceOptions = ["財布", "QR", "IC", "クレカ1", "クレカ2", "銀行", "ポイント"];
 	const expenseCategoryOptions = ["食料品費", "交通費旅費", "娯楽費", "光熱費", "通信費", "医療費", "教育費", "その他"];
 	const incomeCategoryOptions = ["月収", "臨時収入", "副次収入", "その他"];
 	const categoryOptions = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
@@ -35,9 +36,9 @@ export const InputForm: React.FC<InputFormProps> = ({
 	const [amount, setAmount] = React.useState("");
 	const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
 	const [name, setName] = React.useState("");
-	const [source, setSource] = React.useState(accountOptions[5]);
+	const [source, setSource] = React.useState(sourceOptions[5]);
 	const [memo, setMemo] = React.useState("");
-	const [destination, setDestination] = React.useState(accountOptions[5]);
+	const [destination, setDestination] = React.useState(sourceOptions[5]);
 
 	useEffect(() => {
 		if (editingTransaction) {
@@ -108,7 +109,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 	};
 
 	return (
-		<div>
+		<div className="input-form">
 			<div className="tab-group">
 				<button
 					className={type === "expense" ? "active" : ""}
@@ -135,13 +136,13 @@ export const InputForm: React.FC<InputFormProps> = ({
 					type="number"
 					value={amount}
 					onChange={(e) => setAmount(e.target.value)}
-					placeholder="Amount"
+					placeholder="金額"
 				/>
 				<input
 					type="text"
 					value={name}
 					onChange={(e) => setName(e.target.value)}
-					placeholder="Name"
+					placeholder="摘要"
 				/>
 				<input
 					type="date"
@@ -152,7 +153,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 				{type === "move" && (
 					<div className = "move-fields">
 						<select value={source} onChange={(e) => setSource(e.target.value)}>
-							{accountOptions.map((option) => (
+							{sourceOptions.map((option) => (
 								<option key={option} value={option}>
 									{option}
 								</option>
@@ -160,7 +161,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 						</select>
 						<span>から</span>
 						<select value={destination} onChange={(e) => setDestination(e.target.value)}>
-							{accountOptions.map((option) => (
+							{sourceOptions.map((option) => (
 								<option key={option} value={option}>
 									{option}
 								</option>
@@ -171,21 +172,28 @@ export const InputForm: React.FC<InputFormProps> = ({
 				)}
 				{type !== "move" && (
 					<div className="field">
-						<label>カテゴリ</label>
-						<select value={category} onChange={(e) => setCategory(e.target.value)}>//この辺でmoveが選択されているときにカテゴリを無効化する処理を各
-					{categoryOptions.map((option) => (
-						<option key={option} value={option}>
-							{option}
-						</option>
-					))}
-				</select>
-				<select value={source} onChange={(e) => setSource(e.target.value)}>
-					{accountOptions.map((option) => (
-						<option key={option} value={option}>
-							{option}
-						</option>
-					))}
-				</select>
+						<div className="category-buttons" role="radiogroup" aria-label="カテゴリ">
+							{categoryOptions.map((option) => (
+								<button
+									key={option}
+									type="button"
+									role="radio"
+									aria-checked={category === option}
+									className={`category-btn ${category === option ? "active" : ""}`}
+									onClick={() => setCategory(option)}
+								>
+									{option}
+								</button>
+							))}
+						</div>
+						<label>支出元/収入先</label>
+						<select value={source} onChange={(e) => setSource(e.target.value)}>
+							{sourceOptions.map((option) => (
+								<option key={option} value={option}>
+									{option}
+								</option>
+							))}
+						</select>
 					</div>
 				)}
 				<input

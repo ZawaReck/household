@@ -36,7 +36,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;   /* 横スクロールは基本殺す */
-  overflow-y: hidden;   /* PCでは基本殺す（不足時だけ許可にするなら後述） */
+  /* overflow-y: hidden;   縦スクロール設定 */
 }
 
 h1 {

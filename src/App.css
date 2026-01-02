@@ -131,8 +131,3 @@ header {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   font-weight: bold;
 }
-
-/* 収入は青、支出は赤などのアクセント */
-.type-income { color: #007bff; }
-.type-expense { color: #dc3545; }
-.type-move { color: #6c757d; }

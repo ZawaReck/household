@@ -74,6 +74,7 @@ export const App: React.FC = () => {
           <InputForm
               onAddTransaction={handleAddTransaction}
               onUpdateTransaction={handleUpdateTransaction}
+              onDeleteTransaction={handleDeleteTransaction}
               editingTransaction={editingTransaction}
               setEditingTransaction={setEditingTransaction}
           />

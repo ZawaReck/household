@@ -1,0 +1,237 @@
+/* src/components/InputForm.css */
+
+/* 全体（Dashboard の input-section 内で使う想定） */
+.input-form {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* --- Tabs --- */
+.tab-group {
+  width: min(520px, 92%);
+  margin: 10px auto 18px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: #245E2D;
+  border-radius: 10px;
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.tab-group button {
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: #F9FFFB;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.tab-group button.active {
+  background: #F9FFFB;
+  color: #245E2D;
+  border: 2px solid #245E2D;
+}
+
+/* --- Form base --- */
+.input-form form {
+  width: min(620px, 96%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 入力欄（画像みたいな淡いミント） */
+.input-form input,
+.input-form select {
+  width: 100%;
+  box-sizing: border-box;
+  height: 52px;
+  border-radius: 10px;
+  border: none;
+  background: #C6FFDD;
+  color: #245E2D;
+  font-size: 18px;
+  padding: 0 14px;
+  outline: none;
+}
+
+.input-form input::placeholder {
+  color: rgba(36, 94, 45, 0.25);
+  font-weight: 700;
+}
+
+/* 2カラム（摘要/金額みたいな並び）を将来やりやすくする保険 */
+.input-form .row-2 {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 10px;
+}
+
+/* --- Category / Account block --- */
+.field {
+  width: 100%;
+  box-sizing: border-box;
+  background: #F9FFFB;
+  border-top: 2px solid #245E2D;
+  border-bottom: 2px solid #245E2D;
+  padding: 14px 0;
+}
+
+.field label {
+  display: block;
+  font-weight: 800;
+  color: #245E2D;
+  margin: 0 0 10px 4px;
+}
+
+/* いまは select が2つ並ぶので、それっぽく横並びに */
+.field select {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  height: 48px;
+  padding: 0 12px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.field select + select {
+  border-left: 2px solid #245E2D;
+}
+
+/* field 内 select を横並びにする */
+.field {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  column-gap: 0;
+  row-gap: 10px;
+}
+
+.field label {
+  grid-column: 1 / -1;
+}
+
+/* --- Move fields (source -> destination) --- */
+.move-fields {
+  width: 100%;
+  box-sizing: border-box;
+  background: #F9FFFB;
+  border-top: 2px solid #245E2D;
+  border-bottom: 2px solid #245E2D;
+  padding: 14px 0;
+
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto;
+  align-items: center;
+}
+
+.move-fields select {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  height: 48px;
+  padding: 0 12px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.move-fields span {
+  padding: 0 10px;
+  color: #245E2D;
+  font-weight: 800;
+}
+
+/* --- Buttons --- */
+.form-buttons {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 0.6fr 0.6fr;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.form-buttons button {
+  height: 64px;
+  border-radius: 10px;
+  border: none;
+  background: #245E2D;
+  color: #F9FFFB;
+  font-size: 20px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.form-buttons button:hover {
+  filter: brightness(1.05);
+}
+
+/* 「削除」「キャンセル」は控えめに */
+.form-buttons button:nth-child(2),
+.form-buttons button:nth-child(3) {
+  background: #245E2D;
+  opacity: 0.9;
+}
+
+/* スマホ微調整 */
+@media (max-width: 767px) {
+  .tab-group {
+    width: 92%;
+  }
+
+  .form-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .move-fields {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 14px 10px;
+  }
+
+  .move-fields span {
+    padding: 0;
+  }
+
+  .field {
+    grid-template-columns: 1fr;
+    padding: 14px 10px;
+  }
+
+  .field select + select {
+    border-left: none;
+    border-top: 2px solid #245E2D;
+  }
+}
+
+.category-buttons{
+  grid-column: 1 / -1;
+  white-space: nowrap;
+  display: grid;
+  grid-template-columns: repeat(4, max-content);
+  gap: 5px;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.category-btn{
+  width: 5.5em;
+  border: 2px solid #1f5b2a;
+  background: transparent;
+  color: #1f5b2a;
+  border-radius: 6px;
+  padding: 10px 0px;
+  font-size: 14px;
+  font-weight: 200;
+  cursor: pointer;
+}
+
+.category-btn.active{
+  background: #1f5b2a;
+  color: #fff;
+}
