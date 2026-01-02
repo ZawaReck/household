@@ -1,0 +1,70 @@
+/* 集計エリア全体のコンテナ */
+.summary-container {
+	margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* カレンダーとの区切り線（指定の濃い緑） */
+  border-top: 2.5px solid #006428; 
+  padding-top: 20px;
+  background-color: #F9FFFB; /* 全体背景色 */
+}
+
+/* 各集計行の基本スタイル */
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background-color: #fff;
+  border-radius: 4px;
+  border: 1px solid #D7E3DB; /* 履歴見出しと同じ薄い緑 */
+}
+
+/* ラベル部分（In, Outなど） */
+.summary-item span {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #666;
+}
+
+/* 金額部分 */
+.summary-item strong {
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+}
+
+/* 指定の順番に応じた色分け */
+.summary-item.income strong {
+  color: #00C950; /* 収入：明るい緑 */
+}
+
+.summary-item.out strong {
+  color: #FF0004; /* 支出：赤 */
+}
+
+.summary-item.total strong {
+  color: #006428; /* 合計：濃い緑 */
+}
+
+/* Opening (繰越) */
+.summary-item.opening {
+  background-color: #f0f7f0;
+}
+
+/* Balance (最終残高) は目立たせる */
+.summary-item.balance {
+  background-color: #E8EEE8;
+  border: 1.5px solid #006428;
+  margin-top: 5px;
+}
+
+.summary-item.balance span {
+  color: #006428;
+  font-size: 1rem;
+}
+
+.summary-item.balance strong {
+  font-size: 1.4rem;
+  color: #006428;
+}
