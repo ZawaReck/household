@@ -175,6 +175,49 @@ export const InputForm: React.FC<InputFormProps> = ({
 				)}
 				{type !== "move" && (
 					<div className="field">
+						{/* カテゴリ（既存） */}
+						<div className="category-buttons" role="radiogroup" aria-label="カテゴリ">
+							{categoryOptions.map((option) => (
+								<button
+									key={option}
+									type="button"
+									role="radio"
+									aria-checked={category === option}
+									className={`category-btn ${category === option ? "active" : ""}`}
+									onClick={() => setCategory(option)}
+								>
+									{option}
+								</button>
+							))}
+						</div>
+
+						{/* ★カテゴリの次の行に拠出元（1行UI） */}
+						<div className="kv-row picker-anchor">
+							<div className="kv-label">拠出元</div>
+
+							<button
+								type="button"
+								className="kv-value-btn"
+								onClick={() => setIsSourcePickerOpen((v) => !v)}
+								aria-expanded={isSourcePickerOpen}
+							>
+								{source}
+							</button>
+
+							{isSourcePickerOpen && (
+								<WheelPickerInline
+									options={sourceOptions}
+									value={source}
+									onChange={(v) => setSource(v)}
+									onClose={() => setIsSourcePickerOpen(false)}
+								/>
+							)}
+						</div>
+					</div>
+				)}
+
+				{/* {type !== "move" && (
+					<div className="field">
 						<div className="category-buttons" role="radiogroup" aria-label="カテゴリ">
 							{categoryOptions.map((option) => (
 								<button
@@ -212,7 +255,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
 
 					</div>
-				)}
+				)} */}
 				<input
 					type="memo"
 					value={memo}

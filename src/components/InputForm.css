@@ -257,3 +257,47 @@
   border-top: 2px solid #245E2D;
   border-bottom: 2px solid #245E2D;
 }
+
+/* 拠出元行：2列グリッドのfield内でも1行ぶち抜きにする */
+.kv-row{
+  grid-column: 1 / -1;         /* ★これが重要（2列をまたぐ） */
+  position: relative;          /* WheelPickerInlineを重畳させる土台 */
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+
+  padding: 18px 0;
+
+  border-top: 2px solid #245E2D;
+}
+
+/* 左のラベル（拠出元） */
+.kv-label{
+  color: #245E2D;
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: 0.02em;
+}
+
+/* 右側の値（PayPayなど）をボタンとして扱う */
+.kv-value-btn{
+  border: none;
+  background: transparent;
+  cursor: pointer;
+
+  color: #245E2D;
+  font-weight: 800;
+  font-size: 24px;
+  letter-spacing: 0.02em;
+
+  text-align: right;
+  padding: 0;                 /* 行のpaddingはkv-rowが持つ */
+  line-height: 1;
+}
+
+/* キーボード操作時のフォーカス（不要なら外してOK） */
+.kv-value-btn:focus-visible{
+  outline: 3px solid rgba(0, 90, 255, 0.35);
+  outline-offset: 6px;
+  border-radius: 10px;
+}
