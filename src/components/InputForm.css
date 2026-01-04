@@ -77,8 +77,13 @@
   box-sizing: border-box;
   background: #F9FFFB;
   border-top: 2px solid #245E2D;
-  border-bottom: 2px solid #245E2D;
+  /* border-bottom: 2px solid #245E2D; */
   padding: 14px 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  column-gap: 0;
+  row-gap: 10px;
 }
 
 .field label {
@@ -86,6 +91,7 @@
   font-weight: 800;
   color: #245E2D;
   margin: 0 0 10px 4px;
+  grid-column: 1 / -1;
 }
 
 /* いまは select が2つ並ぶので、それっぽく横並びに */
@@ -101,19 +107,6 @@
 
 .field select + select {
   border-left: 2px solid #245E2D;
-}
-
-/* field 内 select を横並びにする */
-.field {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: center;
-  column-gap: 0;
-  row-gap: 10px;
-}
-
-.field label {
-  grid-column: 1 / -1;
 }
 
 /* --- Move fields (source -> destination) --- */
@@ -266,9 +259,10 @@
   grid-template-columns: 1fr auto;
   align-items: center;
 
-  padding: 10px 0 0 0;
+  padding: 10px 0 10px 0;
 
   border-top: 2px solid #245E2D;
+  border-bottom: 2px solid #245E2D;
 }
 
 /* 左のラベル（拠出元） */
