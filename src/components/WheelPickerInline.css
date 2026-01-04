@@ -2,9 +2,9 @@
 
 .wheel-inline{
   position: absolute;
-  left: 0;
-  right: 0;
-  top: -190%;
+	width: 50%;
+  right: -18px;
+  top: -140%;
   z-index: 50;
   background: #F9FFFB;
   border: 2px solid rgba(36,94,45,0.25);

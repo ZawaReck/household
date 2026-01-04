@@ -266,13 +266,14 @@
   grid-template-columns: 1fr auto;
   align-items: center;
 
-  padding: 18px 0;
+  padding: 10px 0 0 0;
 
   border-top: 2px solid #245E2D;
 }
 
 /* 左のラベル（拠出元） */
 .kv-label{
+  padding-left: 18px;
   color: #245E2D;
   font-weight: 800;
   font-size: 22px;
@@ -291,7 +292,7 @@
   letter-spacing: 0.02em;
 
   text-align: right;
-  padding: 0;                 /* 行のpaddingはkv-rowが持つ */
+  padding-right: 18px;                 /* 行のpaddingはkv-rowが持つ */
   line-height: 1;
 }
 

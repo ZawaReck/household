@@ -216,46 +216,6 @@ export const InputForm: React.FC<InputFormProps> = ({
 					</div>
 				)}
 
-				{/* {type !== "move" && (
-					<div className="field">
-						<div className="category-buttons" role="radiogroup" aria-label="カテゴリ">
-							{categoryOptions.map((option) => (
-								<button
-									key={option}
-									type="button"
-									role="radio"
-									aria-checked={category === option}
-									className={`category-btn ${category === option ? "active" : ""}`}
-									onClick={() => setCategory(option)}
-								>
-									{option}
-								</button>
-							))}
-						</div>
-						<label>支出元/収入先</label>
-
-						<div className="picker-anchor">
-							<button
-								type="button"
-								className="picker-trigger"
-								onClick={() => setIsSourcePickerOpen((v) => !v)}
-							>
-								{source}
-							</button>
-
-							{isSourcePickerOpen && (
-								<WheelPickerInline
-									options={sourceOptions}
-									value={source}
-									onChange={(v) => setSource(v)}
-									onClose={() => setIsSourcePickerOpen(false)}
-								/>
-							)}
-						</div>
-
-
-					</div>
-				)} */}
 				<input
 					type="memo"
 					value={memo}
