@@ -49,12 +49,12 @@
 .input-form select {
   width: 100%;
   box-sizing: border-box;
-  height: 52px;
+  height: 50px;
   border-radius: 10px;
   border: none;
   background: #C6FFDD;
   color: #245E2D;
-  font-size: 18px;
+  font-size: 15px;
   padding: 0 14px;
   outline: none;
 }
@@ -270,7 +270,7 @@
   padding-left: 18px;
   color: #245E2D;
   font-weight: 800;
-  font-size: 22px;
+  font-size: 15px;
   letter-spacing: 0.02em;
 }
 
@@ -282,7 +282,7 @@
 
   color: #245E2D;
   font-weight: 800;
-  font-size: 24px;
+  font-size: 15px;
   letter-spacing: 0.02em;
 
   text-align: right;
