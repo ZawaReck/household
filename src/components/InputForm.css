@@ -14,7 +14,7 @@
   grid-template-columns: repeat(3, 1fr);
   background: #245E2D;
   border-radius: 10px;
-  padding: 6px;
+  padding: 4px;
   box-sizing: border-box;
 }
 
@@ -25,14 +25,14 @@
   color: #F9FFFB;
   font-weight: 700;
   letter-spacing: 0.02em;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
 }
 
 .tab-group button.active {
   background: #F9FFFB;
-  color: #245E2D;
-  border: 2px solid #245E2D;
+  color: #006428;
+  /* border: 2px solid #245E2D; */
 }
 
 /* --- Form base --- */
