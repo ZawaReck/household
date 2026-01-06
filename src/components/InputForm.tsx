@@ -111,6 +111,9 @@ export const InputForm: React.FC<InputFormProps> = ({
 		setMemo("");
 	};
 
+	const [openMovePicker, setOpenMovePicker] =
+  React.useState<null | "source" | "destination">(null);
+
 	return (
 		<div className="input-form">
 			<div className="tab-group">
@@ -154,25 +157,51 @@ export const InputForm: React.FC<InputFormProps> = ({
 					required
 				/>
 				{type === "move" && (
-					<div className = "move-fields">
-						<select value={source} onChange={(e) => setSource(e.target.value)}>
-							{sourceOptions.map((option) => (
-								<option key={option} value={option}>
-									{option}
-								</option>
-							))}
-						</select>
+					<div className="move-fields">
+						<div className="picker-anchor">
+							<button
+								type="button"
+								className="kv-value-btn"
+								onClick={() => setOpenMovePicker((v) => (v === "source" ? null : "source"))}
+							>
+								{source}
+							</button>
+
+							{openMovePicker === "source" && (
+								<WheelPickerInline
+									options={sourceOptions}
+									value={source}
+									onChange={(v) => setSource(v)}
+									onClose={() => setOpenMovePicker(null)}
+								/>
+							)}
+						</div>
+
 						<span>から</span>
-						<select value={destination} onChange={(e) => setDestination(e.target.value)}>
-							{sourceOptions.map((option) => (
-								<option key={option} value={option}>
-									{option}
-								</option>
-							))}
-						</select>
+
+						<div className="picker-anchor">
+							<button
+								type="button"
+								className="kv-value-btn"
+								onClick={() => setOpenMovePicker((v) => (v === "destination" ? null : "destination"))}
+							>
+								{destination}
+							</button>
+
+							{openMovePicker === "destination" && (
+								<WheelPickerInline
+									options={sourceOptions}
+									value={destination}
+									onChange={(v) => setDestination(v)}
+									onClose={() => setOpenMovePicker(null)}
+								/>
+							)}
+						</div>
+
 						<span>へ</span>
 					</div>
 				)}
+
 				{type !== "move" && (
 					<div className="field">
 						{/* カテゴリ（既存） */}
