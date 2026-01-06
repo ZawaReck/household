@@ -193,7 +193,9 @@ export const InputForm: React.FC<InputFormProps> = ({
 
 						{/* ★カテゴリの次の行に拠出元（1行UI） */}
 						<div className="kv-row picker-anchor">
-							<div className="kv-label">拠出元</div>
+							<div className="kv-label">
+								{type == "income" ? "入金先" : "拠出先"}
+							</div>
 
 							<button
 								type="button"
