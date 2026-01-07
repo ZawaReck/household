@@ -114,8 +114,8 @@
   width: 100%;
   box-sizing: border-box;
   background: #F9FFFB;
-  border-top: 2px solid #245E2D;
-  border-bottom: 2px solid #245E2D;
+  /* border-top: 2px solid #245E2D;
+  border-bottom: 2px solid #245E2D; */
   padding: 14px 0;
 
   display: grid;
@@ -182,7 +182,7 @@
 
   .move-fields {
     grid-template-columns: 1fr;
-    gap: 8px;
+    /* gap: 8px; */
     padding: 14px 10px;
   }
 
@@ -262,6 +262,18 @@
   padding: 10px 0 10px 0;
 
   border-top: 2px solid #245E2D;
+  border-bottom: 2px solid #245E2D;
+}
+
+.kv-row-under{
+  grid-column: 1 / -1;         /* ★これが重要（2列をまたぐ） */
+  position: relative;          /* WheelPickerInlineを重畳させる土台 */
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+
+  padding: 10px 0 10px 0;
+
   border-bottom: 2px solid #245E2D;
 }
 

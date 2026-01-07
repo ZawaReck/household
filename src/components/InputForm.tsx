@@ -37,9 +37,9 @@ export const InputForm: React.FC<InputFormProps> = ({
 	const [amount, setAmount] = React.useState("");
 	const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
 	const [name, setName] = React.useState("");
-	const [source, setSource] = React.useState(sourceOptions[5]);
+	const [source, setSource] = React.useState(sourceOptions[1]);//拠出元のデフォルトがQR
 	const [memo, setMemo] = React.useState("");
-	const [destination, setDestination] = React.useState(sourceOptions[5]);
+	const [destination, setDestination] = React.useState(sourceOptions[5]);//移動先のデフォルトがQR
 	const [isSourcePickerOpen, setIsSourcePickerOpen] = React.useState(false);
 
 
@@ -158,47 +158,47 @@ export const InputForm: React.FC<InputFormProps> = ({
 				/>
 				{type === "move" && (
 					<div className="move-fields">
-						<div className="picker-anchor">
-							<button
-								type="button"
-								className="kv-value-btn"
-								onClick={() => setOpenMovePicker((v) => (v === "source" ? null : "source"))}
-							>
-								{source}
-							</button>
+						<div className="kv-row picker-anchor">
+							<div className="kv-label">移動元</div>
+								<button
+									type="button"
+									className="kv-value-btn"
+									onClick={() => setOpenMovePicker((v) => (v === "source" ? null : "source"))}
+								>
+									{source}
+								</button>
 
-							{openMovePicker === "source" && (
-								<WheelPickerInline
-									options={sourceOptions}
-									value={source}
-									onChange={(v) => setSource(v)}
-									onClose={() => setOpenMovePicker(null)}
-								/>
-							)}
-						</div>
+								{openMovePicker === "source" && (
+									<WheelPickerInline
+										options={sourceOptions}
+										value={source}
+										onChange={(v) => setSource(v)}
+										onClose={() => setOpenMovePicker(null)}
+									/>
+								)}
+							</div>
 
-						<span>から</span>
+							<div className="kv-row-under picker-anchor">
+								<div className="kv-label">移動先</div>
 
-						<div className="picker-anchor">
-							<button
-								type="button"
-								className="kv-value-btn"
-								onClick={() => setOpenMovePicker((v) => (v === "destination" ? null : "destination"))}
-							>
-								{destination}
-							</button>
+								<button
+									type="button"
+									className="kv-value-btn"
+									onClick={() => setOpenMovePicker((v) => (v === "destination" ? null : "destination"))}
+								>
+									{destination}
+								</button>
 
-							{openMovePicker === "destination" && (
-								<WheelPickerInline
-									options={sourceOptions}
-									value={destination}
-									onChange={(v) => setDestination(v)}
-									onClose={() => setOpenMovePicker(null)}
-								/>
-							)}
-						</div>
+								{openMovePicker === "destination" && (
+									<WheelPickerInline
+										options={sourceOptions}
+										value={destination}
+										onChange={(v) => setDestination(v)}
+										onClose={() => setOpenMovePicker(null)}
+									/>
+								)}
+							</div>
 
-						<span>へ</span>
 					</div>
 				)}
 
