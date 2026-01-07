@@ -38,8 +38,9 @@ export const InputForm: React.FC<InputFormProps> = ({
 	const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
 	const [name, setName] = React.useState("");
 	const [source, setSource] = React.useState(sourceOptions[1]);//拠出元のデフォルトがQR
+	const [sourceMove, setSourceMove] = React.useState(sourceOptions[5]);//拠出元のデフォルトがQR
 	const [memo, setMemo] = React.useState("");
-	const [destination, setDestination] = React.useState(sourceOptions[5]);//移動先のデフォルトがQR
+	const [destination, setDestination] = React.useState(sourceOptions[1]);//移動先のデフォルトがQR
 	const [isSourcePickerOpen, setIsSourcePickerOpen] = React.useState(false);
 
 
@@ -112,7 +113,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 	};
 
 	const [openMovePicker, setOpenMovePicker] =
-  React.useState<null | "source" | "destination">(null);
+  React.useState<null | "source" | "destination" | "sourceMove">(null);
 
 	return (
 		<div className="input-form">
@@ -163,16 +164,16 @@ export const InputForm: React.FC<InputFormProps> = ({
 								<button
 									type="button"
 									className="kv-value-btn"
-									onClick={() => setOpenMovePicker((v) => (v === "source" ? null : "source"))}
+									onClick={() => setOpenMovePicker((v) => (v === "sourceMove" ? null : "sourceMove"))}
 								>
-									{source}
+									{sourceMove}
 								</button>
 
-								{openMovePicker === "source" && (
+								{openMovePicker === "sourceMove" && (
 									<WheelPickerInline
 										options={sourceOptions}
-										value={source}
-										onChange={(v) => setSource(v)}
+										value={sourceMove}
+										onChange={(v) => setSourceMove(v)}
 										onClose={() => setOpenMovePicker(null)}
 									/>
 								)}
