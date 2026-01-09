@@ -12,6 +12,7 @@ interface InputFormProps {
 	onDeleteTransaction: (id: string) => void;
 	editingTransaction: Transaction | null;
 	setEditingTransaction: (transaction: Transaction | null) => void;
+	selectedDate: string;
 }
 
 export const InputForm: React.FC<InputFormProps> = ({
@@ -19,7 +20,8 @@ export const InputForm: React.FC<InputFormProps> = ({
 	onUpdateTransaction,
 	onDeleteTransaction,
 	editingTransaction,
-	setEditingTransaction
+	setEditingTransaction,
+	selectedDate,
 }) => {
 	const [type, setType] = React.useState<"expense" | "income" | "move">("expense");
 	const handleTabClick = (nextType: "expense" | "income" | "move") => {
@@ -35,7 +37,8 @@ export const InputForm: React.FC<InputFormProps> = ({
 	const categoryOptions = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
 	const [category, setCategory] = React.useState(expenseCategoryOptions[0]);
 	const [amount, setAmount] = React.useState("");
-	const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
+	// const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
+	const [date, setDate] = React.useState(selectedDate);
 	const [name, setName] = React.useState("");
 	const [source, setSource] = React.useState(sourceOptions[1]);//拠出元のデフォルトがQR
 	const [sourceMove, setSourceMove] = React.useState(sourceOptions[5]);//拠出元のデフォルトがQR
@@ -68,8 +71,9 @@ export const InputForm: React.FC<InputFormProps> = ({
 			setMemo("");
 			// 新規入力に戻ったときの初期化（好みで）
 			// setType("expense");
+			setDate(selectedDate);
 		}
-	}, [editingTransaction]);
+	}, [selectedDate, editingTransaction]);
 
 	useEffect(() => {
 		if (type === "move") return;

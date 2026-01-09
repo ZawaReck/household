@@ -9,9 +9,10 @@ interface CalendarViewProps {
 	month: number;
 	monthlyData: Transaction[];
 	onMonthChange: (offset: number) => void;
+  onDateClick: (dateStr: string) => void;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange, onDateClick }) => {
 	const firstDayOfMonth = new Date(year, month, 1);
 	const start = new Date (year, month, 1 - firstDayOfMonth.getDay()); // 週の始まりの日曜日
 
@@ -55,7 +56,15 @@ const weeksToRender = weeksNeeded === 6 ? 6 : weeksNeeded === 4 ? 4 : 5;
         const expense = dayTransactions.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
 
         return (
-          <div key={index} className={`cell ${isCurrentMonth ? "" : "other-month"}`}>
+          <div key={index}
+            className={`cell ${isCurrentMonth ? "" : "other-month"}`}
+            onClick={() => {
+              if (!dateStr) return;
+              onDateClick(dateStr);
+            }}
+            style={{ cursor: isCurrentMonth ? "pointer" : "default" }}
+          >
+
             <span className="date-num">{date.getDate()}</span>
 
             {/* 収入/支出の行を固定したい実装（あなたの今のgrid方式でOK） */}

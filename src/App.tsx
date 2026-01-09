@@ -44,6 +44,11 @@ export const App: React.FC = () => {
 	setEditingTransaction(null);
 	};
 
+  const [selectedDate] = React.useState(
+    new Date().toISOString().slice(0, 10)
+  );
+
+
 	return (
 		<Router>
 			<div className="app-container">
@@ -77,6 +82,7 @@ export const App: React.FC = () => {
               onDeleteTransaction={handleDeleteTransaction}
               editingTransaction={editingTransaction}
               setEditingTransaction={setEditingTransaction}
+              selectedDate={selectedDate}
           />
         } />
         </Routes>
