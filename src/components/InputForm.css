@@ -149,13 +149,13 @@
 }
 
 .form-buttons button {
-  height: 64px;
+  height: 40px;
   border-radius: 10px;
   border: none;
   background: #245E2D;
   color: #F9FFFB;
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 15px;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -214,7 +214,7 @@
 
 .category-btn{
   width: 5.5em;
-  border: 2px solid #1f5b2a;
+  border: 1px solid #1f5b2a;
   background: transparent;
   color: #1f5b2a;
   border-radius: 6px;
