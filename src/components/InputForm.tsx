@@ -45,7 +45,15 @@ export const InputForm: React.FC<InputFormProps> = ({
 	const [memo, setMemo] = React.useState("");
 	const [destination, setDestination] = React.useState(sourceOptions[1]);//移動先のデフォルトがQR
 	const [isSourcePickerOpen, setIsSourcePickerOpen] = React.useState(false);
+	type DraftTx = Omit<Transaction, "id">;
 
+	const [receiptItems, setReceiptItems] = React.useState<DraftTx[]>([]);
+	const [editingReceiptIndex, setEditingReceiptIndex] = React.useState<number | null>(null);
+
+	const receiptTotal = React.useMemo(
+		() => receiptItems.reduce((sum, t) => sum + (t.amount || 0), 0),
+		[receiptItems]
+	);
 
 	useEffect(() => {
 		if (editingTransaction) {
@@ -84,36 +92,104 @@ export const InputForm: React.FC<InputFormProps> = ({
 		});
 	}, [type]);
 
+	const buildDraft = (): DraftTx => ({
+		amount: Number(amount),
+		date,
+		name,
+		category: type === "move" ? "move" : category,
+		source: type === "move" ? sourceMove : source, // ★ moveはsourceMoveを使う
+		destination: type === "move" ? destination : "",
+		memo,
+		isSpecial: false,
+		type,
+	});
+
+
 	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-		const transactionData = {
-			amount: Number(amount),
-			date,
-			name,
-			category: type === "move" ? "move" : category,
-			source,
-			destination: type === "move" ? destination : "",
-			memo,
-			isSpecial: false
-		};
+
+		const draft = buildDraft();
 
 		if (editingTransaction) {
-			onUpdateTransaction({
-				id: editingTransaction.id,
-				...transactionData,
-				type
-			});
-		} else {
-			onAddTransaction({
-				...transactionData,
-				type
-			});
-		}
-		setEditingTransaction(null);
+    onUpdateTransaction({
+      id: editingTransaction.id,
+      ...draft,
+    });
+    setEditingTransaction(null);
+
+    // 入力クリア
+    setAmount("");
+    setName("");
+    setMemo("");
+    return;
+  }
+
+	if (editingReceiptIndex !== null) {
+    setReceiptItems((prev) =>
+      prev.map((it, i) => (i === editingReceiptIndex ? draft : it))
+    );
+    setEditingReceiptIndex(null);
+
+    setAmount("");
+    setName("");
+    setMemo("");
+    return;
+  }
+
+		setReceiptItems((prev) => [...prev, draft]);
 
 		setAmount("");
 		setName("");
 		setMemo("");
+	};
+
+	const loadDraftToForm = (t: DraftTx, idx: number) => {
+		setEditingTransaction(null);          // 本体編集は解除
+		setEditingReceiptIndex(idx);          // 仮編集モードへ
+
+		setType(t.type);
+		setAmount(String(t.amount));
+		setDate(t.date);
+		setName(t.name || "");
+		setMemo(t.memo || "");
+
+		if (t.type === "move") {
+			setSourceMove(t.source);
+			setDestination(t.destination || "");
+		} else {
+			setSource(t.source);
+			setCategory(t.category);
+		}
+	};
+
+	const deleteReceiptItem = (idx: number) => {
+		setReceiptItems((prev) => prev.filter((_, i) => i !== idx));
+		if (editingReceiptIndex === idx) {
+			setEditingReceiptIndex(null);
+			setAmount("");
+			setName("");
+			setMemo("");
+		} else if (editingReceiptIndex !== null && editingReceiptIndex > idx) {
+			// indexずれ補正
+			setEditingReceiptIndex(editingReceiptIndex - 1);
+		}
+	};
+
+	const commitReceiptItems = () => {
+		if (receiptItems.length === 0) return;
+
+		// 本体に一括追加（内部でid付与される想定）
+		receiptItems.forEach((t) => onAddTransaction(t));
+
+		// キュークリア
+		setReceiptItems([]);
+		setEditingReceiptIndex(null);
+
+		// フォームも新規に戻す
+		setAmount("");
+		setName("");
+		setMemo("");
+		setDate(selectedDate);
 	};
 
 	const [openMovePicker, setOpenMovePicker] =
@@ -259,8 +335,78 @@ export const InputForm: React.FC<InputFormProps> = ({
 					placeholder="Memo"
 				/>
 				<div className="form-buttons">
+					{/* ▼ レシート仮置きリスト（ボタンの下） */}
+					<div className="receipt-queue">
+						<div className="receipt-queue-head">
+							<div className="receipt-queue-total">
+								合計：{receiptTotal.toLocaleString()}円
+							</div>
+
+							<button
+								type="button"
+								className="receipt-commit-btn"
+								onClick={commitReceiptItems}
+								disabled={receiptItems.length === 0}
+							>
+								一括反映（{receiptItems.length}件）
+							</button>
+						</div>
+
+						{receiptItems.length === 0 ? (
+							<div className="receipt-empty">まだ仮登録はありません</div>
+						) : (
+							<div className="receipt-list">
+								{receiptItems.map((t, idx) => (
+									<button
+										key={idx}
+										type="button"
+										className={`receipt-item ${editingReceiptIndex === idx ? "is-editing" : ""}`}
+										onClick={() => loadDraftToForm(t, idx)}
+									>
+										<div className="receipt-item-main">
+											<div className="receipt-left">
+												<div className="receipt-cat">
+													{t.type === "move" ? "移動" : t.category}
+												</div>
+												<div className="receipt-name">
+													{t.type === "move"
+														? `${t.source} → ${t.destination}`
+														: (t.name || "（摘要なし）")}
+												</div>
+											</div>
+
+											<div className="receipt-amt">
+												{t.amount.toLocaleString()}円
+											</div>
+										</div>
+
+										<div className="receipt-sub">
+											<span>{t.date}</span>
+											<span>{t.type === "move" ? "" : ` / ${t.source}`}</span>
+										</div>
+
+										<button
+											type="button"
+											className="receipt-del"
+											onClick={(e) => {
+												e.stopPropagation();
+												deleteReceiptItem(idx);
+											}}
+											aria-label="delete"
+										>
+											✕
+										</button>
+									</button>
+								))}
+							</div>
+						)}
+					</div>
 					<button type="submit">
-					{editingTransaction ? "更新" : "追加"}
+						{editingTransaction
+							? "更新"
+							: editingReceiptIndex !== null
+								? "仮更新"
+								: "仮追加"}
 					</button>
 					{editingTransaction && (
 						<button

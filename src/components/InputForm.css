@@ -308,3 +308,126 @@
   outline-offset: 6px;
   border-radius: 10px;
 }
+
+/* --- Receipt queue --- */
+.receipt-queue{
+  width: min(620px, 96%);
+  margin: 12px auto 0;
+  background: #F9FFFB;
+  border-top: 2px solid #245E2D;
+  border-bottom: 2px solid #245E2D;
+  padding: 12px 10px;
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+.receipt-queue-head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.receipt-queue-total{
+  font-weight: 900;
+  color: #245E2D;
+}
+
+.receipt-commit-btn{
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: none;
+  background: #245E2D;
+  color: #F9FFFB;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.receipt-commit-btn:disabled{
+  opacity: 0.4;
+  cursor: default;
+}
+
+.receipt-empty{
+  color: rgba(36,94,45,0.55);
+  font-weight: 700;
+  padding: 10px 6px;
+}
+
+.receipt-list{
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.receipt-item{
+  width: 100%;
+  text-align: left;
+  border: 2px solid rgba(36,94,45,0.18);
+  background: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  position: relative;
+}
+
+.receipt-item.is-editing{
+  border-color: rgba(36,94,45,0.6);
+  background: rgba(36,94,45,0.06);
+}
+
+.receipt-item-main{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.receipt-left{
+  min-width: 0;
+}
+
+.receipt-cat{
+  font-weight: 900;
+  color: #245E2D;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.receipt-name{
+  font-weight: 800;
+  color: rgba(36,94,45,0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.receipt-amt{
+  font-weight: 900;
+  color: #245E2D;
+  white-space: nowrap;
+}
+
+.receipt-sub{
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(36,94,45,0.55);
+  font-weight: 700;
+}
+
+.receipt-del{
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  border: none;
+  background: transparent;
+  color: rgba(36,94,45,0.6);
+  font-weight: 900;
+  cursor: pointer;
+}
+
