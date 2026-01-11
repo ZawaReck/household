@@ -77,6 +77,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 					editingTransaction={props.editingTransaction}
 					setEditingTransaction={props.setEditingTransaction}
 					selectedDate={selectedDate}
+					monthlyData={monthlyData}
 				/>
 			</div>
 		</section>

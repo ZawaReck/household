@@ -494,4 +494,10 @@
   color: rgba(0, 100, 40, 1);
 }
 
+/* InputForm.css に追加でOK */
+.receipt-queue .date-header {
+  display: flex;
+  justify-content: space-between;
+}
+
 

@@ -83,6 +83,7 @@ export const App: React.FC = () => {
               editingTransaction={editingTransaction}
               setEditingTransaction={setEditingTransaction}
               selectedDate={selectedDate}
+              monthlyData={transactions}
           />
         } />
         </Routes>

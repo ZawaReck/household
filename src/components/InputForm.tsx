@@ -13,6 +13,7 @@ interface InputFormProps {
   editingTransaction: Transaction | null;
   setEditingTransaction: (transaction: Transaction | null) => void;
   selectedDate: string;
+  monthlyData: Transaction[];
 }
 
 type DraftTx = Omit<Transaction, "id">;
@@ -24,6 +25,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   editingTransaction,
   setEditingTransaction,
   selectedDate,
+  monthlyData,
 }) => {
   const [type, setType] = React.useState<"expense" | "income" | "move">("expense");
 
@@ -60,6 +62,33 @@ export const InputForm: React.FC<InputFormProps> = ({
     () => receiptItems.reduce((sum, t) => sum + (t.amount || 0), 0),
     [receiptItems]
   );
+
+  const committedItemsForDate = React.useMemo(() => {
+    return monthlyData
+      .filter((t) => t.date === date) // ★フォームの日付に合わせる（selectedDateでもOKだが、編集時にdateが変わるのでdate推奨）
+      .slice()
+      .sort((a, b) => (a.id < b.id ? 1 : -1)); // 好みで
+  }, [monthlyData, date]);
+
+  const onEditModeFromList = (t: Transaction) => {
+    setEditingTransaction(t);      // 既存の編集モードへ
+    // フォームへ読み込みは useEffect(editingTransaction) が既にやってくれるので、ここでは setEditingTransaction だけでOK
+  };
+
+const committedGroupItems = React.useMemo(() => {
+  if (!editingTransaction) return [];
+
+  const gid = editingTransaction.groupId;
+
+  if (!gid) {
+    // 単発登録 → その1件だけ表示（表示しないなら [] にしてOK）
+    return [editingTransaction];
+  }
+
+  // ★同日ではなく groupId 一致で抽出
+  return monthlyData.filter((t) => t.groupId === gid);
+}, [monthlyData, editingTransaction]);
+
 
   // 既存の本登録アイテムを編集する時に、フォームへ反映
   useEffect(() => {
@@ -215,7 +244,8 @@ export const InputForm: React.FC<InputFormProps> = ({
     if (itemsToCommit.length === 0) return;
 
     // 4) 一括反映
-    itemsToCommit.forEach((t) => onAddTransaction(t));
+    const groupId = `g_${Date.now()}`;
+    itemsToCommit.forEach((t) => onAddTransaction({ ...t, groupId }));
 
     // 後始末
     setReceiptItems([]);
@@ -405,61 +435,61 @@ export const InputForm: React.FC<InputFormProps> = ({
               <span>{receiptTotal.toLocaleString()}円</span>
             </div>
 
-            {receiptItems.length === 0 ? (
-              <div className="transaction-item type-expense receipt-empty">
-                （まだ仮登録はありません）
-              </div>
-            ) : (
-              receiptItems.map((t, idx) => (
-                <div
-                  key={idx}
-                  className={`transaction-item type-${t.type} receipt-row ${
-                    editingReceiptIndex === idx ? "is-editing" : ""
-                  }`}
-                  onClick={() => loadDraftToForm(t, idx)}
-                >
-                  <div className="row-layout">
-                    {t.type === "move" ? (
-                      <>
-                        <div className="cat is-move">
-                          <span className="category-text">{t.source}</span>
-                          <span className="move-arrow">→</span>
-                        </div>
-                        <div className={`nm ${(t.destination?.length ?? 0) >= 9 ? "nm-small" : ""}`}>
-                          {t.destination}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="cat">
-                          <span className="category-text">{t.category}</span>
-                        </div>
-                        <div className={`nm ${(t.name?.length ?? 0) >= 9 ? "nm-small" : ""}`}>
-                          {t.name || "（摘要なし）"}
-                        </div>
-                      </>
-                    )}
-
-                    <div className={`amt ${String(t.amount).length >= 7 ? "amt-small" : ""}`}>
-                      {t.amount.toLocaleString()}円
+            {/* 仮登録 */}
+            {receiptItems.length > 0 && (
+              <>
+                <div className="date-header">仮登録</div>
+                {receiptItems.map((t, idx) => (
+                  <div
+                    key={`draft-${idx}`}
+                    className={`transaction-item type-${t.type} receipt-row ${editingReceiptIndex === idx ? "is-editing" : ""}`}
+                    onClick={() => loadDraftToForm(t, idx)}
+                  >
+                    <div className="row-layout">
+                      {/* (あなたの既存の中身をそのまま) */}
+                      ...
+                      <button
+                        type="button"
+                        className="receipt-del-btn"
+                        onClick={(e) => { e.stopPropagation(); deleteReceiptItem(idx); }}
+                      >
+                        ✕
+                      </button>
                     </div>
-
-                    <button
-                      type="button"
-                      className="receipt-del-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteReceiptItem(idx);
-                      }}
-                      aria-label="delete"
-                    >
-                      ✕
-                    </button>
                   </div>
-                </div>
-              ))
+                ))}
+              </>
+            )}
+
+            {/* 登録済み（同日付） */}
+            {committedGroupItems.length > 0 && (
+              <>
+                <div className="date-header">登録済み</div>
+                {committedGroupItems.map((t) => (
+                  <div
+                    key={t.id}
+                    className={`transaction-item type-${t.type} receipt-row ${editingTransaction?.id === t.id ? "is-editing" : ""}`}
+                    onClick={() => {
+                      setEditingReceiptIndex(null);
+                      onEditModeFromList(t);
+                    }}
+                  >
+                    <div className="row-layout">
+                      {/* TransactionHistoryと同じ表示（省略） */}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* 何もないとき */}
+            {receiptItems.length === 0 && committedItemsForDate.length === 0 && (
+              <div className="transaction-item type-expense receipt-empty">
+                （この日の項目はまだありません）
+              </div>
             )}
           </div>
+
         </div>
       </form>
     </div>
