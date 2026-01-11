@@ -22,13 +22,13 @@ export const App: React.FC = () => {
 
 		const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
-	const handleAddTransaction = (transaction: Omit<Transaction, "id">) => {
-		const newTransaction: Transaction = {
-			...transaction,
-			id: new Date().getTime().toString(),
-		};
-		setTransactions((prev) => [...prev, newTransaction]);
-	};
+  const handleAddTransaction = (transaction: Omit<Transaction, "id">) => {
+    const newTransaction: Transaction = {
+      ...transaction,
+      id: crypto.randomUUID(),
+    };
+    setTransactions((prev) => [...prev, newTransaction]);
+  };
 
 	const handleDeleteTransaction = (id: string) => {
 		setTransactions((prev) => prev.filter((transaction) => transaction.id !== id));

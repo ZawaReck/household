@@ -1,436 +1,467 @@
 /* src/components/InputForm.tsx */
 
-import React, { useEffect} from "react";
-// import { useNavigate } from "react-router-dom";
+import React, { useEffect } from "react";
 import type { Transaction } from "../types/Transaction";
 import { WheelPickerInline } from "./WheelPickerInline";
 import "./InputForm.css";
+import "./TransactionHistory.css";
 
 interface InputFormProps {
-	onAddTransaction: (Transaction: Omit<Transaction, "id">) => void;
-	onUpdateTransaction: (transaction: Transaction) => void;
-	onDeleteTransaction: (id: string) => void;
-	editingTransaction: Transaction | null;
-	setEditingTransaction: (transaction: Transaction | null) => void;
-	selectedDate: string;
+  onAddTransaction: (transaction: Omit<Transaction, "id">) => void;
+  onUpdateTransaction: (transaction: Transaction) => void;
+  onDeleteTransaction: (id: string) => void;
+  editingTransaction: Transaction | null;
+  setEditingTransaction: (transaction: Transaction | null) => void;
+  selectedDate: string;
 }
+
+type DraftTx = Omit<Transaction, "id">;
 
 export const InputForm: React.FC<InputFormProps> = ({
-	onAddTransaction,
-	onUpdateTransaction,
-	onDeleteTransaction,
-	editingTransaction,
-	setEditingTransaction,
-	selectedDate,
+  onAddTransaction,
+  onUpdateTransaction,
+  onDeleteTransaction,
+  editingTransaction,
+  setEditingTransaction,
+  selectedDate,
 }) => {
-	const [type, setType] = React.useState<"expense" | "income" | "move">("expense");
-	const handleTabClick = (nextType: "expense" | "income" | "move") => {
-		if (editingTransaction && nextType === type) {
-			setEditingTransaction(null);
-		}
-		setType(nextType);
-	};
+  const [type, setType] = React.useState<"expense" | "income" | "move">("expense");
 
-	const sourceOptions = ["財布", "QR", "IC", "クレカ1", "クレカ2", "銀行", "ポイント"];
-	const expenseCategoryOptions = ["食料品費", "交通費旅費", "娯楽費", "光熱費", "通信費", "医療費", "教育費", "その他"];
-	const incomeCategoryOptions = ["月収", "臨時収入", "副次収入", "その他"];
-	const categoryOptions = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
-	const [category, setCategory] = React.useState(expenseCategoryOptions[0]);
-	const [amount, setAmount] = React.useState("");
-	// const [date, setDate] = React.useState(new Date().toISOString().slice(0, 10));
-	const [date, setDate] = React.useState(selectedDate);
-	const [name, setName] = React.useState("");
-	const [source, setSource] = React.useState(sourceOptions[1]);//拠出元のデフォルトがQR
-	const [sourceMove, setSourceMove] = React.useState(sourceOptions[5]);//拠出元のデフォルトがQR
-	const [memo, setMemo] = React.useState("");
-	const [destination, setDestination] = React.useState(sourceOptions[1]);//移動先のデフォルトがQR
-	const [isSourcePickerOpen, setIsSourcePickerOpen] = React.useState(false);
-	type DraftTx = Omit<Transaction, "id">;
+  const handleTabClick = (nextType: "expense" | "income" | "move") => {
+    if (editingTransaction && nextType === type) {
+      setEditingTransaction(null);
+    }
+    setType(nextType);
+  };
 
-	const [receiptItems, setReceiptItems] = React.useState<DraftTx[]>([]);
-	const [editingReceiptIndex, setEditingReceiptIndex] = React.useState<number | null>(null);
+  const sourceOptions = ["財布", "QR", "IC", "クレカ1", "クレカ2", "銀行", "ポイント"];
+  const expenseCategoryOptions = ["食料品費", "交通費旅費", "娯楽費", "光熱費", "通信費", "医療費", "教育費", "その他"];
+  const incomeCategoryOptions = ["月収", "臨時収入", "副次収入", "その他"];
+  const categoryOptions = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
 
-	const receiptTotal = React.useMemo(
-		() => receiptItems.reduce((sum, t) => sum + (t.amount || 0), 0),
-		[receiptItems]
-	);
+  const [category, setCategory] = React.useState(expenseCategoryOptions[0]);
+  const [amount, setAmount] = React.useState("");
+  const [date, setDate] = React.useState(selectedDate);
+  const [name, setName] = React.useState("");
+  const [source, setSource] = React.useState(sourceOptions[1]);      // 拠出元（非move）
+  const [sourceMove, setSourceMove] = React.useState(sourceOptions[5]); // 移動元（move）
+  const [memo, setMemo] = React.useState("");
+  const [destination, setDestination] = React.useState(sourceOptions[1]); // 移動先（move）
 
-	useEffect(() => {
-		if (editingTransaction) {
-			setType(editingTransaction.type);
+  const [isSourcePickerOpen, setIsSourcePickerOpen] = React.useState(false);
+  const [openMovePicker, setOpenMovePicker] =
+    React.useState<null | "destination" | "sourceMove">(null);
 
-			setAmount(String(editingTransaction.amount));
-			setDate(editingTransaction.date);
-			setName(editingTransaction.name || "");
-			setMemo(editingTransaction.memo || "");
+  // レシート仮置き
+  const [receiptItems, setReceiptItems] = React.useState<DraftTx[]>([]);
+  const [editingReceiptIndex, setEditingReceiptIndex] = React.useState<number | null>(null);
 
-			if (editingTransaction.type === "move") {
-				setSource(editingTransaction.source);
-				setDestination(editingTransaction.destination || "");
-				// move はカテゴリ使わないならここは触らなくてOK
-			} else {
-				setSource(editingTransaction.source);
-				setDestination(""); // 念のため
-				setCategory(editingTransaction.category);
-			}
-		} else {
-			setAmount("");
-			setName("");
-			setMemo("");
-			// 新規入力に戻ったときの初期化（好みで）
-			// setType("expense");
-			setDate(selectedDate);
-		}
-	}, [selectedDate, editingTransaction]);
+  const receiptTotal = React.useMemo(
+    () => receiptItems.reduce((sum, t) => sum + (t.amount || 0), 0),
+    [receiptItems]
+  );
 
-	useEffect(() => {
-		if (type === "move") return;
+  // 既存の本登録アイテムを編集する時に、フォームへ反映
+  useEffect(() => {
+    if (editingTransaction) {
+      setType(editingTransaction.type);
 
-		setCategory((prev) => {
-			const opts = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
-			return opts.includes(prev) ? prev : opts[0];
-		});
-	}, [type]);
+      setAmount(String(editingTransaction.amount));
+      setDate(editingTransaction.date);
+      setName(editingTransaction.name || "");
+      setMemo(editingTransaction.memo || "");
 
-	const buildDraft = (): DraftTx => ({
-		amount: Number(amount),
-		date,
-		name,
-		category: type === "move" ? "move" : category,
-		source: type === "move" ? sourceMove : source, // ★ moveはsourceMoveを使う
-		destination: type === "move" ? destination : "",
-		memo,
-		isSpecial: false,
-		type,
-	});
+      if (editingTransaction.type === "move") {
+        // ★ここは sourceMove / destination を使う
+        setSourceMove(editingTransaction.source);
+        setDestination(editingTransaction.destination || "");
+      } else {
+        setSource(editingTransaction.source);
+        setDestination(""); // 念のため
+        setCategory(editingTransaction.category);
+      }
 
+      // 本登録編集に入ったら、仮編集は解除（混乱防止）
+      setEditingReceiptIndex(null);
+      return;
+    }
 
-	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-		e.preventDefault();
+    // editingTransaction が解除されたらフォームを新規状態へ
+    setAmount("");
+    setName("");
+    setMemo("");
+    setDate(selectedDate);
+  }, [selectedDate, editingTransaction]);
 
-		const draft = buildDraft();
+  useEffect(() => {
+    if (type === "move") return;
 
-		if (editingTransaction) {
-    onUpdateTransaction({
-      id: editingTransaction.id,
-      ...draft,
+    setCategory((prev) => {
+      const opts = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
+      return opts.includes(prev) ? prev : opts[0];
     });
-    setEditingTransaction(null);
+  }, [type]);
 
-    // 入力クリア
+  const buildDraft = (): DraftTx => ({
+    amount: Number(amount),
+    date,
+    name,
+    category: type === "move" ? "move" : category,
+    source: type === "move" ? sourceMove : source,
+    destination: type === "move" ? destination : "",
+    memo,
+    isSpecial: false,
+    type,
+  });
+
+  const clearForm = () => {
     setAmount("");
     setName("");
     setMemo("");
-    return;
-  }
+    setDate(selectedDate);
+    // type/source/category は「そのまま」残す方がレシート入力では便利なので残す
+  };
 
-	if (editingReceiptIndex !== null) {
-    setReceiptItems((prev) =>
-      prev.map((it, i) => (i === editingReceiptIndex ? draft : it))
-    );
+  const hasFormDraft = () => {
+    if (amount.trim() === "") return false;
+    const n = Number(amount);
+    return !Number.isNaN(n);
+  };
+
+  // 追加（submit）: 仮置きに追加 / 仮編集なら更新 / 本編集なら何もしない（本編集は登録ボタンで更新）
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    // 本登録編集は「登録（=更新）」側でやる設計
+    if (editingTransaction) return;
+
+    // 入力が無いのに追加を押しても何もしない
+    if (!hasFormDraft()) return;
+
+    const draft = buildDraft();
+
+    // 仮編集の更新
+    if (editingReceiptIndex !== null) {
+      setReceiptItems((prev) => prev.map((it, i) => (i === editingReceiptIndex ? draft : it)));
+      setEditingReceiptIndex(null);
+      clearForm();
+      return;
+    }
+
+    // 新規仮置き追加
+    setReceiptItems((prev) => [...prev, draft]);
+    clearForm();
+  };
+
+  const loadDraftToForm = (t: DraftTx, idx: number) => {
+    setEditingTransaction(null);   // 本編集は解除
+    setEditingReceiptIndex(idx);   // 仮編集へ
+
+    setType(t.type);
+    setAmount(String(t.amount));
+    setDate(t.date);
+    setName(t.name || "");
+    setMemo(t.memo || "");
+
+    if (t.type === "move") {
+      setSourceMove(t.source);
+      setDestination(t.destination || "");
+    } else {
+      setSource(t.source);
+      setCategory(t.category);
+    }
+  };
+
+  const deleteReceiptItem = (idx: number) => {
+    setReceiptItems((prev) => prev.filter((_, i) => i !== idx));
+
+    if (editingReceiptIndex === idx) {
+      setEditingReceiptIndex(null);
+      clearForm();
+    } else if (editingReceiptIndex !== null && editingReceiptIndex > idx) {
+      setEditingReceiptIndex(editingReceiptIndex - 1);
+    }
+  };
+
+  // 登録: (1) 本編集なら更新, (2) 仮編集ならその内容含めて反映, (3) フォーム入力中があればそれも反映, (4) 仮置き全件反映
+  const commitAll = () => {
+    // 1) 本登録編集なら更新
+    if (editingTransaction) {
+      const draft = buildDraft();
+      onUpdateTransaction({ id: editingTransaction.id, ...draft });
+      setEditingTransaction(null);
+      clearForm();
+      return;
+    }
+
+    // 2) 仮置きの中身を作る（仮編集の内容も含める）
+    let itemsToCommit: DraftTx[] = receiptItems;
+
+    // 仮編集中なら、フォーム内容でその行を置き換えた配列をコミット対象にする
+    if (editingReceiptIndex !== null) {
+      // 入力が無いなら仮編集として成立しないので、ここでは何もしない
+      if (hasFormDraft()) {
+        const draft = buildDraft();
+        itemsToCommit = receiptItems.map((it, i) => (i === editingReceiptIndex ? draft : it));
+      }
+    } else {
+      // 3) 仮編集ではないが、フォーム入力中の1件があるならそれも追加して反映
+      if (hasFormDraft()) {
+        const draft = buildDraft();
+        itemsToCommit = [...receiptItems, draft];
+      }
+    }
+
+    if (itemsToCommit.length === 0) return;
+
+    // 4) 一括反映
+    itemsToCommit.forEach((t) => onAddTransaction(t));
+
+    // 後始末
+    setReceiptItems([]);
     setEditingReceiptIndex(null);
+    clearForm();
+  };
 
-    setAmount("");
-    setName("");
-    setMemo("");
-    return;
-  }
+  return (
+    <div className="input-form">
+      <div className="tab-group">
+        <button
+          className={type === "expense" ? "active" : ""}
+          onClick={() => handleTabClick("expense")}
+          type="button"
+        >
+          Out
+        </button>
+        <button
+          className={type === "income" ? "active" : ""}
+          onClick={() => handleTabClick("income")}
+          type="button"
+        >
+          In
+        </button>
+        <button
+          className={type === "move" ? "active" : ""}
+          onClick={() => handleTabClick("move")}
+          type="button"
+        >
+          Move
+        </button>
+      </div>
 
-		setReceiptItems((prev) => [...prev, draft]);
+      <form onSubmit={handleSubmit}>
+        <input
+          type="number"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="金額"
+        />
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="摘要"
+        />
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          required
+        />
 
-		setAmount("");
-		setName("");
-		setMemo("");
-	};
+        {type === "move" && (
+          <div className="move-fields">
+            <div className="kv-row picker-anchor">
+              <div className="kv-label">移動元</div>
 
-	const loadDraftToForm = (t: DraftTx, idx: number) => {
-		setEditingTransaction(null);          // 本体編集は解除
-		setEditingReceiptIndex(idx);          // 仮編集モードへ
+              <button
+                type="button"
+                className="kv-value-btn"
+                onClick={() => setOpenMovePicker((v) => (v === "sourceMove" ? null : "sourceMove"))}
+              >
+                {sourceMove}
+              </button>
 
-		setType(t.type);
-		setAmount(String(t.amount));
-		setDate(t.date);
-		setName(t.name || "");
-		setMemo(t.memo || "");
+              {openMovePicker === "sourceMove" && (
+                <WheelPickerInline
+                  options={sourceOptions}
+                  value={sourceMove}
+                  onChange={(v) => setSourceMove(v)}
+                  onClose={() => setOpenMovePicker(null)}
+                />
+              )}
+            </div>
 
-		if (t.type === "move") {
-			setSourceMove(t.source);
-			setDestination(t.destination || "");
-		} else {
-			setSource(t.source);
-			setCategory(t.category);
-		}
-	};
+            <div className="kv-row-under picker-anchor">
+              <div className="kv-label">移動先</div>
 
-	const deleteReceiptItem = (idx: number) => {
-		setReceiptItems((prev) => prev.filter((_, i) => i !== idx));
-		if (editingReceiptIndex === idx) {
-			setEditingReceiptIndex(null);
-			setAmount("");
-			setName("");
-			setMemo("");
-		} else if (editingReceiptIndex !== null && editingReceiptIndex > idx) {
-			// indexずれ補正
-			setEditingReceiptIndex(editingReceiptIndex - 1);
-		}
-	};
+              <button
+                type="button"
+                className="kv-value-btn"
+                onClick={() => setOpenMovePicker((v) => (v === "destination" ? null : "destination"))}
+              >
+                {destination}
+              </button>
 
-	const commitReceiptItems = () => {
-		if (receiptItems.length === 0) return;
+              {openMovePicker === "destination" && (
+                <WheelPickerInline
+                  options={sourceOptions}
+                  value={destination}
+                  onChange={(v) => setDestination(v)}
+                  onClose={() => setOpenMovePicker(null)}
+                />
+              )}
+            </div>
+          </div>
+        )}
 
-		// 本体に一括追加（内部でid付与される想定）
-		receiptItems.forEach((t) => onAddTransaction(t));
+        {type !== "move" && (
+          <div className="field">
+            {/* カテゴリ */}
+            <div className="category-buttons" role="radiogroup" aria-label="カテゴリ">
+              {categoryOptions.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  role="radio"
+                  aria-checked={category === option}
+                  className={`category-btn ${category === option ? "active" : ""}`}
+                  onClick={() => setCategory(option)}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
 
-		// キュークリア
-		setReceiptItems([]);
-		setEditingReceiptIndex(null);
+            {/* 拠出元/入金先 */}
+            <div className="kv-row picker-anchor">
+              <div className="kv-label">{type === "income" ? "入金先" : "拠出先"}</div>
 
-		// フォームも新規に戻す
-		setAmount("");
-		setName("");
-		setMemo("");
-		setDate(selectedDate);
-	};
+              <button
+                type="button"
+                className="kv-value-btn"
+                onClick={() => setIsSourcePickerOpen((v) => !v)}
+                aria-expanded={isSourcePickerOpen}
+              >
+                {source}
+              </button>
 
-	const [openMovePicker, setOpenMovePicker] =
-  React.useState<null | "source" | "destination" | "sourceMove">(null);
+              {isSourcePickerOpen && (
+                <WheelPickerInline
+                  options={sourceOptions}
+                  value={source}
+                  onChange={(v) => setSource(v)}
+                  onClose={() => setIsSourcePickerOpen(false)}
+                />
+              )}
+            </div>
+          </div>
+        )}
 
-	return (
-		<div className="input-form">
-			<div className="tab-group">
-				<button
-					className={type === "expense" ? "active" : ""}
-					onClick={() => handleTabClick("expense")}
-				>
-					Out
-				</button>
-				<button
-					className={type === "income" ? "active" : ""}
-					onClick={() => handleTabClick("income")}
-				>
-					In
-				</button>
-				<button
-					className={type === "move" ? "active" : ""}
-					onClick={() => handleTabClick("move")}
-				>
-					Move
-				</button>
-			</div>
+        <input
+          type="memo"
+          value={memo}
+          onChange={(e) => setMemo(e.target.value)}
+          placeholder="Memo"
+        />
 
-			<form onSubmit={handleSubmit}>
-				<input
-					type="number"
-					value={amount}
-					onChange={(e) => setAmount(e.target.value)}
-					placeholder="金額"
-				/>
-				<input
-					type="text"
-					value={name}
-					onChange={(e) => setName(e.target.value)}
-					placeholder="摘要"
-				/>
-				<input
-					type="date"
-					value={date}
-					onChange={(e) => setDate(e.target.value)}
-					required
-				/>
-				{type === "move" && (
-					<div className="move-fields">
-						<div className="kv-row picker-anchor">
-							<div className="kv-label">移動元</div>
-								<button
-									type="button"
-									className="kv-value-btn"
-									onClick={() => setOpenMovePicker((v) => (v === "sourceMove" ? null : "sourceMove"))}
-								>
-									{sourceMove}
-								</button>
+        <div className="form-buttons receipt-buttons">
+          {/* 登録 = 追加して反映 / 本編集なら更新 */}
+          <button type="button" onClick={commitAll}>
+            {editingTransaction ? "更新" : "登録"}
+          </button>
 
-								{openMovePicker === "sourceMove" && (
-									<WheelPickerInline
-										options={sourceOptions}
-										value={sourceMove}
-										onChange={(v) => setSourceMove(v)}
-										onClose={() => setOpenMovePicker(null)}
-									/>
-								)}
-							</div>
+          {/* 追加 = 仮登録（仮編集なら更新） */}
+          <button type="submit">
+            {editingReceiptIndex != null ? "更新" : "追加"}
+          </button>
 
-							<div className="kv-row-under picker-anchor">
-								<div className="kv-label">移動先</div>
+          {editingTransaction && (
+            <button
+              type="button"
+              onClick={() => {
+                const ok = window.confirm("この項目を削除しますか？");
+                if (!ok) return;
+                onDeleteTransaction(editingTransaction.id);
+                setEditingTransaction(null);
+              }}
+            >
+              削除
+            </button>
+          )}
 
-								<button
-									type="button"
-									className="kv-value-btn"
-									onClick={() => setOpenMovePicker((v) => (v === "destination" ? null : "destination"))}
-								>
-									{destination}
-								</button>
+          {editingTransaction && (
+            <button type="button" onClick={() => setEditingTransaction(null)}>
+              キャンセル
+            </button>
+          )}
+        </div>
 
-								{openMovePicker === "destination" && (
-									<WheelPickerInline
-										options={sourceOptions}
-										value={destination}
-										onChange={(v) => setDestination(v)}
-										onClose={() => setOpenMovePicker(null)}
-									/>
-								)}
-							</div>
+        <div className="form-buttons">
+          {/* レシート仮置きリスト */}
+          <div className="history-list receipt-queue">
+            <div className="date-header receipt-total-bar">
+              <span>合計</span>
+              <span>{receiptTotal.toLocaleString()}円</span>
+            </div>
 
-					</div>
-				)}
+            {receiptItems.length === 0 ? (
+              <div className="transaction-item type-expense receipt-empty">
+                （まだ仮登録はありません）
+              </div>
+            ) : (
+              receiptItems.map((t, idx) => (
+                <div
+                  key={idx}
+                  className={`transaction-item type-${t.type} receipt-row ${
+                    editingReceiptIndex === idx ? "is-editing" : ""
+                  }`}
+                  onClick={() => loadDraftToForm(t, idx)}
+                >
+                  <div className="row-layout">
+                    {t.type === "move" ? (
+                      <>
+                        <div className="cat is-move">
+                          <span className="category-text">{t.source}</span>
+                          <span className="move-arrow">→</span>
+                        </div>
+                        <div className={`nm ${(t.destination?.length ?? 0) >= 9 ? "nm-small" : ""}`}>
+                          {t.destination}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="cat">
+                          <span className="category-text">{t.category}</span>
+                        </div>
+                        <div className={`nm ${(t.name?.length ?? 0) >= 9 ? "nm-small" : ""}`}>
+                          {t.name || "（摘要なし）"}
+                        </div>
+                      </>
+                    )}
 
-				{type !== "move" && (
-					<div className="field">
-						{/* カテゴリ（既存） */}
-						<div className="category-buttons" role="radiogroup" aria-label="カテゴリ">
-							{categoryOptions.map((option) => (
-								<button
-									key={option}
-									type="button"
-									role="radio"
-									aria-checked={category === option}
-									className={`category-btn ${category === option ? "active" : ""}`}
-									onClick={() => setCategory(option)}
-								>
-									{option}
-								</button>
-							))}
-						</div>
+                    <div className={`amt ${String(t.amount).length >= 7 ? "amt-small" : ""}`}>
+                      {t.amount.toLocaleString()}円
+                    </div>
 
-						{/* ★カテゴリの次の行に拠出元（1行UI） */}
-						<div className="kv-row picker-anchor">
-							<div className="kv-label">
-								{type == "income" ? "入金先" : "拠出先"}
-							</div>
-
-							<button
-								type="button"
-								className="kv-value-btn"
-								onClick={() => setIsSourcePickerOpen((v) => !v)}
-								aria-expanded={isSourcePickerOpen}
-							>
-								{source}
-							</button>
-
-							{isSourcePickerOpen && (
-								<WheelPickerInline
-									options={sourceOptions}
-									value={source}
-									onChange={(v) => setSource(v)}
-									onClose={() => setIsSourcePickerOpen(false)}
-								/>
-							)}
-						</div>
-					</div>
-				)}
-
-				<input
-					type="memo"
-					value={memo}
-					onChange={(e) => setMemo(e.target.value)}
-					placeholder="Memo"
-				/>
-				<div className="form-buttons">
-					{/* ▼ レシート仮置きリスト（ボタンの下） */}
-					<div className="receipt-queue">
-						<div className="receipt-queue-head">
-							<div className="receipt-queue-total">
-								合計：{receiptTotal.toLocaleString()}円
-							</div>
-
-							<button
-								type="button"
-								className="receipt-commit-btn"
-								onClick={commitReceiptItems}
-								disabled={receiptItems.length === 0}
-							>
-								一括反映（{receiptItems.length}件）
-							</button>
-						</div>
-
-						{receiptItems.length === 0 ? (
-							<div className="receipt-empty">まだ仮登録はありません</div>
-						) : (
-							<div className="receipt-list">
-								{receiptItems.map((t, idx) => (
-									<button
-										key={idx}
-										type="button"
-										className={`receipt-item ${editingReceiptIndex === idx ? "is-editing" : ""}`}
-										onClick={() => loadDraftToForm(t, idx)}
-									>
-										<div className="receipt-item-main">
-											<div className="receipt-left">
-												<div className="receipt-cat">
-													{t.type === "move" ? "移動" : t.category}
-												</div>
-												<div className="receipt-name">
-													{t.type === "move"
-														? `${t.source} → ${t.destination}`
-														: (t.name || "（摘要なし）")}
-												</div>
-											</div>
-
-											<div className="receipt-amt">
-												{t.amount.toLocaleString()}円
-											</div>
-										</div>
-
-										<div className="receipt-sub">
-											<span>{t.date}</span>
-											<span>{t.type === "move" ? "" : ` / ${t.source}`}</span>
-										</div>
-
-										<button
-											type="button"
-											className="receipt-del"
-											onClick={(e) => {
-												e.stopPropagation();
-												deleteReceiptItem(idx);
-											}}
-											aria-label="delete"
-										>
-											✕
-										</button>
-									</button>
-								))}
-							</div>
-						)}
-					</div>
-					<button type="submit">
-						{editingTransaction
-							? "更新"
-							: editingReceiptIndex !== null
-								? "仮更新"
-								: "仮追加"}
-					</button>
-					{editingTransaction && (
-						<button
-							type="button"
-							onClick={() => {
-								const ok = window.confirm("この項目を削除しますか？");
-								if (!ok) return;
-								onDeleteTransaction(editingTransaction.id);
-								setEditingTransaction(null);
-							}}
-						>
-							削除
-						</button>
-					)}
-					{editingTransaction && (
-						<button
-							type="button"
-							onClick={() => setEditingTransaction(null)}
-						>
-							キャンセル
-						</button>
-					)}
-				</div>
-			</form>
-		</div>
-	);
-}
+                    <button
+                      type="button"
+                      className="receipt-del-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteReceiptItem(idx);
+                      }}
+                      aria-label="delete"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+};

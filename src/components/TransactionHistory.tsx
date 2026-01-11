@@ -17,28 +17,28 @@ export const TransactionHistory: React.FC<Props> = ({
   onDeleteTransaction,
   onEditTransaction,
 }) => {
-	const listRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
   // ✕ボタンの露出幅（px）
   const ACTION_W = 64;
   const OPEN_X = -ACTION_W;
-	const DELETE_X = -200;
+  const DELETE_X = -200;
 
   // “今どの行が開いているか” を保持（離しても戻らない）
   const [openId, setOpenId] = useState<string | null>(null);
 
-	useEffect(() => {
-		const onClickOutside = (e: MouseEvent) => {
-			if (!openId) return;
-			if (!listRef.current) return;
+  useEffect(() => {
+    const onClickOutside = (e: MouseEvent) => {
+      if (!openId) return;
+      if (!listRef.current) return;
 
-			if (!listRef.current.contains(e.target as Node)) {
-				setOpenId(null);
-			}
-		};
+      if (!listRef.current.contains(e.target as Node)) {
+        setOpenId(null);
+      }
+    };
 
-		document.addEventListener("click", onClickOutside);
-		return () => document.removeEventListener("click", onClickOutside);
-	}, [openId]);
+    document.addEventListener("click", onClickOutside);
+    return () => document.removeEventListener("click", onClickOutside);
+  }, [openId]);
 
   // ドラッグ中の追従（行ごと）
   const [dragXById, setDragXById] = useState<Record<string, number>>({});
@@ -51,24 +51,24 @@ export const TransactionHistory: React.FC<Props> = ({
     active: boolean;
   } | null>(null);
 
-	const wheelXById = useRef<Record<string, number>>({});
-	const wheelTimerById = useRef<Record<string, number>>({});
+  const wheelXById = useRef<Record<string, number>>({});
+  const wheelTimerById = useRef<Record<string, number>>({});
 
-	const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
+  const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
-	const formatDateHeader = (date: string) => {
-		// date は "YYYY-MM-DD"
-		const d = new Date(`${date}T00:00:00`);
-		const y = d.getFullYear();
-		const m = d.getMonth() + 1;
-		const day = d.getDate();
-		const w = WEEKDAYS[d.getDay()];
+  const formatDateHeader = (date: string) => {
+    // date は "YYYY-MM-DD"
+    const d = new Date(`${date}T00:00:00`);
+    const y = d.getFullYear();
+    const m = d.getMonth() + 1;
+    const day = d.getDate();
+    const w = WEEKDAYS[d.getDay()];
 
-		const currentYear = new Date().getFullYear();
-		const prefix = y !== currentYear ? `${y}年` : "";
+    const currentYear = new Date().getFullYear();
+    const prefix = y !== currentYear ? `${y}年` : "";
 
-		return `${prefix}${m}月${day}日（${w}）`;
-	};
+    return `${prefix}${m}月${day}日（${w}）`;
+  };
 
 
   const grouped = useMemo(() => {
@@ -136,9 +136,9 @@ export const TransactionHistory: React.FC<Props> = ({
   };
 
   const onClickDelete = (id: string) => {
-		const ok = window.confirm("この項目を削除しますか？");
-		if (!ok) return;
-		onDeleteTransaction(id);
+    const ok = window.confirm("この項目を削除しますか？");
+    if (!ok) return;
+    onDeleteTransaction(id);
     setOpenId(null);
   };
 
@@ -153,74 +153,74 @@ export const TransactionHistory: React.FC<Props> = ({
 
             return (
               <div
-								key={t.id}
-								className="swipe-row"
-								onWheel={(e) => {
-									const raw =
-									Math.abs(e.deltaX) > Math.abs(e.deltaY)
-										? e.deltaX
-										: e.shiftKey
-											? e.deltaY
-											: 0;
-										if (raw === 0) return;
+                key={t.id}
+                className="swipe-row"
+                onWheel={(e) => {
+                  const raw =
+                  Math.abs(e.deltaX) > Math.abs(e.deltaY)
+                    ? e.deltaX
+                    : e.shiftKey
+                      ? e.deltaY
+                      : 0;
+                    if (raw === 0) return;
 
-										// 慣性スクロール抑制：小さい揺れは無視
-										const DEAD_ZONE = 2; // 1〜4あたりで好み調整．大きいほど遅くなる
-										if (Math.abs(raw) < DEAD_ZONE) return;
+                    // 慣性スクロール抑制：小さい揺れは無視
+                    const DEAD_ZONE = 2; // 1〜4あたりで好み調整．大きいほど遅くなる
+                    if (Math.abs(raw) < DEAD_ZONE) return;
 
-										// 親（カラムや画面）のスクロールに伝播させない
-										e.preventDefault();
+                    // 親（カラムや画面）のスクロールに伝播させない
+                    e.preventDefault();
 
-										// 慣性抑制：移動量を減衰＆1イベントの最大移動量を制限
-										const WHEEL_SCALE = 0.35;     // 0.15〜0.35あたりで好み調整
-										const MAX_STEP = 8;          // 8〜20あたりで好み調整
+                    // 慣性抑制：移動量を減衰＆1イベントの最大移動量を制限
+                    const WHEEL_SCALE = 0.35;     // 0.15〜0.35あたりで好み調整
+                    const MAX_STEP = 8;          // 8〜20あたりで好み調整
 
-										const dx = clamp(raw * WHEEL_SCALE, -MAX_STEP, MAX_STEP);
-										const base =
-											wheelXById.current[t.id] ??
-											(openId === t.id ? OPEN_X : 0);
+                    const dx = clamp(raw * WHEEL_SCALE, -MAX_STEP, MAX_STEP);
+                    const base =
+                      wheelXById.current[t.id] ??
+                      (openId === t.id ? OPEN_X : 0);
 
-										const nextX = clamp(base - dx, DELETE_X, 0); // dx の向きに合わせて -dx（自然な体感になりやすい）
-										if (nextX <= DELETE_X) {
-										const ok = window.confirm("この項目を削除しますか？");
-										if (ok) {
-											onDeleteTransaction(t.id);
-										}
+                    const nextX = clamp(base - dx, DELETE_X, 0); // dx の向きに合わせて -dx（自然な体感になりやすい）
+                    if (nextX <= DELETE_X) {
+                    const ok = window.confirm("この項目を削除しますか？");
+                    if (ok) {
+                      onDeleteTransaction(t.id);
+                    }
 
-										// 状態をリセット
-										setOpenId(null);
-										setDragXById((prev) => {
-											const { [t.id]: _, ...rest } = prev;
-											return rest;
-										});
-										delete wheelXById.current[t.id];
-										delete wheelTimerById.current[t.id];
-										return;
-									}
-									wheelXById.current[t.id] = nextX;
-									// wheel 操作中は dragXById に一時反映（表示追従）
-									setDragXById((prev) => ({ ...prev, [t.id]: nextX }));
+                    // 状態をリセット
+                    setOpenId(null);
+                    setDragXById((prev) => {
+                      const { [t.id]: _, ...rest } = prev;
+                      return rest;
+                    });
+                    delete wheelXById.current[t.id];
+                    delete wheelTimerById.current[t.id];
+                    return;
+                  }
+                  wheelXById.current[t.id] = nextX;
+                  // wheel 操作中は dragXById に一時反映（表示追従）
+                  setDragXById((prev) => ({ ...prev, [t.id]: nextX }));
 
-									// wheel が止まったら open / close を確定（離した瞬間に戻る問題の対策）
-									const prevTimer = wheelTimerById.current[t.id];
-									if (prevTimer) window.clearTimeout(prevTimer);
+                  // wheel が止まったら open / close を確定（離した瞬間に戻る問題の対策）
+                  const prevTimer = wheelTimerById.current[t.id];
+                  if (prevTimer) window.clearTimeout(prevTimer);
 
-									wheelTimerById.current[t.id] = window.setTimeout(() => {
-										const x = wheelXById.current[t.id] ?? 0;
-										const shouldOpen = x < OPEN_X / 2;
+                  wheelTimerById.current[t.id] = window.setTimeout(() => {
+                    const x = wheelXById.current[t.id] ?? 0;
+                    const shouldOpen = x < OPEN_X / 2;
 
-										setOpenId(shouldOpen ? t.id : null);
+                    setOpenId(shouldOpen ? t.id : null);
 
-										// 一時値を掃除（以後は openId で固定）
-										setDragXById((prev) => {
-											const { [t.id]: _, ...rest } = prev;
-											return rest;
-										});
-										delete wheelXById.current[t.id];
-										delete wheelTimerById.current[t.id];
-									}, 120);
-								}}
-							>
+                    // 一時値を掃除（以後は openId で固定）
+                    setDragXById((prev) => {
+                      const { [t.id]: _, ...rest } = prev;
+                      return rest;
+                    });
+                    delete wheelXById.current[t.id];
+                    delete wheelTimerById.current[t.id];
+                  }, 120);
+                }}
+              >
 
                 {/* 背面の削除ボタン */}
                 <button
@@ -246,33 +246,33 @@ export const TransactionHistory: React.FC<Props> = ({
                     onEditTransaction(t);
                   }}
                 >
-									<div className="row-layout">
-										{t.type === "move" ? (
-											<>
-												<div className="cat is-move">
-													<span className="category-text">{t.source}</span>
-													<span className="move-arrow">→</span>
-												</div>
+                  <div className="row-layout">
+                    {t.type === "move" ? (
+                      <>
+                        <div className="cat is-move">
+                          <span className="category-text">{t.source}</span>
+                          <span className="move-arrow">→</span>
+                        </div>
 
-												<div className={`nm ${t.destination.length >= 9 ? "nm-small" : ""}`}>
-													{t.destination}
-												</div>
-											</>
-										) : (
-											<>
-												<div className="cat">
-													<span className="category-text">{t.category}</span>
-												</div>
+                        <div className={`nm ${t.destination.length >= 9 ? "nm-small" : ""}`}>
+                          {t.destination}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="cat">
+                          <span className="category-text">{t.category}</span>
+                        </div>
 
-												<div className={`nm ${t.name.length >= 9 ? "nm-small" : ""}`}>
-													{t.name}
-												</div>
-											</>
-										)}
-										<div className={`amt ${String(t.amount).length >= 7 ? "amt-small" : ""}`}>
-											{t.amount.toLocaleString()}円
-										</div>
-									</div>
+                        <div className={`nm ${t.name.length >= 9 ? "nm-small" : ""}`}>
+                          {t.name}
+                        </div>
+                      </>
+                    )}
+                    <div className={`amt ${String(t.amount).length >= 7 ? "amt-small" : ""}`}>
+                      {t.amount.toLocaleString()}円
+                    </div>
+                  </div>
                 </div>
               </div>
             );

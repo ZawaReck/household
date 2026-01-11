@@ -314,9 +314,6 @@
   width: min(620px, 96%);
   margin: 12px auto 0;
   background: #F9FFFB;
-  border-top: 2px solid #245E2D;
-  border-bottom: 2px solid #245E2D;
-  padding: 12px 10px;
   border-radius: 10px;
   box-sizing: border-box;
 }
@@ -430,4 +427,71 @@
   font-weight: 900;
   cursor: pointer;
 }
+
+/* ===== Receipt queue (TransactionHistory風の追記) ===== */
+
+.receipt-queue{
+  width: min(620px, 96%);
+  margin: 12px auto 0;
+}
+
+.form-buttons.receipt-buttons{
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+/* 合計バー：date-headerを左右に割ってボタンを置く */
+.receipt-total-bar{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* 一括反映ボタン（date-header内に置く） */
+.receipt-commit-btn{
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid #006428;
+  border-radius: 999px;
+  background: #F9FFFB;
+  color: #006428;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.receipt-commit-btn:disabled{
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* 行クリック可能だけど、編集中を分かりやすく */
+.receipt-row.is-editing{
+  outline: 2px solid rgba(0, 100, 40, 0.35);
+  outline-offset: -2px;
+}
+
+/* 空表示 */
+.receipt-empty{
+  justify-content: flex-start;
+  color: rgba(0, 100, 40, 0.55) !important;
+}
+
+/* 右端の✕：スワイプではなく常時表示 */
+.receipt-del-btn{
+  border: none;
+  background: transparent;
+  color: rgba(0, 100, 40, 0.65);
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  justify-self: end;
+  padding: 0 6px;
+}
+
+.receipt-del-btn:hover{
+  color: rgba(0, 100, 40, 1);
+}
+
 
