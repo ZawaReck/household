@@ -45,7 +45,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [amount, setAmount] = React.useState("");
   const [date, setDate] = React.useState(selectedDate);
   const [name, setName] = React.useState("");
-  const [source, setSource] = React.useState(sourceOptions[1]);      // 拠出元（非move）
+  const [source, setSource] = React.useState(sourceOptions[1]); // 拠出元（非move）
   const [sourceMove, setSourceMove] = React.useState(sourceOptions[5]); // 移動元（move）
   const [memo, setMemo] = React.useState("");
   const [destination, setDestination] = React.useState(sourceOptions[1]); // 移動先（move）
@@ -63,32 +63,20 @@ export const InputForm: React.FC<InputFormProps> = ({
     [receiptItems]
   );
 
-  const committedItemsForDate = React.useMemo(() => {
-    return monthlyData
-      .filter((t) => t.date === date) // ★フォームの日付に合わせる（selectedDateでもOKだが、編集時にdateが変わるのでdate推奨）
-      .slice()
-      .sort((a, b) => (a.id < b.id ? 1 : -1)); // 好みで
-  }, [monthlyData, date]);
+  // 「登録済み（グループ）」の表示対象
+  const committedGroupItems = React.useMemo(() => {
+    if (!editingTransaction) return [];
+
+    const gid = (editingTransaction as any).groupId as string | undefined;
+    if (!gid) return [editingTransaction];
+
+    return monthlyData.filter((t: any) => t.groupId === gid);
+  }, [monthlyData, editingTransaction]);
 
   const onEditModeFromList = (t: Transaction) => {
-    setEditingTransaction(t);      // 既存の編集モードへ
-    // フォームへ読み込みは useEffect(editingTransaction) が既にやってくれるので、ここでは setEditingTransaction だけでOK
+    setEditingTransaction(t);
+    // 入力反映は useEffect(editingTransaction) に任せる
   };
-
-const committedGroupItems = React.useMemo(() => {
-  if (!editingTransaction) return [];
-
-  const gid = editingTransaction.groupId;
-
-  if (!gid) {
-    // 単発登録 → その1件だけ表示（表示しないなら [] にしてOK）
-    return [editingTransaction];
-  }
-
-  // ★同日ではなく groupId 一致で抽出
-  return monthlyData.filter((t) => t.groupId === gid);
-}, [monthlyData, editingTransaction]);
-
 
   // 既存の本登録アイテムを編集する時に、フォームへ反映
   useEffect(() => {
@@ -101,12 +89,11 @@ const committedGroupItems = React.useMemo(() => {
       setMemo(editingTransaction.memo || "");
 
       if (editingTransaction.type === "move") {
-        // ★ここは sourceMove / destination を使う
         setSourceMove(editingTransaction.source);
         setDestination(editingTransaction.destination || "");
       } else {
         setSource(editingTransaction.source);
-        setDestination(""); // 念のため
+        setDestination("");
         setCategory(editingTransaction.category);
       }
 
@@ -148,7 +135,7 @@ const committedGroupItems = React.useMemo(() => {
     setName("");
     setMemo("");
     setDate(selectedDate);
-    // type/source/category は「そのまま」残す方がレシート入力では便利なので残す
+    // type/source/category は残す（レシート入力を想定）
   };
 
   const hasFormDraft = () => {
@@ -161,15 +148,12 @@ const committedGroupItems = React.useMemo(() => {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // 本登録編集は「登録（=更新）」側でやる設計
-    if (editingTransaction) return;
+    if (editingTransaction) return; // 本登録編集は登録(=更新)側
 
-    // 入力が無いのに追加を押しても何もしない
     if (!hasFormDraft()) return;
 
     const draft = buildDraft();
 
-    // 仮編集の更新
     if (editingReceiptIndex !== null) {
       setReceiptItems((prev) => prev.map((it, i) => (i === editingReceiptIndex ? draft : it)));
       setEditingReceiptIndex(null);
@@ -177,14 +161,13 @@ const committedGroupItems = React.useMemo(() => {
       return;
     }
 
-    // 新規仮置き追加
     setReceiptItems((prev) => [...prev, draft]);
     clearForm();
   };
 
   const loadDraftToForm = (t: DraftTx, idx: number) => {
-    setEditingTransaction(null);   // 本編集は解除
-    setEditingReceiptIndex(idx);   // 仮編集へ
+    setEditingTransaction(null); // 本編集は解除
+    setEditingReceiptIndex(idx); // 仮編集へ
 
     setType(t.type);
     setAmount(String(t.amount));
@@ -214,7 +197,6 @@ const committedGroupItems = React.useMemo(() => {
 
   // 登録: (1) 本編集なら更新, (2) 仮編集ならその内容含めて反映, (3) フォーム入力中があればそれも反映, (4) 仮置き全件反映
   const commitAll = () => {
-    // 1) 本登録編集なら更新
     if (editingTransaction) {
       const draft = buildDraft();
       onUpdateTransaction({ id: editingTransaction.id, ...draft });
@@ -223,18 +205,14 @@ const committedGroupItems = React.useMemo(() => {
       return;
     }
 
-    // 2) 仮置きの中身を作る（仮編集の内容も含める）
     let itemsToCommit: DraftTx[] = receiptItems;
 
-    // 仮編集中なら、フォーム内容でその行を置き換えた配列をコミット対象にする
     if (editingReceiptIndex !== null) {
-      // 入力が無いなら仮編集として成立しないので、ここでは何もしない
       if (hasFormDraft()) {
         const draft = buildDraft();
         itemsToCommit = receiptItems.map((it, i) => (i === editingReceiptIndex ? draft : it));
       }
     } else {
-      // 3) 仮編集ではないが、フォーム入力中の1件があるならそれも追加して反映
       if (hasFormDraft()) {
         const draft = buildDraft();
         itemsToCommit = [...receiptItems, draft];
@@ -243,61 +221,59 @@ const committedGroupItems = React.useMemo(() => {
 
     if (itemsToCommit.length === 0) return;
 
-    // 4) 一括反映
+    // ★ groupId を付与して「このまとまり」を後で引けるようにする
     const groupId = `g_${Date.now()}`;
-    itemsToCommit.forEach((t) => onAddTransaction({ ...t, groupId }));
+    itemsToCommit.forEach((t) => onAddTransaction({ ...(t as any), groupId } as any));
 
-    // 後始末
     setReceiptItems([]);
     setEditingReceiptIndex(null);
     clearForm();
   };
 
+  // --- 表示（TransactionHistoryと同じ見た目）を共通化 ---
+  const renderRowContent = (t: DraftTx | Transaction) => {
+    if (t.type === "move") {
+      const dest = (t as any).destination || "";
+      return (
+        <>
+          <div className="cat is-move">
+            <span className="category-text">{t.source}</span>
+            <span className="move-arrow">→</span>
+          </div>
+          <div className={`nm ${dest.length >= 9 ? "nm-small" : ""}`}>{dest}</div>
+        </>
+      );
+    }
+
+    const nm = (t as any).name || "";
+    return (
+      <>
+        <div className="cat">
+          <span className="category-text">{(t as any).category}</span>
+        </div>
+        <div className={`nm ${nm.length >= 9 ? "nm-small" : ""}`}>{nm || "（摘要なし）"}</div>
+      </>
+    );
+  };
+
   return (
     <div className="input-form">
       <div className="tab-group">
-        <button
-          className={type === "expense" ? "active" : ""}
-          onClick={() => handleTabClick("expense")}
-          type="button"
-        >
+        <button className={type === "expense" ? "active" : ""} onClick={() => handleTabClick("expense")} type="button">
           Out
         </button>
-        <button
-          className={type === "income" ? "active" : ""}
-          onClick={() => handleTabClick("income")}
-          type="button"
-        >
+        <button className={type === "income" ? "active" : ""} onClick={() => handleTabClick("income")} type="button">
           In
         </button>
-        <button
-          className={type === "move" ? "active" : ""}
-          onClick={() => handleTabClick("move")}
-          type="button"
-        >
+        <button className={type === "move" ? "active" : ""} onClick={() => handleTabClick("move")} type="button">
           Move
         </button>
       </div>
 
       <form onSubmit={handleSubmit}>
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="金額"
-        />
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="摘要"
-        />
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          required
-        />
+        <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="金額" />
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="摘要" />
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
 
         {type === "move" && (
           <div className="move-fields">
@@ -347,7 +323,6 @@ const committedGroupItems = React.useMemo(() => {
 
         {type !== "move" && (
           <div className="field">
-            {/* カテゴリ */}
             <div className="category-buttons" role="radiogroup" aria-label="カテゴリ">
               {categoryOptions.map((option) => (
                 <button
@@ -363,7 +338,6 @@ const committedGroupItems = React.useMemo(() => {
               ))}
             </div>
 
-            {/* 拠出元/入金先 */}
             <div className="kv-row picker-anchor">
               <div className="kv-label">{type === "income" ? "入金先" : "拠出先"}</div>
 
@@ -388,23 +362,14 @@ const committedGroupItems = React.useMemo(() => {
           </div>
         )}
 
-        <input
-          type="memo"
-          value={memo}
-          onChange={(e) => setMemo(e.target.value)}
-          placeholder="Memo"
-        />
+        <input type="memo" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Memo" />
 
         <div className="form-buttons receipt-buttons">
-          {/* 登録 = 追加して反映 / 本編集なら更新 */}
           <button type="button" onClick={commitAll}>
             {editingTransaction ? "更新" : "登録"}
           </button>
 
-          {/* 追加 = 仮登録（仮編集なら更新） */}
-          <button type="submit">
-            {editingReceiptIndex != null ? "更新" : "追加"}
-          </button>
+          <button type="submit">{editingReceiptIndex != null ? "更新" : "追加"}</button>
 
           {editingTransaction && (
             <button
@@ -428,7 +393,6 @@ const committedGroupItems = React.useMemo(() => {
         </div>
 
         <div className="form-buttons">
-          {/* レシート仮置きリスト */}
           <div className="history-list receipt-queue">
             <div className="date-header receipt-total-bar">
               <span>合計</span>
@@ -446,12 +410,20 @@ const committedGroupItems = React.useMemo(() => {
                     onClick={() => loadDraftToForm(t, idx)}
                   >
                     <div className="row-layout">
-                      {/* (あなたの既存の中身をそのまま) */}
-                      ...
+                      {renderRowContent(t)}
+                      <div className={`amt ${String(t.amount).length >= 7 ? "amt-small" : ""}`}>
+                        {Number(t.amount).toLocaleString()}円
+                      </div>
+
+                      {/* 4列目（auto）に削除ボタン */}
                       <button
                         type="button"
                         className="receipt-del-btn"
-                        onClick={(e) => { e.stopPropagation(); deleteReceiptItem(idx); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteReceiptItem(idx);
+                        }}
+                        aria-label="delete"
                       >
                         ✕
                       </button>
@@ -461,7 +433,7 @@ const committedGroupItems = React.useMemo(() => {
               </>
             )}
 
-            {/* 登録済み（同日付） */}
+            {/* 登録済み（group） */}
             {committedGroupItems.length > 0 && (
               <>
                 <div className="date-header">登録済み</div>
@@ -475,7 +447,12 @@ const committedGroupItems = React.useMemo(() => {
                     }}
                   >
                     <div className="row-layout">
-                      {/* TransactionHistoryと同じ表示（省略） */}
+                      {renderRowContent(t)}
+                      <div className={`amt ${String(t.amount).length >= 7 ? "amt-small" : ""}`}>
+                        {t.amount.toLocaleString()}円
+                      </div>
+                      {/* 登録済み側は削除ボタン無し（必要なら付ける） */}
+                      <span />
                     </div>
                   </div>
                 ))}
@@ -483,13 +460,10 @@ const committedGroupItems = React.useMemo(() => {
             )}
 
             {/* 何もないとき */}
-            {receiptItems.length === 0 && committedItemsForDate.length === 0 && (
-              <div className="transaction-item type-expense receipt-empty">
-                （この日の項目はまだありません）
-              </div>
+            {receiptItems.length === 0 && committedGroupItems.length === 0 && (
+              <div className="transaction-item type-expense receipt-empty">（この日の項目はまだありません）</div>
             )}
           </div>
-
         </div>
       </form>
     </div>
