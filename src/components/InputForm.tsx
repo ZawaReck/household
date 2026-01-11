@@ -78,6 +78,20 @@ export const InputForm: React.FC<InputFormProps> = ({
     // 入力反映は useEffect(editingTransaction) に任せる
   };
 
+    const committedGroupTotal = React.useMemo(() => {
+      return committedGroupItems.reduce((sum, t) => sum + (t.amount || 0), 0);
+    }, [committedGroupItems]);
+
+    // 下リストに「今見えているアイテム数」
+    const visibleCount = receiptItems.length + committedGroupItems.length;
+
+    // 2件以上のときだけ「合計」バーを出す
+    const showTotalBar = visibleCount >= 2;
+
+    // 合計金額：登録済みグループが見えてるならそれ、そうでなければ仮登録の合計
+    const displayTotal = committedGroupItems.length > 0 ? committedGroupTotal : receiptTotal;
+
+
   // 既存の本登録アイテムを編集する時に、フォームへ反映
   useEffect(() => {
     if (editingTransaction) {
@@ -394,10 +408,12 @@ export const InputForm: React.FC<InputFormProps> = ({
 
         <div className="form-buttons">
           <div className="history-list receipt-queue">
-            <div className="date-header receipt-total-bar">
-              <span>合計</span>
-              <span>{receiptTotal.toLocaleString()}円</span>
-            </div>
+            {showTotalBar && (
+              <div className="date-header receipt-total-bar">
+                <span>合計</span>
+                <span>{displayTotal.toLocaleString()}円</span>
+              </div>
+            )}
 
             {/* 仮登録 */}
             {receiptItems.length > 0 && (
@@ -436,7 +452,6 @@ export const InputForm: React.FC<InputFormProps> = ({
             {/* 登録済み（group） */}
             {committedGroupItems.length > 0 && (
               <>
-                <div className="date-header">登録済み</div>
                 {committedGroupItems.map((t) => (
                   <div
                     key={t.id}
@@ -459,10 +474,6 @@ export const InputForm: React.FC<InputFormProps> = ({
               </>
             )}
 
-            {/* 何もないとき */}
-            {receiptItems.length === 0 && committedGroupItems.length === 0 && (
-              <div className="transaction-item type-expense receipt-empty">（この日の項目はまだありません）</div>
-            )}
           </div>
         </div>
       </form>
