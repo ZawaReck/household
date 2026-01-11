@@ -144,13 +144,19 @@ export const InputForm: React.FC<InputFormProps> = ({
     type,
   });
 
-  const clearForm = () => {
+  const clearFormKeepDateKeepDate = () => {
     setAmount("");
     setName("");
     setMemo("");
-    setDate(selectedDate);
-    // type/source/category は残す（レシート入力を想定）
+    // ★ここで setDate(selectedDate) しない（＝直前の日付を保持）
   };
+
+  // ページリロード直後 / フォームを明示的にリセットしたい時だけ使う←基本使わなさそう
+  // const resetFormToSelectedDate = () => {
+  //   clearFormKeepDateKeepDate();
+  //   setDate(selectedDate);
+  // };
+
 
   const hasFormDraft = () => {
     if (amount.trim() === "") return false;
@@ -171,12 +177,12 @@ export const InputForm: React.FC<InputFormProps> = ({
     if (editingReceiptIndex !== null) {
       setReceiptItems((prev) => prev.map((it, i) => (i === editingReceiptIndex ? draft : it)));
       setEditingReceiptIndex(null);
-      clearForm();
+      clearFormKeepDateKeepDate();
       return;
     }
 
     setReceiptItems((prev) => [...prev, draft]);
-    clearForm();
+    clearFormKeepDateKeepDate();
   };
 
   const loadDraftToForm = (t: DraftTx, idx: number) => {
@@ -203,7 +209,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
     if (editingReceiptIndex === idx) {
       setEditingReceiptIndex(null);
-      clearForm();
+      clearFormKeepDateKeepDate();
     } else if (editingReceiptIndex !== null && editingReceiptIndex > idx) {
       setEditingReceiptIndex(editingReceiptIndex - 1);
     }
@@ -215,7 +221,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       const draft = buildDraft();
       onUpdateTransaction({ id: editingTransaction.id, ...draft });
       setEditingTransaction(null);
-      clearForm();
+      clearFormKeepDateKeepDate();
       return;
     }
 
@@ -241,7 +247,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
     setReceiptItems([]);
     setEditingReceiptIndex(null);
-    clearForm();
+    clearFormKeepDateKeepDate();
   };
 
   // --- 表示（TransactionHistoryと同じ見た目）を共通化 ---
