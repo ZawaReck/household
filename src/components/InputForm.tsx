@@ -68,7 +68,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     if (!editingTransaction) return [];
 
     const gid = (editingTransaction as any).groupId as string | undefined;
-    if (!gid) return [editingTransaction];
+    if (!gid) return [];
 
     return monthlyData.filter((t: any) => t.groupId === gid);
   }, [monthlyData, editingTransaction]);
@@ -77,6 +77,8 @@ export const InputForm: React.FC<InputFormProps> = ({
     setEditingTransaction(t);
     // 入力反映は useEffect(editingTransaction) に任せる
   };
+
+  const showCommittedGroup = committedGroupItems.length >= 2;
 
     const committedGroupTotal = React.useMemo(() => {
       return committedGroupItems.reduce((sum, t) => sum + (t.amount || 0), 0);
@@ -414,6 +416,8 @@ export const InputForm: React.FC<InputFormProps> = ({
 
         <div className="form-buttons">
           <div className="history-list receipt-queue">
+            {(receiptItems.length > 0 || showCommittedGroup) && (
+              <>
             {showTotalBar && (
               <div className="date-header receipt-total-bar">
                 <span>合計</span>
@@ -454,6 +458,8 @@ export const InputForm: React.FC<InputFormProps> = ({
                 ))}
               </>
             )}
+            {showCommittedGroup && (
+              <>
 
             {/* 登録済み（group） */}
             {committedGroupItems.length > 0 && (
@@ -479,7 +485,10 @@ export const InputForm: React.FC<InputFormProps> = ({
                 ))}
               </>
             )}
-
+            </>
+            )}
+            </>
+            )}
           </div>
         </div>
       </form>
