@@ -1,9 +1,12 @@
 /* src/types/Transaction.ts */
 
+export type TaxMode = "inclusive" | "exclusive";
+export type TaxRate = 8 | 10;
+
 export interface Transaction {
   id: string; // Unique identifier for the transaction
   type: "expense" | "income" | "move"; // Type of transaction
-  amount: number; // Amount of the transaction (positive for income, negative for expenses)
+  amount: number; // Amount of the transaction (income/expense are both stored as positive numbers)
   date: string; // Date of the transaction in ISO format (YYYY-MM-DD)
   name: string; // Name or description of the transaction
   category: string; // Category of the transaction (e.g., "Food", "Transport")
@@ -12,4 +15,8 @@ export interface Transaction {
   destination: string; // Destination of the transaction (e.g., "Bank", "Cash")
   isSpecial: boolean;
   groupId?: string;
+
+taxMode?: TaxMode;
+taxRate?: TaxRate;
+taxBaseAmount?: number;
 }

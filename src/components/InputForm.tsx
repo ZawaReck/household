@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import type { Transaction } from "../types/Transaction";
+import type { TaxMode, TaxRate } from "../types/Transaction";
 import { WheelPickerInline } from "./WheelPickerInline";
 import "./InputForm.css";
 import "./TransactionHistory.css";
@@ -17,6 +18,9 @@ interface InputFormProps {
 }
 
 type DraftTx = Omit<Transaction, "id">;
+
+const normalizeTaxRate = (v: unknown): TaxRate => (v === 8 ? 8 : 10);
+const normalizeTaxMode = (v: unknown): TaxMode => (v === "exclusive" ? "exclusive" : "inclusive");
 
 export const InputForm: React.FC<InputFormProps> = ({
   onAddTransaction,
@@ -51,17 +55,44 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [destination, setDestination] = React.useState(sourceOptions[1]); // 移動先（move）
 
   const [isSourcePickerOpen, setIsSourcePickerOpen] = React.useState(false);
-  const [openMovePicker, setOpenMovePicker] =
-    React.useState<null | "destination" | "sourceMove">(null);
+  const [openMovePicker, setOpenMovePicker] = React.useState<null | "destination" | "sourceMove">(null);
+
+  const [isExternalTax, setIsExternalTax] = React.useState(false);
+  const [taxRate, setTaxRate] = React.useState<TaxRate>(10);
 
   // レシート仮置き
   const [receiptItems, setReceiptItems] = React.useState<DraftTx[]>([]);
   const [editingReceiptIndex, setEditingReceiptIndex] = React.useState<number | null>(null);
 
-  const receiptTotal = React.useMemo(
+  const receiptBaseTotal = React.useMemo(
     () => receiptItems.reduce((sum, t) => sum + (t.amount || 0), 0),
     [receiptItems]
   );
+
+// 仮登録（外税ON時の合計表示）
+// 10%対象合計*1.1  8%対象合計*1.08（1円未満は切り捨て）
+  const receiptTotalForDisplay = React.useMemo(() => {
+    if (!isExternalTax) return receiptBaseTotal;
+
+    let sum10 = 0;
+    let sum8 = 0;
+    let other = 0; // income/move が仮に混ざっても崩れないように
+
+    for (const t of receiptItems) {
+      if (t.type !== "expense") {
+        other = t.amount || 0;
+        continue;
+      }
+      const r = normalizeTaxRate((t as any).taxRate);
+      if (r === 8) sum8 = t.amount || 0;
+      else sum10 = t.amount || 0;
+    }
+
+    const taxed10 = Math.floor(sum10 * 1.1);
+    const taxed8 = Math.floor(sum8 * 1.08);
+
+    return taxed10 + taxed8 + other;
+  }, [receiptItems, receiptBaseTotal, isExternalTax]);
 
   // 「登録済み（グループ）」の表示対象
   const committedGroupItems = React.useMemo(() => {
@@ -80,19 +111,15 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   const showCommittedGroup = committedGroupItems.length >= 2;
 
-    const committedGroupTotal = React.useMemo(() => {
-      return committedGroupItems.reduce((sum, t) => sum + (t.amount || 0), 0);
-    }, [committedGroupItems]);
+  const committedGroupTotal = React.useMemo(() => {
+    return committedGroupItems.reduce((sum, t) => sum + (t.amount || 0), 0);
+  }, [committedGroupItems]);
 
-    // 下リストに「今見えているアイテム数」
-    const visibleCount = receiptItems.length + committedGroupItems.length;
+  // 下リストに「今見えているアイテム数」
+  const visibleCount = receiptItems.length + committedGroupItems.length;
 
-    // 2件以上のときだけ「合計」バーを出す
-    const showTotalBar = visibleCount >= 2;
-
-    // 合計金額：登録済みグループが見えてるならそれ、そうでなければ仮登録の合計
-    const displayTotal = committedGroupItems.length > 0 ? committedGroupTotal : receiptTotal;
-
+  const showTotalBar = visibleCount >= 2;
+  const displayTotal = committedGroupItems.length > 0 ? committedGroupTotal : receiptTotalForDisplay;
 
   // 既存の本登録アイテムを編集する時に、フォームへ反映
   useEffect(() => {
@@ -112,6 +139,9 @@ export const InputForm: React.FC<InputFormProps> = ({
         setDestination("");
         setCategory(editingTransaction.category);
       }
+
+      setIsExternalTax(normalizeTaxMode((editingTransaction as any).taxMode) === "exclusive");
+      setTaxRate(normalizeTaxRate((editingTransaction as any).taxRate));
 
       // 本登録編集に入ったら、仮編集は解除（混乱防止）
       setEditingReceiptIndex(null);
@@ -134,7 +164,8 @@ export const InputForm: React.FC<InputFormProps> = ({
     });
   }, [type]);
 
-  const buildDraft = (): DraftTx => ({
+  const buildDraft = (): DraftTx => {
+  const base: DraftTx = {
     amount: Number(amount),
     date,
     name,
@@ -144,14 +175,26 @@ export const InputForm: React.FC<InputFormProps> = ({
     memo,
     isSpecial: false,
     type,
-  });
-
-  const clearFormKeepDateKeepDate = () => {
-    setAmount("");
-    setName("");
-    setMemo("");
-    // ★ここで setDate(selectedDate) しない（＝直前の日付を保持）
   };
+
+  // taxMode / taxRate は支出（レシート想定）のときだけ付与
+  if (type === "expense") {
+    return {
+      ...base,
+      taxMode: isExternalTax ? "exclusive" : "inclusive",
+      taxRate,
+    };
+  }
+
+  return base;
+  };
+
+    const clearFormKeepDateKeepDate = () => {
+      setAmount("");
+      setName("");
+      setMemo("");
+      // ★ここで setDate(selectedDate) しない（＝直前の日付を保持）
+    };
 
   // ページリロード直後 / フォームを明示的にリセットしたい時だけ使う←基本使わなさそう
   // const resetFormToSelectedDate = () => {
@@ -204,6 +247,8 @@ export const InputForm: React.FC<InputFormProps> = ({
       setSource(t.source);
       setCategory(t.category);
     }
+    // 税情報
+    setTaxRate(normalizeTaxRate((t as any).taxRate));
   };
 
   const deleteReceiptItem = (idx: number) => {
@@ -215,6 +260,37 @@ export const InputForm: React.FC<InputFormProps> = ({
     } else if (editingReceiptIndex !== null && editingReceiptIndex > idx) {
       setEditingReceiptIndex(editingReceiptIndex - 1);
     }
+  };
+
+  // 外税ONのとき、支出だけ税込に変換して保存する
+  const applyExternalTaxIfNeeded = (t: DraftTx): DraftTx => {
+    if (!isExternalTax) {
+      // 内税（または税の概念なし）
+      if (t.type === "expense") {
+        return {
+          ...t,
+          taxMode: "inclusive",
+          taxRate: normalizeTaxRate((t as any).taxRate),
+        };
+      }
+      return t;
+    }
+
+    if (t.type !== "expense") return t;
+
+    const rate = normalizeTaxRate((t as any).taxRate);
+    const baseAmount = t.amount || 0;
+
+    // 端数は切り捨て（必要なら Math.round / Math.ceil に変更）
+    const taxedAmount = Math.floor(baseAmount * (1 + rate / 100));
+
+    return {
+      ...t,
+      amount: taxedAmount,
+      taxMode: "exclusive",
+      taxRate: rate,
+      taxBaseAmount: baseAmount,
+    };
   };
 
   // 登録: (1) 本編集なら更新, (2) 仮編集ならその内容含めて反映, (3) フォーム入力中があればそれも反映, (4) 仮置き全件反映
@@ -245,11 +321,19 @@ export const InputForm: React.FC<InputFormProps> = ({
 
     // ★ groupId を付与して「このまとまり」を後で引けるようにする
     const groupId = `g_${Date.now()}`;
-    itemsToCommit.forEach((t) => onAddTransaction({ ...(t as any), groupId } as any));
+    itemsToCommit
+      .map(applyExternalTaxIfNeeded)
+      .forEach((t) => onAddTransaction({ ...(t as any), groupId } as any));
 
     setReceiptItems([]);
     setEditingReceiptIndex(null);
     clearFormKeepDateKeepDate();
+  };
+
+  const renderTaxBadge = (t: DraftTx | Transaction) => {
+    if (t.type !== "expense") return null;
+    const r = normalizeTaxRate((t as any).taxRate);
+    return <span className="tax-badge">{r}%</span>;
   };
 
   // --- 表示（TransactionHistoryと同じ見た目）を共通化 ---
@@ -296,6 +380,42 @@ export const InputForm: React.FC<InputFormProps> = ({
         <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="金額" />
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="摘要" />
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+
+        {/* 外税トグル  税率（支出のみ） */}
+        {type === "expense" && (
+          <div className="tax-controls" aria-label="消費税設定">
+            <label className="tax-switch">
+              <input
+                type="checkbox"
+                checked={isExternalTax}
+                onChange={(e) => setIsExternalTax(e.target.checked)}
+              />
+              <span className="tax-switch-ui" aria-hidden="true" />
+              <span className="tax-switch-text">外税</span>
+            </label>
+
+            <div className="tax-rate-group" role="radiogroup" aria-label="税率">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={taxRate === 10}
+                className={`tax-rate-btn ${taxRate === 10 ? "active" : ""}`}
+                onClick={() => setTaxRate(10)}
+              >
+                10%
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={taxRate === 8}
+                className={`tax-rate-btn ${taxRate === 8 ? "active" : ""}`}
+                onClick={() => setTaxRate(8)}
+              >
+                8%
+              </button>
+            </div>
+          </div>
+        )}
 
         {type === "move" && (
           <div className="move-fields">
@@ -420,7 +540,9 @@ export const InputForm: React.FC<InputFormProps> = ({
               <>
             {showTotalBar && (
               <div className="date-header receipt-total-bar">
-                <span>合計</span>
+                <span>
+                  合計{type === "expense" && isExternalTax && committedGroupItems.length === 0 ? "（外税→税込）" : ""}
+                </span>
                 <span>{displayTotal.toLocaleString()}円</span>
               </div>
             )}
@@ -439,6 +561,7 @@ export const InputForm: React.FC<InputFormProps> = ({
                       {renderRowContent(t)}
                       <div className={`amt ${String(t.amount).length >= 7 ? "amt-small" : ""}`}>
                         {Number(t.amount).toLocaleString()}円
+                        {renderTaxBadge(t)}
                       </div>
 
                       {/* 4列目（auto）に削除ボタン */}

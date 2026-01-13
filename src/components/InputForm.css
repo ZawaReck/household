@@ -105,7 +105,7 @@
   font-weight: 700;
 }
 
-.field select + select {
+.field select  select {
   border-left: 2px solid #245E2D;
 }
 
@@ -195,7 +195,7 @@
     padding: 14px 10px;
   }
 
-  .field select + select {
+  .field select  select {
     border-left: none;
     border-top: 2px solid #245E2D;
   }
@@ -501,3 +501,103 @@
 }
 
 
+/* ===== 消費税（外税トグル / 税率ボタン） ===== */
+.tax-controls{
+  width: 100%;
+  box-sizing: border-box;
+  background: #F9FFFB;
+  border-top: 2px solid #245E2D;
+  border-bottom: 2px solid #245E2D;
+  border-radius: 10px;
+  padding: 10px 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* NOTE: .input-form input の汎用スタイルを打ち消す */
+.tax-switch input[type="checkbox"]{
+  position: absolute;
+  opacity: 0;
+  width: 1px !important;
+  height: 1px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+.tax-switch{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+
+.tax-switch-ui{
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  border: 2px solid #245E2D;
+  background: #F9FFFB;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.tax-switch-ui::after{
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #245E2D;
+  transition: transform 120ms ease;
+}
+
+.tax-switch input[type="checkbox"]:checked  .tax-switch-ui{
+  background: #C6FFDD;
+}
+
+.tax-switch input[type="checkbox"]:checked  .tax-switch-ui::after{
+  transform: translateX(20px);
+}
+
+.tax-switch-text{
+  color: #245E2D;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+.tax-rate-group{
+  display: inline-flex;
+  gap: 6px;
+}
+
+.tax-rate-btn{
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #245E2D;
+  background: transparent;
+  color: #245E2D;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.tax-rate-btn.active{
+  background: #245E2D;
+  color: #F9FFFB;
+}
+
+.tax-badge{
+  margin-left: 6px;
+  font-size: 0.75em;
+  font-weight: 800;
+  opacity: 0.75;
+}
