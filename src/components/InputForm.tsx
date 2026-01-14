@@ -70,7 +70,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   );
 
 // 仮登録（外税ON時の合計表示）
-// 10%対象合計*1.1  8%対象合計*1.08（1円未満は切り捨て）
+// 10%対象合計*1.1 + 8%対象合計*1.08（1円未満は切り捨て）
   const receiptTotalForDisplay = React.useMemo(() => {
     if (!isExternalTax) return receiptBaseTotal;
 
@@ -80,12 +80,12 @@ export const InputForm: React.FC<InputFormProps> = ({
 
     for (const t of receiptItems) {
       if (t.type !== "expense") {
-        other = t.amount || 0;
+        other += t.amount || 0;
         continue;
       }
       const r = normalizeTaxRate((t as any).taxRate);
-      if (r === 8) sum8 = t.amount || 0;
-      else sum10 = t.amount || 0;
+      if (r === 8) sum8 += t.amount || 0;
+      else sum10 += t.amount || 0;
     }
 
     const taxed10 = Math.floor(sum10 * 1.1);
@@ -381,7 +381,7 @@ export const InputForm: React.FC<InputFormProps> = ({
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="摘要" />
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
 
-        {/* 外税トグル  税率（支出のみ） */}
+        {/* 外税トグル + 税率（支出のみ） */}
         {type === "expense" && (
           <div className="tax-controls" aria-label="消費税設定">
             <label className="tax-switch">

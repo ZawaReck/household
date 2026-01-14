@@ -559,11 +559,11 @@
   transition: transform 120ms ease;
 }
 
-.tax-switch input[type="checkbox"]:checked  .tax-switch-ui{
+.tax-switch input[type="checkbox"]:checked + .tax-switch-ui{
   background: #C6FFDD;
 }
 
-.tax-switch input[type="checkbox"]:checked  .tax-switch-ui::after{
+.tax-switch input[type="checkbox"]:checked + .tax-switch-ui::after{
   transform: translateX(20px);
 }
 
