@@ -19,4 +19,5 @@ export interface Transaction {
 taxMode?: TaxMode;
 taxRate?: TaxRate;
 taxBaseAmount?: number;
+isTaxAdjustment?: boolean;
 }

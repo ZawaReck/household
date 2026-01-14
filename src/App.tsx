@@ -34,15 +34,14 @@ export const App: React.FC = () => {
 		setTransactions((prev) => prev.filter((transaction) => transaction.id !== id));
 	};
 
-	const handleUpdateTransaction = (updatedTransaction: Transaction) => {
-	// transactions配列をマップし、IDが一致する項目を更新後のデータに置き換える
-	const updatedTransactions = transactions.map((transaction) =>
-		transaction.id === updatedTransaction.id ? updatedTransaction : transaction
-	);
-	setTransactions(updatedTransactions);
-	// 編集モードを終了する
-	setEditingTransaction(null);
-	};
+  const handleUpdateTransaction = (updatedTransaction: Transaction) => {
+    setTransactions((prev) =>
+      prev.map((t) =>
+        t.id === updatedTransaction.id ? { ...t, ...updatedTransaction } : t
+      )
+    );
+    setEditingTransaction(null);
+  };
 
   const [selectedDate] = React.useState(
     new Date().toISOString().slice(0, 10)

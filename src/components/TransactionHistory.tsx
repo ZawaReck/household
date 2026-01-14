@@ -150,6 +150,7 @@ export const TransactionHistory: React.FC<Props> = ({
 
           {items.map((t) => {
             const x = getCurrentX(t.id);
+            const isAdj = (t as any).isTaxAdjustment === true;
 
             return (
               <div
@@ -243,6 +244,7 @@ export const TransactionHistory: React.FC<Props> = ({
                   onClick={() => {
                     // 開いている時の誤タップ編集を防ぐ
                     if (openId) return;
+                    if ((t as any).isTaxAdjustment) return;
                     onEditTransaction(t);
                   }}
                 >
@@ -261,11 +263,13 @@ export const TransactionHistory: React.FC<Props> = ({
                     ) : (
                       <>
                         <div className="cat">
-                          <span className="category-text">{t.category}</span>
+                          <span className="category-text">
+                            {isAdj ? "外税" : t.category}
+                          </span>
                         </div>
 
                         <div className={`nm ${t.name.length >= 9 ? "nm-small" : ""}`}>
-                          {t.name}
+                          {isAdj ? "外税" : t.name}
                         </div>
                       </>
                     )}
