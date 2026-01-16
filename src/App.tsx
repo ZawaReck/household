@@ -40,7 +40,6 @@ export const App: React.FC = () => {
         t.id === updatedTransaction.id ? { ...t, ...updatedTransaction } : t
       )
     );
-    setEditingTransaction(null);
   };
 
   const [selectedDate] = React.useState(

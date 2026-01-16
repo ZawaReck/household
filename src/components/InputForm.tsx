@@ -69,6 +69,8 @@ export const InputForm: React.FC<InputFormProps> = ({
     [receiptItems]
   );
 
+  const [activeGroupId, setActiveGroupId] = React.useState<string | null>(null);
+
   // 税率別に合算してから端数処理する（あなたの合計表示仕様と同じ）
   const calcExternalGross = (items: Array<Pick<Transaction, "type" | "amount" | "taxRate" | "isTaxAdjustment">>) => {
     let sum10 = 0;
@@ -116,13 +118,13 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   // 「登録済み（グループ）」の表示対象
   const committedGroupItems = React.useMemo(() => {
-    if (!editingTransaction) return [];
+    const gid =
+      activeGroupId ??
+      ((editingTransaction as any)?.groupId as string | undefined);
 
-    const gid = (editingTransaction as any).groupId as string | undefined;
     if (!gid) return [];
-
     return monthlyData.filter((t: any) => t.groupId === gid);
-  }, [monthlyData, editingTransaction]);
+  }, [monthlyData, editingTransaction, activeGroupId]);
 
   // グループ内の「外税」調整アイテム（あれば）
   const committedTaxAdjustment = React.useMemo(() => {
@@ -135,8 +137,9 @@ export const InputForm: React.FC<InputFormProps> = ({
   }, [committedGroupItems]);
 
   const onEditModeFromList = (t: Transaction) => {
+    const gid = (t as any).groupId as string | undefined;
+    setActiveGroupId(gid ?? null);
     setEditingTransaction(t);
-    // 入力反映は useEffect(editingTransaction) に任せる
   };
 
   const showCommittedGroup = committedGroupVisibleItems.length >= 2;
@@ -264,8 +267,6 @@ export const InputForm: React.FC<InputFormProps> = ({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (editingTransaction) return; // 本登録編集は登録(=更新)側
-
     if (!hasFormDraft()) return;
 
     const draft = buildDraft();
@@ -318,6 +319,10 @@ export const InputForm: React.FC<InputFormProps> = ({
   const commitAll = () => {
 
   if (editingTransaction) {
+
+  const gid = (editingTransaction as any).groupId as string | undefined;
+  if (gid) setActiveGroupId(gid);
+
     const draft = buildDraft();
     const updated = {
      ...editingTransaction,      // ← 既存メタ（groupId, taxBaseAmount など）を保持
@@ -334,7 +339,6 @@ export const InputForm: React.FC<InputFormProps> = ({
     onUpdateTransaction(updated);
 
     // グループ編集なら「外税」調整アイテムを追従させる
-    const gid = (editingTransaction as any).groupId as string | undefined;
     if (gid) {
       const groupAll = monthlyData.filter((t: any) => t.groupId === gid);
 
@@ -386,7 +390,9 @@ export const InputForm: React.FC<InputFormProps> = ({
     }
 
     setEditingTransaction(null);
-    clearFormKeepDateKeepDate();
+    setAmount("");
+    setName("");
+    setMemo("");
     return;
   }
 
@@ -409,7 +415,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     if (itemsToCommit.length === 0) return;
 
     // ★ groupId を付与して「このまとまり」を後で引けるようにする
-    const groupId = `g_${Date.now()}`;
+    const groupId = activeGroupId ?? `g_${Date.now()}`;
     const baseItems = itemsToCommit.map((t) => {
       if (t.type !== "expense") return t;
       if (!isExternalTax) {
