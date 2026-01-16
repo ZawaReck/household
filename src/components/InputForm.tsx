@@ -397,6 +397,15 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   // 登録: (1) 本編集なら更新, (2) 仮編集ならその内容含めて反映, (3) フォーム入力中があればそれも反映, (4) 仮置き全件反映
   const commitAll = () => {
+    if (!editingTransaction && !hasFormDraft() && receiptItems.length === 0 && showCommittedGroup) {
+      setEditingTransaction(null);
+      setActiveGroupId(null);
+      setActiveGroupDate(null);
+      setEditingReceiptIndex(null);
+      resetForm(type, { dateValue: selectedDate });
+      return;
+    }
+
     if (editingTransaction) {
       if (!hasFormDraft()) return;
 
