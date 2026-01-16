@@ -168,3 +168,15 @@
   touch-action: pan-y; /* 縦スクロールは許可しつつ、横ドラッグはJSで扱う */
   transition: transform 120ms ease; /* 離したときにカクっと戻らないように */
 }
+
+.group-total-row{
+  background-color: #D7E3DB;
+  color: #006428;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.group-total-row .row-layout{
+  grid-template-columns: 6em 8em 1fr auto;
+}

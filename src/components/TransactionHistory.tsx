@@ -8,14 +8,37 @@ type Props = {
   monthlyData: Transaction[];
   onDeleteTransaction: (id: string) => void;
   onEditTransaction: (t: Transaction) => void;
+  onSelectGroup: (groupId: string, date: string) => void;
 };
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+const normalizeTaxRate = (v: unknown) => (v === 0 || v === 8 ? v : 10);
+const calcExternalGross = (items: Array<Pick<Transaction, "type" | "amount" | "taxRate" | "isTaxAdjustment">>) => {
+  let sum10 = 0;
+  let sum8 = 0;
+  let sum0 = 0;
+
+  for (const t of items) {
+    if (t.type !== "expense") continue;
+    if ((t as any).isTaxAdjustment) continue;
+    const r = normalizeTaxRate((t as any).taxRate);
+    if (r === 8) sum8 += t.amount || 0;
+    else if (r === 0) sum0 += t.amount || 0;
+    else sum10 += t.amount || 0;
+  }
+
+  const gross = Math.floor(sum10 * 1.1) + Math.floor(sum8 * 1.08) + sum0;
+  const base = sum10 + sum8 + sum0;
+  const tax = gross - base;
+
+  return { base, gross, tax };
+};
 
 export const TransactionHistory: React.FC<Props> = ({
   monthlyData,
   onDeleteTransaction,
   onEditTransaction,
+  onSelectGroup,
 }) => {
   const listRef = useRef<HTMLDivElement | null>(null);
   // ✕ボタンの露出幅（px）
@@ -144,145 +167,206 @@ export const TransactionHistory: React.FC<Props> = ({
 
   return (
     <div className="history-list" ref={listRef}>
-      {grouped.map(([date, items]) => (
-        <React.Fragment key={date}>
-          <div className="date-header">{formatDateHeader(date)}</div>
+      {grouped.map(([date, items]) => {
+        const visibleItems = items.filter((t: any) => t.isTaxAdjustment !== true);
+        if (visibleItems.length === 0) return null;
+        const groupMeta = new Map<
+          string,
+          {
+            items: Transaction[];
+            hasAdjustment: boolean;
+            isExternal: boolean;
+            total: number;
+          }
+        >();
+        const groupLastId = new Map<string, string>();
 
-          {items.map((t) => {
-            const x = getCurrentX(t.id);
-            const isAdj = (t as any).isTaxAdjustment === true;
+        for (const t of items) {
+          const gid = (t as any).groupId as string | undefined;
+          if (!gid) continue;
+          const current = groupMeta.get(gid) ?? { items: [], hasAdjustment: false, isExternal: false, total: 0 };
+          if ((t as any).isTaxAdjustment) {
+            current.hasAdjustment = true;
+          } else {
+            current.items.push(t);
+          }
+          groupMeta.set(gid, current);
+        }
 
-            return (
-              <div
-                key={t.id}
-                className="swipe-row"
-                onWheel={(e) => {
-                  const raw =
-                  Math.abs(e.deltaX) > Math.abs(e.deltaY)
-                    ? e.deltaX
-                    : e.shiftKey
-                      ? e.deltaY
-                      : 0;
-                    if (raw === 0) return;
+        for (const [gid, meta] of groupMeta.entries()) {
+          const isExternal = meta.hasAdjustment || meta.items.some((t: any) => t.taxMode === "exclusive");
+          const total = isExternal
+            ? calcExternalGross(meta.items as any).gross
+            : meta.items.reduce((sum, t) => sum + (t.amount || 0), 0);
+          groupMeta.set(gid, { ...meta, isExternal, total });
+        }
 
-                    // 慣性スクロール抑制：小さい揺れは無視
-                    const DEAD_ZONE = 2; // 1〜4あたりで好み調整．大きいほど遅くなる
-                    if (Math.abs(raw) < DEAD_ZONE) return;
+        visibleItems.forEach((t) => {
+          const gid = (t as any).groupId as string | undefined;
+          if (gid) groupLastId.set(gid, t.id);
+        });
 
-                    // 親（カラムや画面）のスクロールに伝播させない
-                    e.preventDefault();
+        return (
+          <React.Fragment key={date}>
+            <div className="date-header">{formatDateHeader(date)}</div>
 
-                    // 慣性抑制：移動量を減衰＆1イベントの最大移動量を制限
-                    const WHEEL_SCALE = 0.35;     // 0.15〜0.35あたりで好み調整
-                    const MAX_STEP = 8;          // 8〜20あたりで好み調整
+            {visibleItems.map((t) => {
+              const x = getCurrentX(t.id);
+              const gid = (t as any).groupId as string | undefined;
+              const meta = gid ? groupMeta.get(gid) : null;
+              const displayAmount =
+                meta && meta.isExternal && meta.items.length === 1 ? meta.total : t.amount;
+              const showGroupTotal =
+                gid && meta && meta.items.length >= 2 && groupLastId.get(gid) === t.id;
 
-                    const dx = clamp(raw * WHEEL_SCALE, -MAX_STEP, MAX_STEP);
-                    const base =
-                      wheelXById.current[t.id] ??
-                      (openId === t.id ? OPEN_X : 0);
+              return (
+                <React.Fragment key={t.id}>
+                  <div
+                    className="swipe-row"
+                    onWheel={(e) => {
+                      const raw =
+                        Math.abs(e.deltaX) > Math.abs(e.deltaY)
+                          ? e.deltaX
+                          : e.shiftKey
+                            ? e.deltaY
+                            : 0;
+                      if (raw === 0) return;
 
-                    const nextX = clamp(base - dx, DELETE_X, 0); // dx の向きに合わせて -dx（自然な体感になりやすい）
-                    if (nextX <= DELETE_X) {
-                    const ok = window.confirm("この項目を削除しますか？");
-                    if (ok) {
-                      onDeleteTransaction(t.id);
-                    }
+                      // 慣性スクロール抑制：小さい揺れは無視
+                      const DEAD_ZONE = 2; // 1〜4あたりで好み調整．大きいほど遅くなる
+                      if (Math.abs(raw) < DEAD_ZONE) return;
 
-                    // 状態をリセット
-                    setOpenId(null);
-                    setDragXById((prev) => {
-                      const { [t.id]: _, ...rest } = prev;
-                      return rest;
-                    });
-                    delete wheelXById.current[t.id];
-                    delete wheelTimerById.current[t.id];
-                    return;
-                  }
-                  wheelXById.current[t.id] = nextX;
-                  // wheel 操作中は dragXById に一時反映（表示追従）
-                  setDragXById((prev) => ({ ...prev, [t.id]: nextX }));
+                      // 親（カラムや画面）のスクロールに伝播させない
+                      e.preventDefault();
 
-                  // wheel が止まったら open / close を確定（離した瞬間に戻る問題の対策）
-                  const prevTimer = wheelTimerById.current[t.id];
-                  if (prevTimer) window.clearTimeout(prevTimer);
+                      // 慣性抑制：移動量を減衰＆1イベントの最大移動量を制限
+                      const WHEEL_SCALE = 0.35; // 0.15〜0.35あたりで好み調整
+                      const MAX_STEP = 8; // 8〜20あたりで好み調整
 
-                  wheelTimerById.current[t.id] = window.setTimeout(() => {
-                    const x = wheelXById.current[t.id] ?? 0;
-                    const shouldOpen = x < OPEN_X / 2;
+                      const dx = clamp(raw * WHEEL_SCALE, -MAX_STEP, MAX_STEP);
+                      const base =
+                        wheelXById.current[t.id] ??
+                        (openId === t.id ? OPEN_X : 0);
 
-                    setOpenId(shouldOpen ? t.id : null);
+                      const nextX = clamp(base - dx, DELETE_X, 0); // dx の向きに合わせて -dx（自然な体感になりやすい）
+                      if (nextX <= DELETE_X) {
+                        const ok = window.confirm("この項目を削除しますか？");
+                        if (ok) {
+                          onDeleteTransaction(t.id);
+                        }
 
-                    // 一時値を掃除（以後は openId で固定）
-                    setDragXById((prev) => {
-                      const { [t.id]: _, ...rest } = prev;
-                      return rest;
-                    });
-                    delete wheelXById.current[t.id];
-                    delete wheelTimerById.current[t.id];
-                  }, 120);
-                }}
-              >
+                        // 状態をリセット
+                        setOpenId(null);
+                        setDragXById((prev) => {
+                          const { [t.id]: _, ...rest } = prev;
+                          return rest;
+                        });
+                        delete wheelXById.current[t.id];
+                        delete wheelTimerById.current[t.id];
+                        return;
+                      }
+                      wheelXById.current[t.id] = nextX;
+                      // wheel 操作中は dragXById に一時反映（表示追従）
+                      setDragXById((prev) => ({ ...prev, [t.id]: nextX }));
 
-                {/* 背面の削除ボタン */}
-                <button
-                  className="swipe-delete"
-                  onClick={() => onClickDelete(t.id)}
-                  aria-label="delete"
-                >
-                  ✕
-                </button>
+                      // wheel が止まったら open / close を確定（離した瞬間に戻る問題の対策）
+                      const prevTimer = wheelTimerById.current[t.id];
+                      if (prevTimer) window.clearTimeout(prevTimer);
 
-                {/* 前面（スワイプする本体） */}
-                <div
-                  className={`transaction-item swipe-front type-${t.type}`}
-                  style={{ transform: `translateX(${x}px)` }}
-                  onPointerDown={(e) => onPointerDownRow(e, t.id)}
-                  onPointerMove={onPointerMoveRow}
-                  onPointerUp={onPointerUpRow}
-                  onPointerCancel={onPointerUpRow}
-                  // “タップで編集” も維持したい場合：
-                  onClick={() => {
-                    // 開いている時の誤タップ編集を防ぐ
-                    if (openId) return;
-                    if ((t as any).isTaxAdjustment) return;
-                    onEditTransaction(t);
-                  }}
-                >
-                  <div className="row-layout">
-                    {t.type === "move" ? (
-                      <>
-                        <div className="cat is-move">
-                          <span className="category-text">{t.source}</span>
-                          <span className="move-arrow">→</span>
+                      wheelTimerById.current[t.id] = window.setTimeout(() => {
+                        const x = wheelXById.current[t.id] ?? 0;
+                        const shouldOpen = x < OPEN_X / 2;
+
+                        setOpenId(shouldOpen ? t.id : null);
+
+                        // 一時値を掃除（以後は openId で固定）
+                        setDragXById((prev) => {
+                          const { [t.id]: _, ...rest } = prev;
+                          return rest;
+                        });
+                        delete wheelXById.current[t.id];
+                        delete wheelTimerById.current[t.id];
+                      }, 120);
+                    }}
+                  >
+                    {/* 背面の削除ボタン */}
+                    <button
+                      className="swipe-delete"
+                      onClick={() => onClickDelete(t.id)}
+                      aria-label="delete"
+                    >
+                      ✕
+                    </button>
+
+                    {/* 前面（スワイプする本体） */}
+                    <div
+                      className={`transaction-item swipe-front type-${t.type}`}
+                      style={{ transform: `translateX(${x}px)` }}
+                      onPointerDown={(e) => onPointerDownRow(e, t.id)}
+                      onPointerMove={onPointerMoveRow}
+                      onPointerUp={onPointerUpRow}
+                      onPointerCancel={onPointerUpRow}
+                      onClick={() => {
+                        // 開いている時の誤タップ編集を防ぐ
+                        if (openId) return;
+                        onEditTransaction(t);
+                      }}
+                    >
+                      <div className="row-layout">
+                        {t.type === "move" ? (
+                          <>
+                            <div className="cat is-move">
+                              <span className="category-text">{t.source}</span>
+                              <span className="move-arrow">→</span>
+                            </div>
+
+                            <div className={`nm ${(t.destination || "").length >= 9 ? "nm-small" : ""}`}>
+                              {t.destination}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="cat">
+                              <span className="category-text">{t.category}</span>
+                            </div>
+
+                            <div className={`nm ${t.name.length >= 9 ? "nm-small" : ""}`}>
+                              {t.name}
+                            </div>
+                          </>
+                        )}
+                        <div className={`amt ${String(displayAmount).length >= 7 ? "amt-small" : ""}`}>
+                          {displayAmount.toLocaleString()}円
                         </div>
-
-                        <div className={`nm ${t.destination.length >= 9 ? "nm-small" : ""}`}>
-                          {t.destination}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="cat">
-                          <span className="category-text">
-                            {isAdj ? "外税" : t.category}
-                          </span>
-                        </div>
-
-                        <div className={`nm ${t.name.length >= 9 ? "nm-small" : ""}`}>
-                          {isAdj ? "外税" : t.name}
-                        </div>
-                      </>
-                    )}
-                    <div className={`amt ${String(t.amount).length >= 7 ? "amt-small" : ""}`}>
-                      {t.amount.toLocaleString()}円
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
-        </React.Fragment>
-      ))}
+
+                  {showGroupTotal && gid && meta && (
+                    <div
+                      className="transaction-item group-total-row"
+                      onClick={() => {
+                        setOpenId(null);
+                        onSelectGroup(gid, date);
+                      }}
+                    >
+                      <div className="row-layout">
+                        <div className="cat">
+                          <span className="category-text">合計</span>
+                        </div>
+                        <div className="nm" />
+                        <div className={`amt ${String(meta.total).length >= 7 ? "amt-small" : ""}`}>
+                          {meta.total.toLocaleString()}円
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 };

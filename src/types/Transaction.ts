@@ -1,7 +1,7 @@
 /* src/types/Transaction.ts */
 
 export type TaxMode = "inclusive" | "exclusive";
-export type TaxRate = 8 | 10;
+export type TaxRate = 0 | 8 | 10;
 
 export interface Transaction {
   id: string; // Unique identifier for the transaction

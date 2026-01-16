@@ -20,6 +20,8 @@ interface Props {
 
 export const DashboardPage: React.FC<Props> = (props) => {
 	const [currentDate, setCurrentDate] = useState(new Date());
+	const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+	const [activeGroupDate, setActiveGroupDate] = useState<string | null>(null);
 
 	const year = currentDate.getFullYear();
 	const month = currentDate.getMonth();
@@ -65,7 +67,16 @@ export const DashboardPage: React.FC<Props> = (props) => {
 				<TransactionHistory
 					monthlyData={monthlyData}
 					onDeleteTransaction={props.onDeleteTransaction}
-					onEditTransaction={props.onEditTransaction}
+					onEditTransaction={(transaction) => {
+						setActiveGroupId(null);
+						setActiveGroupDate(null);
+						props.onEditTransaction(transaction);
+					}}
+					onSelectGroup={(groupId, date) => {
+						setActiveGroupId(groupId);
+						setActiveGroupDate(date);
+						props.setEditingTransaction(null);
+					}}
 				/>
 		</section>
 		<section className="column input-section">
@@ -78,6 +89,10 @@ export const DashboardPage: React.FC<Props> = (props) => {
 					setEditingTransaction={props.setEditingTransaction}
 					selectedDate={selectedDate}
 					monthlyData={monthlyData}
+					activeGroupId={activeGroupId}
+					setActiveGroupId={setActiveGroupId}
+					activeGroupDate={activeGroupDate}
+					setActiveGroupDate={setActiveGroupDate}
 				/>
 			</div>
 		</section>
