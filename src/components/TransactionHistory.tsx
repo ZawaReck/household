@@ -210,7 +210,7 @@ export const TransactionHistory: React.FC<Props> = ({
           <React.Fragment key={date}>
             <div className="date-header">{formatDateHeader(date)}</div>
 
-            {visibleItems.map((t) => {
+            {visibleItems.map((t, idx) => {
               const x = getCurrentX(t.id);
               const gid = (t as any).groupId as string | undefined;
               const meta = gid ? groupMeta.get(gid) : null;
@@ -218,6 +218,14 @@ export const TransactionHistory: React.FC<Props> = ({
                 meta && meta.isExternal && meta.items.length === 1 ? meta.total : t.amount;
               const showGroupTotal =
                 gid && meta && meta.items.length >= 2 && groupLastId.get(gid) === t.id;
+              const isGrouped = Boolean(gid && meta && meta.items.length >= 2);
+              const prev = idx > 0 ? visibleItems[idx - 1] : null;
+              const prevGid = prev ? ((prev as any).groupId as string | undefined) : undefined;
+              const prevMeta = prevGid ? groupMeta.get(prevGid) : null;
+              const prevIsGrouped = Boolean(prevGid && prevMeta && prevMeta.items.length >= 2);
+              const boundaryTop =
+                idx > 0 &&
+                ((isGrouped && (!prevIsGrouped || gid !== prevGid)) || (prevIsGrouped && !isGrouped));
 
               return (
                 <React.Fragment key={t.id}>
@@ -300,7 +308,7 @@ export const TransactionHistory: React.FC<Props> = ({
 
                     {/* 前面（スワイプする本体） */}
                     <div
-                      className={`transaction-item swipe-front type-${t.type}`}
+                      className={`transaction-item swipe-front type-${t.type} ${boundaryTop ? "group-boundary-top" : ""}`}
                       style={{ transform: `translateX(${x}px)` }}
                       onPointerDown={(e) => onPointerDownRow(e, t.id)}
                       onPointerMove={onPointerMoveRow}
