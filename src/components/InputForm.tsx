@@ -198,7 +198,10 @@ export const InputForm: React.FC<InputFormProps> = ({
     setEditingTransaction(t);
   };
 
-  const showCommittedGroup = committedGroupVisibleItems.length >= 2;
+  const hasActiveGroupView = activeGroupId != null;
+  const showCommittedGroup = hasActiveGroupView
+    ? committedGroupVisibleItems.length > 0
+    : committedGroupVisibleItems.length >= 2;
 
   const committedGroupIsExternal =
     committedTaxAdjustment != null || committedGroupVisibleItems.some((t: any) => t.taxMode === "exclusive");
@@ -216,7 +219,9 @@ export const InputForm: React.FC<InputFormProps> = ({
 
 
   const showTotalBar = receiptItems.length > 0 || committedGroupVisibleItems.length >= 2;
-  const displayTotal = committedGroupItems.length > 0 ? committedGroupTotalDisplay : receiptTotalForDisplay;
+  const displayTotal = committedGroupItems.length > 0
+    ? committedGroupTotalDisplay + receiptTotalForDisplay
+    : receiptTotalForDisplay;
 
   // 既存の本登録アイテムを編集する時に、フォームへ反映
   useEffect(() => {
@@ -872,12 +877,13 @@ export const InputForm: React.FC<InputFormProps> = ({
             {/* 登録済み（group） */}
             {committedGroupItems.length > 0 && (
               <>
-                {committedGroupVisibleItems.map((t) => {
+                {committedGroupVisibleItems.map((t, idx) => {
                   const displayAmount = getCommittedDisplayAmount(t);
+                  const boundaryTop = idx === 0 && !showTotalBar;
                   return (
                     <div
                       key={t.id}
-                      className={`transaction-item type-${t.type} receipt-row ${editingTransaction?.id === t.id ? "is-editing" : ""}`}
+                      className={`transaction-item type-${t.type} receipt-row ${boundaryTop ? "boundary-top" : ""} ${editingTransaction?.id === t.id ? "is-editing" : ""}`}
                       onClick={() => {
                         setEditingReceiptIndex(null);
                         onEditModeFromList(t);

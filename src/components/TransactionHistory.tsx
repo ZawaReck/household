@@ -201,7 +201,26 @@ export const TransactionHistory: React.FC<Props> = ({
           groupMeta.set(gid, { ...meta, isExternal, total });
         }
 
-        visibleItems.forEach((t) => {
+        const orderedVisibleItems: Transaction[] = [];
+        const seenGroups = new Set<string>();
+
+        for (const t of items) {
+          if ((t as any).isTaxAdjustment) continue;
+          const gid = (t as any).groupId as string | undefined;
+          const meta = gid ? groupMeta.get(gid) : null;
+          const isGrouped = Boolean(gid && meta && meta.items.length >= 2);
+
+          if (isGrouped) {
+            if (seenGroups.has(gid!)) continue;
+            orderedVisibleItems.push(...meta!.items);
+            seenGroups.add(gid!);
+            continue;
+          }
+
+          orderedVisibleItems.push(t);
+        }
+
+        orderedVisibleItems.forEach((t) => {
           const gid = (t as any).groupId as string | undefined;
           if (gid) groupLastId.set(gid, t.id);
         });
@@ -210,7 +229,7 @@ export const TransactionHistory: React.FC<Props> = ({
           <React.Fragment key={date}>
             <div className="date-header">{formatDateHeader(date)}</div>
 
-            {visibleItems.map((t, idx) => {
+            {orderedVisibleItems.map((t, idx) => {
               const x = getCurrentX(t.id);
               const gid = (t as any).groupId as string | undefined;
               const meta = gid ? groupMeta.get(gid) : null;
@@ -219,7 +238,7 @@ export const TransactionHistory: React.FC<Props> = ({
               const showGroupTotal =
                 gid && meta && meta.items.length >= 2 && groupLastId.get(gid) === t.id;
               const isGrouped = Boolean(gid && meta && meta.items.length >= 2);
-              const prev = idx > 0 ? visibleItems[idx - 1] : null;
+              const prev = idx > 0 ? orderedVisibleItems[idx - 1] : null;
               const prevGid = prev ? ((prev as any).groupId as string | undefined) : undefined;
               const prevMeta = prevGid ? groupMeta.get(prevGid) : null;
               const prevIsGrouped = Boolean(prevGid && prevMeta && prevMeta.items.length >= 2);

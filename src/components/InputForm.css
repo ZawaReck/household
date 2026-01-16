@@ -472,6 +472,10 @@
   outline-offset: -2px;
 }
 
+.receipt-row.boundary-top{
+  border-top: 1px solid #006428;
+}
+
 /* 空表示 */
 .receipt-empty{
   justify-content: flex-start;
