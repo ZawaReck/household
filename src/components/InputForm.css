@@ -511,9 +511,7 @@
   box-sizing: border-box;
   background: #F9FFFB;
   border-top: 2px solid #245E2D;
-  border-bottom: 2px solid #245E2D;
-  border-radius: 10px;
-  padding: 10px 12px;
+  padding: 10px 12px 0px 12px;
 
   display: flex;
   align-items: center;
@@ -533,6 +531,7 @@
 }
 
 .tax-switch{
+  padding: 3.5px 0 3.5px 0;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -543,7 +542,7 @@
 
 .tax-switch-ui{
   width: 44px;
-  height: 24px;
+  height: 25px;
   border-radius: 999px;
   border: 2px solid #245E2D;
   background: #F9FFFB;

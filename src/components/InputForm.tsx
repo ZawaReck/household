@@ -673,11 +673,11 @@ export const InputForm: React.FC<InputFormProps> = ({
                 <button
                   type="button"
                   role="radio"
-                  aria-checked={taxRate === 10}
-                  className={`tax-rate-btn ${taxRate === 10 ? "active" : ""}`}
-                  onClick={() => setTaxRate(10)}
+                  aria-checked={taxRate === 0}
+                  className={`tax-rate-btn ${taxRate === 0 ? "active" : ""}`}
+                  onClick={() => setTaxRate(0)}
                 >
-                  10%
+                  0%
                 </button>
                 <button
                   type="button"
@@ -691,11 +691,11 @@ export const InputForm: React.FC<InputFormProps> = ({
                 <button
                   type="button"
                   role="radio"
-                  aria-checked={taxRate === 0}
-                  className={`tax-rate-btn ${taxRate === 0 ? "active" : ""}`}
-                  onClick={() => setTaxRate(0)}
+                  aria-checked={taxRate === 10}
+                  className={`tax-rate-btn ${taxRate === 10 ? "active" : ""}`}
+                  onClick={() => setTaxRate(10)}
                 >
-                  0%
+                  10%
                 </button>
               </div>
             )}
