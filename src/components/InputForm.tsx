@@ -308,7 +308,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   const resetForm = (
     nextType: "expense" | "income" | "move" = type,
-    options: { keepDate?: boolean; dateValue?: string } = {}
+    options: { keepDate?: boolean; dateValue?: string; keepTaxControls?: boolean } = {}
   ) => {
     const nextDate = options.keepDate ? date : (options.dateValue ?? selectedDate);
     const nextCategory = nextType === "income" ? defaultIncomeCategory : defaultExpenseCategory;
@@ -316,8 +316,10 @@ export const InputForm: React.FC<InputFormProps> = ({
     setAmount("");
     setName("");
     setMemo("");
-    setIsExternalTax(false);
-    setTaxRate(10);
+    if (!options.keepTaxControls) {
+      setIsExternalTax(false);
+      setTaxRate(10);
+    }
     setCategory(nextCategory);
     setSource(defaultSource);
     setSourceMove(defaultMoveSource);
@@ -353,12 +355,12 @@ export const InputForm: React.FC<InputFormProps> = ({
     if (editingReceiptIndex !== null) {
       setReceiptItems((prev) => prev.map((it, i) => (i === editingReceiptIndex ? draft : it)));
       setEditingReceiptIndex(null);
-      resetForm(type, { keepDate: true });
+      resetForm(type, { keepDate: true, keepTaxControls: true });
       return;
     }
 
     setReceiptItems((prev) => [...prev, draft]);
-    resetForm(type, { keepDate: true });
+    resetForm(type, { keepDate: true, keepTaxControls: true });
   };
 
   const loadDraftToForm = (t: DraftTx, idx: number) => {
