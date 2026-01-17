@@ -170,12 +170,11 @@
 }
 
 .group-total-row{
-  background-color: #D7E3DB;
   color: #006428;
   padding: 6px 12px;
   font-size: 0.8rem;
   cursor: pointer;
-  border-bottom: 2px solid #006428;
+  border-bottom: 1px solid #006428;
 }
 
 .transaction-item.group-boundary-top{
