@@ -49,7 +49,6 @@ export const TransactionHistory: React.FC<Props> = ({
   // ✕ボタンの露出幅（px）
   const ACTION_W = 64;
   const OPEN_X = -ACTION_W;
-  const DELETE_X = -200;
 
   // “今どの行が開いているか” を保持（離しても戻らない）
   const [openId, setOpenId] = useState<string | null>(null);
@@ -76,6 +75,7 @@ export const TransactionHistory: React.FC<Props> = ({
     id: string;
     startX: number;
     baseX: number; // 開いてたら -ACTION_W, 閉じてたら 0
+    deleteX: number;
     active: boolean;
   } | null>(null);
 
@@ -125,7 +125,7 @@ export const TransactionHistory: React.FC<Props> = ({
     }
   };
 
-  const animateSettle = (id: string, fromX: number, toX: number, openAfter: boolean) => {
+  const animateSettle = (id: string, fromX: number, toX: number, openAfter: boolean, minX: number) => {
     cancelSettleAnim(id);
     const start = performance.now();
     const duration = 220;
@@ -133,7 +133,7 @@ export const TransactionHistory: React.FC<Props> = ({
     const step = (now: number) => {
       const t = clamp((now - start) / duration, 0, 1);
       const eased = easeOutBack(t);
-      const nextX = clamp(fromX + (toX - fromX) * eased, DELETE_X, 0);
+      const nextX = clamp(fromX + (toX - fromX) * eased, minX, 0);
 
       setDragXById((prev) => ({ ...prev, [id]: nextX }));
 
@@ -161,11 +161,13 @@ export const TransactionHistory: React.FC<Props> = ({
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 
     const baseX = openId === id ? OPEN_X : 0;
+    const width = (e.currentTarget as HTMLElement).getBoundingClientRect().width;
 
     dragStart.current = {
       id,
       startX: e.clientX,
       baseX,
+      deleteX: -width,
       active: true,
     };
   };
@@ -176,7 +178,7 @@ export const TransactionHistory: React.FC<Props> = ({
 
     const dx = e.clientX - s.startX;
     // 左スワイプのみ（右に引っ張っても 0 まで）
-    const nextX = clamp(s.baseX + dx, DELETE_X, 0);
+    const nextX = clamp(s.baseX + dx, s.deleteX, 0);
 
     setDragXById((prev) => ({ ...prev, [s.id]: nextX }));
   };
@@ -187,12 +189,9 @@ export const TransactionHistory: React.FC<Props> = ({
 
     const x = dragXById[s.id] ?? (openId === s.id ? OPEN_X : 0);
 
-    if (x <= DELETE_X) {
+    if (x <= s.deleteX) {
       cancelSettleAnim(s.id);
-      const ok = window.confirm("この項目を削除しますか？");
-      if (ok) {
-        onDeleteTransaction(s.id);
-      }
+      onDeleteTransaction(s.id);
       setOpenId(null);
       setDragXById((prev) => {
         const { [s.id]: _, ...rest } = prev;
@@ -209,7 +208,7 @@ export const TransactionHistory: React.FC<Props> = ({
     // どの程度開いたら固定で開くか
     const shouldOpen = x < OPEN_X / 2; // 例：-32pxより左なら open
 
-    animateSettle(s.id, x, shouldOpen ? OPEN_X : 0, shouldOpen);
+    animateSettle(s.id, x, shouldOpen ? OPEN_X : 0, shouldOpen, s.deleteX);
 
     dragStart.current = null;
   };
@@ -331,10 +330,12 @@ export const TransactionHistory: React.FC<Props> = ({
                         wheelXById.current[t.id] ??
                         (openId === t.id ? OPEN_X : 0);
                       cancelSettleAnim(t.id);
+                      const width = (e.currentTarget as HTMLElement).getBoundingClientRect().width;
+                      const deleteX = -width;
                       const allowDeleteSwipe = openId === t.id;
                       const rawNextX = base - dx; // dx の向きに合わせて -dx（自然な体感になりやすい）
                       const gatedNextX = allowDeleteSwipe ? rawNextX : Math.max(rawNextX, OPEN_X);
-                      const nextX = clamp(gatedNextX, DELETE_X, 0);
+                      const nextX = clamp(gatedNextX, deleteX, 0);
                       wheelXById.current[t.id] = nextX;
                       // wheel 操作中は dragXById に一時反映（表示追従）
                       setDragXById((prev) => ({ ...prev, [t.id]: nextX }));
@@ -345,12 +346,9 @@ export const TransactionHistory: React.FC<Props> = ({
 
                       wheelTimerById.current[t.id] = window.setTimeout(() => {
                         const x = wheelXById.current[t.id] ?? 0;
-                        if (x <= DELETE_X) {
+                        if (x <= deleteX) {
                           cancelSettleAnim(t.id);
-                          const ok = window.confirm("この項目を削除しますか？");
-                          if (ok) {
-                            onDeleteTransaction(t.id);
-                          }
+                          onDeleteTransaction(t.id);
                           setOpenId(null);
                           setDragXById((prev) => {
                             const { [t.id]: _, ...rest } = prev;
@@ -360,7 +358,7 @@ export const TransactionHistory: React.FC<Props> = ({
                           delete wheelTimerById.current[t.id];
                         } else {
                           const shouldOpen = x < OPEN_X / 2;
-                          animateSettle(t.id, x, shouldOpen ? OPEN_X : 0, shouldOpen);
+                          animateSettle(t.id, x, shouldOpen ? OPEN_X : 0, shouldOpen, deleteX);
                         }
 
                         // 一時値を掃除（以後は openId で固定）
