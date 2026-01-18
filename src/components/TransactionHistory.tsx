@@ -76,6 +76,7 @@ export const TransactionHistory: React.FC<Props> = ({
     startX: number;
     baseX: number; // 開いてたら -ACTION_W, 閉じてたら 0
     deleteX: number;
+    deleteThreshold: number;
     active: boolean;
   } | null>(null);
 
@@ -125,7 +126,14 @@ export const TransactionHistory: React.FC<Props> = ({
     }
   };
 
-  const animateSettle = (id: string, fromX: number, toX: number, openAfter: boolean, minX: number) => {
+  const animateSettle = (
+    id: string,
+    fromX: number,
+    toX: number,
+    openAfter: boolean,
+    minX: number,
+    onDone?: () => void
+  ) => {
     cancelSettleAnim(id);
     const start = performance.now();
     const duration = 220;
@@ -148,6 +156,7 @@ export const TransactionHistory: React.FC<Props> = ({
       });
       setOpenId(openAfter ? id : null);
       delete settleAnimById.current[id];
+      if (onDone) onDone();
     };
 
     settleAnimById.current[id] = window.requestAnimationFrame(step);
@@ -162,12 +171,14 @@ export const TransactionHistory: React.FC<Props> = ({
 
     const baseX = openId === id ? OPEN_X : 0;
     const width = (e.currentTarget as HTMLElement).getBoundingClientRect().width;
+    const deleteX = -width;
 
     dragStart.current = {
       id,
       startX: e.clientX,
       baseX,
-      deleteX: -width,
+      deleteX,
+      deleteThreshold: deleteX * 0.8,
       active: true,
     };
   };
@@ -189,18 +200,16 @@ export const TransactionHistory: React.FC<Props> = ({
 
     const x = dragXById[s.id] ?? (openId === s.id ? OPEN_X : 0);
 
-    if (x <= s.deleteX) {
+    if (x <= s.deleteThreshold) {
       cancelSettleAnim(s.id);
-      onDeleteTransaction(s.id);
-      setOpenId(null);
-      setDragXById((prev) => {
-        const { [s.id]: _, ...rest } = prev;
-        return rest;
+      animateSettle(s.id, x, s.deleteX, false, s.deleteX, () => {
+        onDeleteTransaction(s.id);
+        setOpenId(null);
+        delete wheelXById.current[s.id];
+        const prevTimer = wheelTimerById.current[s.id];
+        if (prevTimer) window.clearTimeout(prevTimer);
+        delete wheelTimerById.current[s.id];
       });
-      delete wheelXById.current[s.id];
-      const prevTimer = wheelTimerById.current[s.id];
-      if (prevTimer) window.clearTimeout(prevTimer);
-      delete wheelTimerById.current[s.id];
       dragStart.current = null;
       return;
     }
@@ -332,6 +341,7 @@ export const TransactionHistory: React.FC<Props> = ({
                       cancelSettleAnim(t.id);
                       const width = (e.currentTarget as HTMLElement).getBoundingClientRect().width;
                       const deleteX = -width;
+                      const deleteThreshold = deleteX * 0.8;
                       const allowDeleteSwipe = openId === t.id;
                       const rawNextX = base - dx; // dx の向きに合わせて -dx（自然な体感になりやすい）
                       const gatedNextX = allowDeleteSwipe ? rawNextX : Math.max(rawNextX, OPEN_X);
@@ -346,20 +356,19 @@ export const TransactionHistory: React.FC<Props> = ({
 
                       wheelTimerById.current[t.id] = window.setTimeout(() => {
                         const x = wheelXById.current[t.id] ?? 0;
-                        if (x <= deleteX) {
+                        if (x <= deleteThreshold) {
                           cancelSettleAnim(t.id);
-                          onDeleteTransaction(t.id);
-                          setOpenId(null);
-                          setDragXById((prev) => {
-                            const { [t.id]: _, ...rest } = prev;
-                            return rest;
+                          animateSettle(t.id, x, deleteX, false, deleteX, () => {
+                            onDeleteTransaction(t.id);
+                            setOpenId(null);
+                            delete wheelXById.current[t.id];
+                            delete wheelTimerById.current[t.id];
                           });
-                          delete wheelXById.current[t.id];
-                          delete wheelTimerById.current[t.id];
-                        } else {
-                          const shouldOpen = x < OPEN_X / 2;
-                          animateSettle(t.id, x, shouldOpen ? OPEN_X : 0, shouldOpen, deleteX);
+                          return;
                         }
+
+                        const shouldOpen = x < OPEN_X / 2;
+                        animateSettle(t.id, x, shouldOpen ? OPEN_X : 0, shouldOpen, deleteX);
 
                         // 一時値を掃除（以後は openId で固定）
                         setDragXById((prev) => {
