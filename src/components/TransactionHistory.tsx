@@ -12,6 +12,11 @@ type Props = {
 };
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+const easeOutBack = (x: number) => {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+};
 const normalizeTaxRate = (v: unknown) => (v === 0 || v === 8 ? v : 10);
 const calcExternalGross = (items: Array<Pick<Transaction, "type" | "amount" | "taxRate" | "isTaxAdjustment">>) => {
   let sum10 = 0;
@@ -76,6 +81,7 @@ export const TransactionHistory: React.FC<Props> = ({
 
   const wheelXById = useRef<Record<string, number>>({});
   const wheelTimerById = useRef<Record<string, number>>({});
+  const settleAnimById = useRef<Record<string, number>>({});
 
   const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
@@ -111,10 +117,47 @@ export const TransactionHistory: React.FC<Props> = ({
     return openId === id ? OPEN_X : 0;
   };
 
+  const cancelSettleAnim = (id: string) => {
+    const frame = settleAnimById.current[id];
+    if (frame) {
+      window.cancelAnimationFrame(frame);
+      delete settleAnimById.current[id];
+    }
+  };
+
+  const animateSettle = (id: string, fromX: number, toX: number, openAfter: boolean) => {
+    cancelSettleAnim(id);
+    const start = performance.now();
+    const duration = 220;
+
+    const step = (now: number) => {
+      const t = clamp((now - start) / duration, 0, 1);
+      const eased = easeOutBack(t);
+      const nextX = clamp(fromX + (toX - fromX) * eased, DELETE_X, 0);
+
+      setDragXById((prev) => ({ ...prev, [id]: nextX }));
+
+      if (t < 1) {
+        settleAnimById.current[id] = window.requestAnimationFrame(step);
+        return;
+      }
+
+      setDragXById((prev) => {
+        const { [id]: _, ...rest } = prev;
+        return rest;
+      });
+      setOpenId(openAfter ? id : null);
+      delete settleAnimById.current[id];
+    };
+
+    settleAnimById.current[id] = window.requestAnimationFrame(step);
+  };
+
   const onPointerDownRow = (e: React.PointerEvent, id: string) => {
     // 別の行が開いていたら閉じる（タップした瞬間に）
     if (openId && openId !== id) setOpenId(null);
 
+    cancelSettleAnim(id);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 
     const baseX = openId === id ? OPEN_X : 0;
@@ -144,16 +187,29 @@ export const TransactionHistory: React.FC<Props> = ({
 
     const x = dragXById[s.id] ?? (openId === s.id ? OPEN_X : 0);
 
+    if (x <= DELETE_X) {
+      cancelSettleAnim(s.id);
+      const ok = window.confirm("この項目を削除しますか？");
+      if (ok) {
+        onDeleteTransaction(s.id);
+      }
+      setOpenId(null);
+      setDragXById((prev) => {
+        const { [s.id]: _, ...rest } = prev;
+        return rest;
+      });
+      delete wheelXById.current[s.id];
+      const prevTimer = wheelTimerById.current[s.id];
+      if (prevTimer) window.clearTimeout(prevTimer);
+      delete wheelTimerById.current[s.id];
+      dragStart.current = null;
+      return;
+    }
+
     // どの程度開いたら固定で開くか
     const shouldOpen = x < OPEN_X / 2; // 例：-32pxより左なら open
 
-    setOpenId(shouldOpen ? s.id : null);
-
-    // ドラッグ追従値はクリア（以後は openId で固定）
-    setDragXById((prev) => {
-      const { [s.id]: _, ...rest } = prev;
-      return rest;
-    });
+    animateSettle(s.id, x, shouldOpen ? OPEN_X : 0, shouldOpen);
 
     dragStart.current = null;
   };
@@ -274,24 +330,11 @@ export const TransactionHistory: React.FC<Props> = ({
                       const base =
                         wheelXById.current[t.id] ??
                         (openId === t.id ? OPEN_X : 0);
-
-                      const nextX = clamp(base - dx, DELETE_X, 0); // dx の向きに合わせて -dx（自然な体感になりやすい）
-                      if (nextX <= DELETE_X) {
-                        const ok = window.confirm("この項目を削除しますか？");
-                        if (ok) {
-                          onDeleteTransaction(t.id);
-                        }
-
-                        // 状態をリセット
-                        setOpenId(null);
-                        setDragXById((prev) => {
-                          const { [t.id]: _, ...rest } = prev;
-                          return rest;
-                        });
-                        delete wheelXById.current[t.id];
-                        delete wheelTimerById.current[t.id];
-                        return;
-                      }
+                      cancelSettleAnim(t.id);
+                      const allowDeleteSwipe = openId === t.id;
+                      const rawNextX = base - dx; // dx の向きに合わせて -dx（自然な体感になりやすい）
+                      const gatedNextX = allowDeleteSwipe ? rawNextX : Math.max(rawNextX, OPEN_X);
+                      const nextX = clamp(gatedNextX, DELETE_X, 0);
                       wheelXById.current[t.id] = nextX;
                       // wheel 操作中は dragXById に一時反映（表示追従）
                       setDragXById((prev) => ({ ...prev, [t.id]: nextX }));
@@ -302,9 +345,23 @@ export const TransactionHistory: React.FC<Props> = ({
 
                       wheelTimerById.current[t.id] = window.setTimeout(() => {
                         const x = wheelXById.current[t.id] ?? 0;
-                        const shouldOpen = x < OPEN_X / 2;
-
-                        setOpenId(shouldOpen ? t.id : null);
+                        if (x <= DELETE_X) {
+                          cancelSettleAnim(t.id);
+                          const ok = window.confirm("この項目を削除しますか？");
+                          if (ok) {
+                            onDeleteTransaction(t.id);
+                          }
+                          setOpenId(null);
+                          setDragXById((prev) => {
+                            const { [t.id]: _, ...rest } = prev;
+                            return rest;
+                          });
+                          delete wheelXById.current[t.id];
+                          delete wheelTimerById.current[t.id];
+                        } else {
+                          const shouldOpen = x < OPEN_X / 2;
+                          animateSettle(t.id, x, shouldOpen ? OPEN_X : 0, shouldOpen);
+                        }
 
                         // 一時値を掃除（以後は openId で固定）
                         setDragXById((prev) => {
