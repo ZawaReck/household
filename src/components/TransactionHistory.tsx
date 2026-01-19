@@ -178,7 +178,7 @@ export const TransactionHistory: React.FC<Props> = ({
       startX: e.clientX,
       baseX,
       deleteX,
-      deleteThreshold: deleteX * 0.8,
+      deleteThreshold: deleteX * 0.7,
       active: true,
     };
   };
@@ -341,7 +341,7 @@ export const TransactionHistory: React.FC<Props> = ({
                       cancelSettleAnim(t.id);
                       const width = (e.currentTarget as HTMLElement).getBoundingClientRect().width;
                       const deleteX = -width;
-                      const deleteThreshold = deleteX * 0.8;
+                      const deleteThreshold = deleteX * 0.7;
                       const allowDeleteSwipe = openId === t.id;
                       const rawNextX = base - dx; // dx の向きに合わせて -dx（自然な体感になりやすい）
                       const gatedNextX = allowDeleteSwipe ? rawNextX : Math.max(rawNextX, OPEN_X);
