@@ -205,21 +205,21 @@
   grid-column: 1 / -1;
   white-space: nowrap;
   display: grid;
-  grid-template-columns: repeat(4, max-content);
-  gap: 5px;
+  grid-template-columns: repeat(5, max-content);
+  gap: 4px;
   width: fit-content;
   margin-left: auto;
   margin-right: auto;
 }
 
 .category-btn{
-  width: 5.5em;
+  width: 5.2em;
   border: 1px solid #1f5b2a;
   background: transparent;
   color: #1f5b2a;
   border-radius: 6px;
-  padding: 10px 0px;
-  font-size: 14px;
+  padding: 9px 0px;
+  font-size: 13px;
   font-weight: 200;
   cursor: pointer;
 }

@@ -62,7 +62,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   };
 
   const sourceOptions = ["財布", "QR", "IC", "クレカ1", "クレカ2", "銀行", "ポイント"];
-  const expenseCategoryOptions = ["食料品費", "交通費旅費", "娯楽費", "光熱費", "通信費", "医療費", "教育費", "その他"];
+  const expenseCategoryOptions = ["食料品費", "外食費", "教養費", "趣味費", "雑貨費", "交通費旅費", "服飾費", "医療関係費", "交際費", "その他"];
   const incomeCategoryOptions = ["月収", "臨時収入", "副次収入", "その他"];
   const categoryOptions = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
 
