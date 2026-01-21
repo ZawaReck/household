@@ -4,12 +4,15 @@
 .input-form {
   width: 100%;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* --- Tabs --- */
 .tab-group {
   width: min(520px, 92%);
-  margin: 10px auto 18px;
+  margin: 10px 0 18px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   background: #245E2D;
@@ -38,7 +41,7 @@
 /* --- Form base --- */
 .input-form form {
   width: min(620px, 96%);
-  margin: 0 auto;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -192,7 +195,6 @@
 
   .field {
     grid-template-columns: 1fr;
-    padding: 14px 10px;
   }
 
   .field select  select {
@@ -201,15 +203,20 @@
   }
 }
 
-.category-buttons{
+.category-buttons-wrap{
   grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  overflow: visible;
+}
+
+.category-buttons{
   white-space: nowrap;
   display: grid;
   grid-template-columns: repeat(5, max-content);
   gap: 4px;
-  width: fit-content;
-  margin-left: auto;
-  margin-right: auto;
+  width: max-content;
+  flex: 0 0 auto;
 }
 
 .category-btn{
@@ -312,7 +319,7 @@
 /* --- Receipt queue --- */
 .receipt-queue{
   width: min(620px, 96%);
-  margin: 12px auto 0;
+  margin: 12px 0 0;
   background: #F9FFFB;
   border-radius: 10px;
   box-sizing: border-box;
@@ -432,7 +439,7 @@
 
 .receipt-queue{
   width: min(620px, 96%);
-  margin: 12px auto 0;
+  margin: 12px 0 0;
 }
 
 .form-buttons.receipt-buttons{

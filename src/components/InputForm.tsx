@@ -750,19 +750,21 @@ export const InputForm: React.FC<InputFormProps> = ({
 
         {type !== "move" && (
           <div className="field">
-            <div className="category-buttons" role="radiogroup" aria-label="カテゴリ">
-              {categoryOptions.map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  role="radio"
-                  aria-checked={category === option}
-                  className={`category-btn ${category === option ? "active" : ""}`}
-                  onClick={() => setCategory(option)}
-                >
-                  {option}
-                </button>
-              ))}
+            <div className="category-buttons-wrap">
+              <div className="category-buttons" role="radiogroup" aria-label="カテゴリ">
+                {categoryOptions.map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={category === option}
+                    className={`category-btn ${category === option ? "active" : ""}`}
+                    onClick={() => setCategory(option)}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="kv-row picker-anchor">
