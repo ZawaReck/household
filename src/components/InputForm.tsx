@@ -622,9 +622,11 @@ export const InputForm: React.FC<InputFormProps> = ({
     );
   };
 
+  const tabIndex = type === "expense" ? 0 : type === "income" ? 1 : 2;
+
   return (
     <div className="input-form">
-      <div className="tab-group">
+      <div className="tab-group" style={{ "--tab-index": tabIndex } as React.CSSProperties}>
         <button className={type === "expense" ? "active" : ""} onClick={() => handleTabClick("expense")} type="button">
           Out
         </button>
