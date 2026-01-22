@@ -47,6 +47,10 @@
   background: #ecf9f0;
 }
 
+.transaction-item.group-total-row:hover {
+  background: #ecf9f0;
+}
+
 .transaction-item.type-move:hover {
   background: #ecf9f0;
 }
