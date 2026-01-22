@@ -220,13 +220,13 @@
 }
 
 .category-btn{
-  width: 5.2em;
+  width: 5.5em;
   border: 1px solid #1f5b2a;
   background: transparent;
   color: #1f5b2a;
   border-radius: 6px;
   padding: 9px 0px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 200;
   cursor: pointer;
 }
