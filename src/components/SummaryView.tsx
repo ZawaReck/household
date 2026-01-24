@@ -21,11 +21,30 @@ export const SummaryView: React.FC<Props> = ({ monthlyData, openingBalance }) =>
 
     return (
         <div className="summary-container">
-            <div className="summary-item income"><span>In</span><strong>{income.toLocaleString()}円</strong></div>
-            <div className="summary-item expense"><span>Out</span><strong>{expense.toLocaleString()}円</strong></div>
-            <div className="summary-item total"><span>Total</span><strong>{total.toLocaleString()}円</strong></div>
-            <div className="summary-item opening-balance"><span>Opening</span><strong>{openingBalance.toLocaleString()}円</strong></div>
-            <div className="summary-item balance"><span>Balance</span><strong>{balance.toLocaleString()}円</strong></div>
+            <div className="summary-top">
+                <div className="summary-cell income">
+                    <span className="summary-label">In</span>
+                    <strong className="summary-value">{income.toLocaleString()}円</strong>
+                </div>
+                <div className="summary-cell out">
+                    <span className="summary-label">Out</span>
+                    <strong className="summary-value">{expense.toLocaleString()}円</strong>
+                </div>
+                <div className="summary-cell total">
+                    <span className="summary-label">Total</span>
+                    <strong className="summary-value">{total.toLocaleString()}円</strong>
+                </div>
+            </div>
+            <div className="summary-bottom">
+                <div className="summary-bottom-item opening">
+                    <span className="summary-label">Opening:</span>
+                    <strong className="summary-value">{openingBalance.toLocaleString()}円</strong>
+                </div>
+                <div className="summary-bottom-item balance">
+                    <span className="summary-label">Balance:</span>
+                    <strong className="summary-value">{balance.toLocaleString()}円</strong>
+                </div>
+            </div>
         </div>
     );
 }
