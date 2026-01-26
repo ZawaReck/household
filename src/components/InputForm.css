@@ -226,6 +226,8 @@
   display: flex;
   justify-content: center;
   overflow: visible;
+  width: 100%;
+  min-width: 0;
 }
 
 .category-buttons{
@@ -236,7 +238,8 @@
   gap: 4px;
   width: 100%;
   max-width: calc(27.5em + 16px);
-  grid-template-columns: repeat(auto-fit, 5.5em);
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, 5.143em);
   justify-content: center;
   /* flex: 0 0 auto; */
 }
@@ -248,9 +251,9 @@
   color: #1f5b2a;
   border-radius: 6px;
   padding: 9px 0px;
-  font-size: 14px;
-  font-weight: 200;
+  font-weight: 400;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .category-btn.active{
