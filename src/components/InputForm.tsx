@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import type { Transaction } from "../types/Transaction";
 import type { TaxMode, TaxRate } from "../types/Transaction";
 import { WheelPickerInline } from "./WheelPickerInline";
+import { DateWheelPicker } from "./DateWheelPicker";
 import "./InputForm.css";
 import "./TransactionHistory.css";
 
@@ -655,7 +656,7 @@ export const InputForm: React.FC<InputFormProps> = ({
           placeholder="摘要"
           required={type !== "move"}
         />
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+        <DateWheelPicker value={date} onChange={setDate} />
 
         {/* 外税トグル + 税率（支出のみ） */}
         {type === "expense" && (

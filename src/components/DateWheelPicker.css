@@ -1,0 +1,150 @@
+/* src/components/DateWheelPicker.css */
+
+.date-wheel-picker {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+}
+
+.date-wheel-picker.is-disabled {
+  opacity: 0.6;
+}
+
+.date-wheel-trigger {
+  width: 100%;
+  box-sizing: border-box;
+  height: 50px;
+  border-radius: 10px;
+  border: none;
+  background: #c6ffdd;
+  color: #245e2d;
+  font-size: 15px;
+  padding: 0 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.date-wheel-trigger:disabled {
+  cursor: not-allowed;
+}
+
+.date-wheel-popover {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 40;
+  background: #f9fffb;
+  border: 2px solid rgba(36, 94, 45, 0.25);
+  border-radius: 16px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+  padding: 10px 12px;
+}
+
+.date-wheel-body {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  background: #f9fffb;
+  border: 2px solid rgba(36, 94, 45, 0.25);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.date-wheel-label-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 6px;
+  padding: 0 12px;
+}
+
+.date-wheel-body::before,
+.date-wheel-body::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 32px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.date-wheel-body::before {
+  top: 0;
+  background: linear-gradient(180deg, rgba(249, 255, 251, 0.95), rgba(249, 255, 251, 0));
+}
+
+.date-wheel-body::after {
+  bottom: 0;
+  background: linear-gradient(0deg, rgba(249, 255, 251, 0.95), rgba(249, 255, 251, 0));
+}
+
+.date-wheel-highlight {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 14px;
+  background: rgba(36, 94, 45, 0.1);
+  border: 2px solid rgba(36, 94, 45, 0.25);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.date-wheel-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
+}
+
+.date-wheel-label {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(36, 94, 45, 0.6);
+  flex: 1;
+}
+
+.date-wheel-list {
+  flex: 1;
+  height: auto;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 0 8px;
+  border-radius: 12px;
+}
+
+.date-wheel-list:focus {
+  outline: 2px solid rgba(36, 94, 45, 0.35);
+  outline-offset: 2px;
+}
+
+.date-wheel-item {
+  display: grid;
+  place-items: center;
+  scroll-snap-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(36, 94, 45, 0.35);
+  user-select: none;
+}
+
+.date-wheel-item.is-selected {
+  color: #245e2d;
+  font-weight: 800;
+}
+
+.date-wheel-item.pad {
+  color: transparent;
+}
+
+.date-wheel-list::-webkit-scrollbar {
+  display: none;
+}
