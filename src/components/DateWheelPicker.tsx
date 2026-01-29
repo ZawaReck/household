@@ -181,7 +181,10 @@ export const DateWheelPicker: React.FC<Props> = ({
   }, [isControlled, yearRange.minYear, yearRange.maxYear]);
 
   const parts = isControlled ? safeFrom(value) : internal;
-  const displayValue = formatISODate(parts);
+  const displayValue =
+    parts.year === today.year
+      ? `${parts.month}月${parts.day}日`
+      : `${parts.year}年${parts.month}月${parts.day}日`;
 
   const years = useMemo(() => {
     const list: number[] = [];
@@ -254,7 +257,8 @@ export const DateWheelPicker: React.FC<Props> = ({
         aria-expanded={isOpen}
         disabled={disabled}
       >
-        {displayValue}
+        <span className="date-wheel-trigger-label">日付</span>
+        <span className="date-wheel-trigger-value">{displayValue}</span>
       </button>
 
       {isOpen && (
