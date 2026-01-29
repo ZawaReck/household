@@ -640,22 +640,24 @@ export const InputForm: React.FC<InputFormProps> = ({
       </div>
 
       <form onSubmit={handleSubmit}>
-        <input
-          type="number"
-          min="1"
-          step={type === "expense" ? "1" : "any"}
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="金額"
-          required
-        />
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="摘要"
-          required={type !== "move"}
-        />
+        <div className="row-2">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="摘要"
+            required={type !== "move"}
+          />
+          <input
+            type="number"
+            min="1"
+            step={type === "expense" ? "1" : "any"}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="金額"
+            required
+          />
+        </div>
         <DateWheelPicker value={date} onChange={setDate} />
 
         {/* 外税トグル + 税率（支出のみ） */}

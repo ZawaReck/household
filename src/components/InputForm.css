@@ -88,7 +88,7 @@
 /* 2カラム（摘要/金額みたいな並び）を将来やりやすくする保険 */
 .input-form .row-2 {
   display: grid;
-  grid-template-columns: 1.7fr 1fr;
+  grid-template-columns: 2fr 1fr;
   gap: 10px;
 }
 
