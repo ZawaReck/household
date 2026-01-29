@@ -13,19 +13,20 @@
 .date-wheel-trigger {
   width: 100%;
   box-sizing: border-box;
-  height: 50px;
+  height: 44.8px;
   border: none;
   background: transparent;
   color: #245e2d;
   font-size: 15px;
-  padding: 10px 18px;
+  padding: 10px 0 0 0;
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
   text-align: left;
   cursor: pointer;
   border-top: 2px solid #245e2d;
-  border-bottom: 2px solid #245e2d;
+  /* border-bottom: 2px solid #245e2d; */
+  border-radius: 0px;
 }
 
 .date-wheel-trigger:disabled {
@@ -34,11 +35,13 @@
 
 .date-wheel-trigger-label {
   font-weight: 800;
+  padding-left: 18px;
 }
 
 .date-wheel-trigger-value {
   font-weight: 800;
   text-align: right;
+  padding-right: 18px;
 }
 
 .date-wheel-popover {
@@ -48,10 +51,8 @@
   top: calc(100% + 8px);
   z-index: 40;
   background: #f9fffb;
-  border: 2px solid rgba(36, 94, 45, 0.25);
   border-radius: 16px;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
-  padding: 10px 12px;
 }
 
 .date-wheel-body {
@@ -65,12 +66,6 @@
   overflow: hidden;
 }
 
-.date-wheel-label-row {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 6px;
-  padding: 0 12px;
-}
 
 .date-wheel-body::before,
 .date-wheel-body::after {
@@ -114,13 +109,6 @@
   z-index: 1;
 }
 
-.date-wheel-label {
-  text-align: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: rgba(36, 94, 45, 0.6);
-  flex: 1;
-}
 
 .date-wheel-list {
   flex: 1;

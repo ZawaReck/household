@@ -33,6 +33,8 @@ type ColumnProps = {
   selectedIndex: number;
   onSelectIndex: (index: number) => void;
   disabled?: boolean;
+  formatItem?: (item: number) => string;
+  loop?: boolean;
 };
 
 const WheelColumn: React.FC<ColumnProps> = ({
@@ -41,11 +43,16 @@ const WheelColumn: React.FC<ColumnProps> = ({
   selectedIndex,
   onSelectIndex,
   disabled,
+  formatItem,
+  loop,
 }) => {
   const listRef = useRef<HTMLDivElement | null>(null);
   const ignoreScrollRef = useRef(false);
   const settleTimerRef = useRef<number | null>(null);
-  const [tempIndex, setTempIndex] = useState(selectedIndex);
+  const isLooped = loop && items.length > 0;
+  const baseOffset = isLooped ? items.length : 0;
+  const totalItems = isLooped ? items.length * 3 : items.length;
+  const [tempIndex, setTempIndex] = useState(baseOffset + selectedIndex);
 
   const scrollToIndex = (index: number, behavior: ScrollBehavior) => {
     const el = listRef.current;
@@ -53,16 +60,27 @@ const WheelColumn: React.FC<ColumnProps> = ({
     el.scrollTo({ top: index * ITEM_H, behavior });
   };
 
+  const wrapIndex = (index: number, length: number) => {
+    const mod = index % length;
+    return mod < 0 ? mod + length : mod;
+  };
+
+  const toLogicalIndex = (rawIndex: number) => {
+    if (!isLooped) return clamp(rawIndex, 0, items.length - 1);
+    return wrapIndex(rawIndex, items.length);
+  };
+
   useEffect(() => {
-    setTempIndex(selectedIndex);
+    const nextIndex = baseOffset + selectedIndex;
+    setTempIndex(nextIndex);
     const el = listRef.current;
     if (!el) return;
     ignoreScrollRef.current = true;
-    scrollToIndex(selectedIndex, "auto");
+    scrollToIndex(nextIndex, "auto");
     requestAnimationFrame(() => {
       ignoreScrollRef.current = false;
     });
-  }, [selectedIndex, items.length]);
+  }, [selectedIndex, baseOffset, totalItems]);
 
   useEffect(() => {
     return () => {
@@ -70,11 +88,13 @@ const WheelColumn: React.FC<ColumnProps> = ({
     };
   }, []);
 
-  const commitIndex = (index: number) => {
-    const next = clamp(index, 0, items.length - 1);
-    onSelectIndex(next);
+  const commitIndex = (rawIndex: number) => {
+    const logicalIndex = toLogicalIndex(rawIndex);
+    onSelectIndex(logicalIndex);
+    const nextRawIndex = isLooped ? baseOffset + logicalIndex : logicalIndex;
     ignoreScrollRef.current = true;
-    scrollToIndex(next, "auto");
+    scrollToIndex(nextRawIndex, "auto");
+    setTempIndex(nextRawIndex);
     requestAnimationFrame(() => {
       ignoreScrollRef.current = false;
     });
@@ -84,8 +104,25 @@ const WheelColumn: React.FC<ColumnProps> = ({
     if (disabled || ignoreScrollRef.current) return;
     const el = listRef.current;
     if (!el) return;
-    const raw = Math.round(el.scrollTop / ITEM_H);
-    const next = clamp(raw, 0, items.length - 1);
+    let raw = Math.round(el.scrollTop / ITEM_H);
+    if (isLooped && items.length > 0) {
+      if (raw < items.length) {
+        ignoreScrollRef.current = true;
+        raw += items.length;
+        el.scrollTop = raw * ITEM_H;
+        requestAnimationFrame(() => {
+          ignoreScrollRef.current = false;
+        });
+      } else if (raw >= items.length * 2) {
+        ignoreScrollRef.current = true;
+        raw -= items.length;
+        el.scrollTop = raw * ITEM_H;
+        requestAnimationFrame(() => {
+          ignoreScrollRef.current = false;
+        });
+      }
+    }
+    const next = isLooped ? clamp(raw, 0, totalItems - 1) : clamp(raw, 0, items.length - 1);
     setTempIndex(next);
     if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
     settleTimerRef.current = window.setTimeout(() => {
@@ -98,6 +135,17 @@ const WheelColumn: React.FC<ColumnProps> = ({
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
     e.preventDefault();
     const delta = e.key === "ArrowUp" ? -1 : 1;
+    if (isLooped) {
+      const logicalNext = wrapIndex(toLogicalIndex(tempIndex) + delta, items.length);
+      const nextRawIndex = baseOffset + logicalNext;
+      setTempIndex(nextRawIndex);
+      scrollToIndex(nextRawIndex, "smooth");
+      if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = window.setTimeout(() => {
+        commitIndex(nextRawIndex);
+      }, 120);
+      return;
+    }
     const next = clamp(tempIndex + delta, 0, items.length - 1);
     setTempIndex(next);
     scrollToIndex(next, "smooth");
@@ -106,6 +154,8 @@ const WheelColumn: React.FC<ColumnProps> = ({
       commitIndex(next);
     }, 120);
   };
+
+  const displayItems = isLooped ? [...items, ...items, ...items] : items;
 
   return (
     <div className="date-wheel-column">
@@ -122,19 +172,19 @@ const WheelColumn: React.FC<ColumnProps> = ({
         {Array.from({ length: PAD_ITEMS }).map((_, i) => (
           <div key={`pad-top-${label}-${i}`} className="date-wheel-item pad" style={{ height: ITEM_H }} />
         ))}
-        {items.map((item, index) => (
+        {displayItems.map((item, index) => (
           <div
-            key={`${label}-${item}`}
+            key={`${label}-${item}-${index}`}
             className={`date-wheel-item ${index === tempIndex ? "is-selected" : ""}`}
             style={{ height: ITEM_H }}
             role="option"
-            aria-selected={index === selectedIndex}
+            aria-selected={index === tempIndex}
             onClick={() => {
               if (disabled) return;
               scrollToIndex(index, "smooth");
             }}
           >
-            {item}
+            {formatItem ? formatItem(item) : item}
           </div>
         ))}
         {Array.from({ length: PAD_ITEMS }).map((_, i) => (
@@ -181,10 +231,11 @@ export const DateWheelPicker: React.FC<Props> = ({
   }, [isControlled, yearRange.minYear, yearRange.maxYear]);
 
   const parts = isControlled ? safeFrom(value) : internal;
+  const pad2 = (num: number) => String(num).padStart(2, "0");
   const displayValue =
     parts.year === today.year
-      ? `${parts.month}月${parts.day}日`
-      : `${parts.year}年${parts.month}月${parts.day}日`;
+      ? `${pad2(parts.month)}/${pad2(parts.day)}`
+      : `${parts.year}/${pad2(parts.month)}/${pad2(parts.day)}`;
 
   const years = useMemo(() => {
     const list: number[] = [];
@@ -269,11 +320,6 @@ export const DateWheelPicker: React.FC<Props> = ({
           onWheel={(e) => e.stopPropagation()}
           onTouchMove={(e) => e.stopPropagation()}
         >
-          <div className="date-wheel-label-row">
-            <div className="date-wheel-label">年</div>
-            <div className="date-wheel-label">月</div>
-            <div className="date-wheel-label">日</div>
-          </div>
           <div className="date-wheel-body" style={{ height: ITEM_H * VISIBLE }}>
             <div className="date-wheel-highlight" style={{ height: ITEM_H }} />
             <WheelColumn
@@ -289,6 +335,8 @@ export const DateWheelPicker: React.FC<Props> = ({
               selectedIndex={parts.month - 1}
               onSelectIndex={handleMonthSelect}
               disabled={disabled}
+              formatItem={pad2}
+              loop
             />
             <WheelColumn
               label="日"
@@ -296,6 +344,8 @@ export const DateWheelPicker: React.FC<Props> = ({
               selectedIndex={parts.day - 1}
               onSelectIndex={handleDaySelect}
               disabled={disabled}
+              formatItem={pad2}
+              loop
             />
           </div>
         </div>
