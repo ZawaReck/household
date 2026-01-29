@@ -1,69 +1,83 @@
-# React + TypeScript + Vite
+# Household（家計簿）
+（このREADMEは大部分がodexにより作成されています．）
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript + Vite で作成した，個人向けの家計簿アプリです．高校時代より家計簿アプリを利用していたのですが，自身の環境が変化するにつれて機能の不足を段々感じるようになってきました．もっと良いサービスに乗り換えようにもデータは引き継げないし，自分にしか刺さらないが欲しい機能があるしで自作家計簿を作りたいとずっと思っていたので，現在 AI を活用しながら作成中です．
+月次の収支をダッシュボードで俯瞰しながら，支出・収入・資金移動を入力できます．PWA 対応で，オフラインでも利用可能です．データベース対応はまだしていません．
 
-Currently, two official plugins are available:
+## 主な機能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 月次カレンダー表示（当月の各日の収入/支出を表示，月切り替え対応）
+- 月次サマリー（In / Out / Total）と繰越・残高の表示
+- 取引履歴の一覧（日時ごとにグルーピング，スワイプで削除）
+- 入力フォーム（Out / In / Move のタブ切替）
+- 支出のレシート入力（仮登録 → 一括登録）
+- 外税トグルと税率（0/8/10%）対応，外税の場合は自動で「外税」調整行を追加
+- 日付・拠出元・移動先のホイールピッカー
+- データはブラウザの `localStorage` に保存（キー: `transactions`）
 
-## Expanding the ESLint configuration
+## 画面構成
+- カレンダー，月次サマリー
+- 履歴
+- 入力フォーム
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 取引データの概要
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+`Transaction` の内容（`src/types/Transaction.ts`）．
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+- `type`: `expense` | `income` | `move`
+- `amount`: 金額（正の数）
+- `date`: `YYYY-MM-DD`
+- `name`: 摘要
+- `category`: 支出/収入カテゴリ
+- `source`: 拠出元（move の場合は移動元）
+- `destination`: 移動先（move のみ）
+- `memo`: メモ
+- `groupId`: レシート入力のグルーピング
+- `taxMode`: `inclusive` | `exclusive`（支出のみ）
+- `taxRate`: `0 | 8 | 10`（支出のみ）
+- `taxBaseAmount`: 税別の元金
+- `isTaxAdjustment`: 外税調整行かどうか
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 使い方（開発）
+
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### その他のスクリプト
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run build
+npm run preview
+npm run lint
 ```
+
+## 技術スタック
+
+- React 19
+- TypeScript
+- Vite
+- react-router-dom
+- vite-plugin-pwa
+
+## ディレクトリ構成（主要）
+
+- `src/App.tsx`: ルーティングと状態管理（localStorage 永続化）
+- `src/components/`
+  - `DashboardPage.tsx`: 3カラム構成のメイン画面
+  - `CalendarView.tsx`: 月次カレンダー
+  - `SummaryView.tsx`: 月次集計
+  - `TransactionHistory.tsx`: 履歴表示（スワイプ削除）
+  - `InputForm.tsx`: 入力フォーム（外税/レシート対応）
+  - `DateWheelPicker.tsx`: 日付ピッカー
+  - `WheelPickerInline.tsx`: セレクト系のホイールUI
+- `src/types/Transaction.ts`: 取引データ型
+- `src/utils/date.ts`: 日付処理ユーティリティ
+- `public/`: PWA アイコン
+
+## 注意点
+
+- 現時点ではデータはブラウザの `localStorage` に保存されるため，別端末や別ブラウザ間で同期されません．
+- 外税モードでは，グループ内の支出を税別で保持し，表示時に税込へ換算します．必要に応じて「外税」調整行が自動作成・更新されます．
+
