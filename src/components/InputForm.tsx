@@ -710,14 +710,13 @@ export const InputForm: React.FC<InputFormProps> = ({
         {type === "move" && (
           <div className="move-fields">
             <div className="kv-row picker-anchor">
-              <div className="kv-label">移動元</div>
-
               <button
                 type="button"
                 className="kv-value-btn"
                 onClick={() => setOpenMovePicker((v) => (v === "sourceMove" ? null : "sourceMove"))}
               >
-                {sourceMove}
+                <span className="kv-label">移動元</span>
+                <span className="kv-value-text">{sourceMove}</span>
               </button>
 
               {openMovePicker === "sourceMove" && (
@@ -731,14 +730,13 @@ export const InputForm: React.FC<InputFormProps> = ({
             </div>
 
             <div className="kv-row-under picker-anchor">
-              <div className="kv-label">移動先</div>
-
               <button
                 type="button"
                 className="kv-value-btn"
                 onClick={() => setOpenMovePicker((v) => (v === "destination" ? null : "destination"))}
               >
-                {destination}
+                <span className="kv-label">移動先</span>
+                <span className="kv-value-text">{destination}</span>
               </button>
 
               {openMovePicker === "destination" && (
@@ -773,15 +771,14 @@ export const InputForm: React.FC<InputFormProps> = ({
             </div>
 
             <div className="kv-row picker-anchor">
-              <div className="kv-label">{type === "income" ? "入金先" : "拠出元"}</div>
-
               <button
                 type="button"
                 className="kv-value-btn"
                 onClick={() => setIsSourcePickerOpen((v) => !v)}
                 aria-expanded={isSourcePickerOpen}
               >
-                {source}
+                <span className="kv-label">{type === "income" ? "入金先" : "拠出元"}</span>
+                <span className="kv-value-text">{source}</span>
               </button>
 
               {isSourcePickerOpen && (

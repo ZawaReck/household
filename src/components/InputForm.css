@@ -155,7 +155,7 @@
 }
 
 .move-fields span {
-  padding: 0 10px;
+  padding-left: 18px;
   color: #245E2D;
   font-weight: 800;
 }
@@ -204,11 +204,10 @@
   .move-fields {
     grid-template-columns: 1fr;
     /* gap: 8px; */
-    padding: 14px 10px;
   }
 
   .move-fields span {
-    padding: 0;
+    padding-left: 18px;
   }
 
   .field {
@@ -287,26 +286,11 @@
 .kv-row{
   grid-column: 1 / -1;         /* ★これが重要（2列をまたぐ） */
   position: relative;          /* WheelPickerInlineを重畳させる土台 */
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-
-  padding: 9px 0 9px 0;
-
-  border-top: 2px solid #245E2D;
-  border-bottom: 2px solid #245E2D;
 }
 
 .kv-row-under{
   grid-column: 1 / -1;         /* ★これが重要（2列をまたぐ） */
   position: relative;          /* WheelPickerInlineを重畳させる土台 */
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-
-  padding: 10px 0 10px 0;
-
-  border-bottom: 2px solid #245E2D;
 }
 
 /* 左のラベル（拠出元） */
@@ -316,21 +300,38 @@
   font-weight: 800;
   font-size: 15px;
   letter-spacing: 0.02em;
+  text-align: left;
+  justify-self: start;
 }
 
 /* 右側の値（PayPayなど）をボタンとして扱う */
 .kv-value-btn{
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
   border: none;
   background: transparent;
   cursor: pointer;
 
+  padding: 14px 0 14px 0;
+  border-top: 2px solid #245E2D;
+  border-bottom: 2px solid #245E2D;
+  border-radius: 0;
+}
+
+.kv-row-under .kv-value-btn{
+  padding: 14px 0 14px 0;
+  border-top: none;
+}
+
+.kv-value-text{
   color: #245E2D;
   font-weight: 800;
   font-size: 15px;
   letter-spacing: 0.02em;
-
   text-align: right;
-  padding-right: 18px;                 /* 行のpaddingはkv-rowが持つ */
+  padding-right: 18px;
   line-height: 1;
 }
 

@@ -3,8 +3,8 @@
 .wheel-inline{/* TODO: フォントサイズとか変えたい */
   position: absolute;
 	width: 50%;
-  right: -18px;
-  top: -190%;
+  right: 18px;
+  top: -180%;
   z-index: 50;
   background: #F9FFFB;
   border: 2px solid rgba(36,94,45,0.25);
