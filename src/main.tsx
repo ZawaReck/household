@@ -10,3 +10,10 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 )
+
+if (import.meta.env.DEV) {
+  import("./dev/demoData").then(({ loadDemoData, clearDemoData }) => {
+    (window as any).loadDemoData = loadDemoData;
+    (window as any).clearDemoData = clearDemoData;
+  });
+}

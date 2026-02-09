@@ -1,0 +1,8 @@
+{
+  "meta": { "version": "sample-v1" },
+  "transactions": [],
+  "budgets": [],
+  "accountActualBalances": {},
+  "investments": {},
+  "sontokuEntries": { "entries": [] }
+}
