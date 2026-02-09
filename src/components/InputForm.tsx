@@ -62,7 +62,23 @@ export const InputForm: React.FC<InputFormProps> = ({
     resetForm(nextType, { dateValue: todayISO() });
   };
 
-  const sourceOptions = ["財布", "QR", "IC", "クレカ1", "クレカ2", "銀行", "ポイント"];
+  const sourceOptions = [
+    "財布",
+    "PayPay",
+    "PayPayカード",
+    "Oliveカード",
+    "ゆうちょ銀行",
+    "ゆうちょ銀行定期",
+    "PayPay銀行",
+    "PayPay銀行定期",
+    "Suica",
+    "TRIALプリカ",
+    "nanaco",
+    "NISA口座",
+    "特定口座",
+    "外貨預金",
+    "他現金",
+  ];
   const expenseCategoryOptions = ["食料品費", "外食費", "教養費", "趣味費", "雑貨費", "交通費旅費", "服飾費", "医療関係費", "交際費", "その他"];
   const incomeCategoryOptions = ["月収", "臨時収入", "副次収入", "その他"];
   const categoryOptions = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;

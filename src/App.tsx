@@ -1,23 +1,22 @@
 /* src/App.tsx */
 
 import React, {useState, useEffect} from "react";
-import { BrowserRouter as Router, Route, Routes,
-  // Link
-} from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
 import { InputForm } from "./components/InputForm";
 import { DashboardPage } from "./components/DashboardPage";
+import { GraphsPage } from "./components/GraphsPage";
 import type { Transaction } from "./types/Transaction";
+import { loadTransactions, saveTransactions } from "./data/transactionStore";
 import './App.css';
 
 export const App: React.FC = () => {
 
 	const [transactions, setTransactions] = useState<Transaction[]>(() => {
-			const savedData = localStorage.getItem("transactions");
-			return savedData ? JSON.parse(savedData) : [];
-		});
+		return loadTransactions();
+	});
 
 		useEffect(() => {
-			localStorage.setItem("transactions", JSON.stringify(transactions));
+			saveTransactions(transactions);
 		}, [transactions]);
 
 		const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -50,12 +49,13 @@ export const App: React.FC = () => {
 	return (
 		<Router>
 			<div className="app-container">
-      {/* <header>
+      <header>
         <nav className="nav-menu">
           <Link to="/">ダッシュボード</Link>
           <Link to="/add">記入</Link>
+          <Link to="/graphs">グラフ</Link>
         </nav>
-      </header> */}
+      </header>
 
       <main>
         <Routes>
@@ -82,6 +82,13 @@ export const App: React.FC = () => {
               setEditingTransaction={setEditingTransaction}
               selectedDate={selectedDate}
               monthlyData={transactions}
+          />
+        } />
+
+        <Route path="/graphs" element={
+          <GraphsPage
+            transactions={transactions}
+            setTransactions={setTransactions}
           />
         } />
         </Routes>

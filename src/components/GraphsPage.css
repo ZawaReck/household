@@ -1,0 +1,240 @@
+/* src/components/GraphsPage.css */
+
+.graphs-page-root {
+  padding: 16px;
+}
+
+.graphs-page-root h1 {
+  margin: 0 0 16px;
+}
+
+.graphs-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.graphs-tabs button {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #ccd7d0;
+  background: #f5f7f6;
+  cursor: pointer;
+}
+
+.graphs-tabs button.active {
+  background: #4e79a7;
+  color: #fff;
+  border-color: #4e79a7;
+}
+
+.graphs-section {
+  margin-bottom: 20px;
+  border: 1px solid #d7e3db;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.graphs-section-header {
+  padding: 12px 16px;
+  font-weight: 600;
+  background: #eef6f1;
+  border-radius: 12px;
+}
+
+.graphs-section-body {
+  padding: 16px;
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e1e7e3;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.chart-card {
+  min-height: 260px;
+}
+
+.inline-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.inline-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 8px;
+  border-bottom: 1px solid #e1e7e3;
+  text-align: left;
+}
+
+input[type="number"],
+input[type="text"],
+input[type="date"],
+input[type="month"],
+select {
+  padding: 6px 8px;
+  border: 1px solid #ccd7d0;
+  border-radius: 6px;
+}
+
+.toggle-group {
+  display: flex;
+  gap: 8px;
+}
+
+.toggle-group button,
+.period-buttons button,
+.inline-controls button,
+.sontoku-form button,
+.asset-form button,
+.snapshot-form button {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #ccd7d0;
+  background: #f5f7f6;
+  cursor: pointer;
+}
+
+.toggle-group button.active,
+.period-buttons button.active {
+  background: #4e79a7;
+  color: #fff;
+  border-color: #4e79a7;
+}
+
+.period-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.period-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.period-custom {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.period-custom label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.asset-form,
+.snapshot-form,
+.sontoku-form {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.asset-form label,
+.snapshot-form label,
+.sontoku-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.text-button {
+  background: none;
+  border: none;
+  color: #4e79a7;
+  cursor: pointer;
+}
+
+.positive {
+  color: #2e7d32;
+}
+
+.negative {
+  color: #c62828;
+}
+
+.muted {
+  color: #7a8b80;
+}
+
+.sontoku-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.sontoku-cards div {
+  background: #f3f7f5;
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sontoku-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.sontoku-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  background: #f9fbfa;
+  border-radius: 8px;
+}
+
+.inline-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+@media (max-width: 767px) {
+  .graphs-page-root {
+    padding: 12px;
+  }
+}
