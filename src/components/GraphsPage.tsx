@@ -595,11 +595,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
       : [];
 
   const tabs = [
-    { id: "invest", label: "1) 投資損益" },
-    { id: "portfolio", label: "2) 全体ポートフォリオ" },
-    { id: "category", label: "3) 月毎収支" },
-    { id: "monthly", label: "4) 月収支推移" },
-    { id: "budget", label: "5) 予算 + 損得" },
+    { id: "category", label: "1) 月毎収支" },
+    { id: "monthly", label: "2) 収支推移" },
+    { id: "portfolio", label: "3) ポートフォリオ" },
+    { id: "invest", label: "4) 投資損益" },
+    { id: "budget", label: "5) 予算&損得" },
   ] as const;
   const [activeTab, setActiveTab] = React.useState<(typeof tabs)[number]["id"]>(
     "invest"
@@ -622,7 +622,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
       </div>
 
       {activeTab === "invest" && (
-      <TabPanel title="1) 投資損益">
+      <TabPanel title="4) 投資損益">
         <div className="section-grid">
           <div className="card">
             <h3>資産一覧</h3>
@@ -752,7 +752,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
       )}
 
       {activeTab === "portfolio" && (
-      <TabPanel title="2) 全体ポートフォリオ（口座別）">
+      <TabPanel title="3) ポートフォリオ（口座別）">
         <div className="section-grid">
           <div className="card">
             <div className="inline-controls">
@@ -866,7 +866,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
       )}
 
       {activeTab === "category" && (
-      <TabPanel title="3) 月毎収支（カテゴリ内訳 + 推移）">
+      <TabPanel title="1) 月毎収支（カテゴリ内訳 + 推移）">
         <div className="section-grid">
           <div className="card chart-card">
             <div className="inline-controls">
@@ -931,7 +931,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
       )}
 
       {activeTab === "monthly" && (
-      <TabPanel title="4) 月収支推移（棒グラフ + カレンダー）">
+      <TabPanel title="2) 収支推移（棒グラフ + カレンダー）">
         <div className="section-grid">
           <div className="card chart-card">
             <div className="inline-controls">
@@ -1008,7 +1008,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
       )}
 
       {activeTab === "budget" && (
-      <TabPanel title="5) 予算（カテゴリ別） + 損得カウンター">
+      <TabPanel title="5) 予算&損得">
         <div className="section-grid">
           <div className="card">
             <h3>予算（カテゴリ別）</h3>

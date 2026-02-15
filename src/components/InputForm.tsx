@@ -73,7 +73,6 @@ export const InputForm: React.FC<InputFormProps> = ({
     "PayPay銀行定期",
     "Suica",
     "TRIALプリカ",
-    "nanaco",
     "NISA口座",
     "特定口座",
     "外貨預金",
