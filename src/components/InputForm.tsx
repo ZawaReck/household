@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import type { Transaction } from "../types/Transaction";
 import type { TaxMode, TaxRate } from "../types/Transaction";
+import { expenseCategoryOptions, incomeCategoryOptions } from "../data/categoryOptions";
 import { WheelPickerInline } from "./WheelPickerInline";
 import { DateWheelPicker } from "./DateWheelPicker";
 import "./InputForm.css";
@@ -78,8 +79,6 @@ export const InputForm: React.FC<InputFormProps> = ({
     "外貨預金",
     "他現金",
   ];
-  const expenseCategoryOptions = ["食料品費", "外食費", "教養費", "趣味費", "雑貨費", "交通費旅費", "服飾費", "医療関係費", "交際費", "その他"];
-  const incomeCategoryOptions = ["月収", "臨時収入", "副次収入", "その他"];
   const categoryOptions = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
 
   const defaultExpenseCategory = expenseCategoryOptions[0];

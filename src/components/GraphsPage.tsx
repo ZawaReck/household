@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { Transaction } from "../types/Transaction";
-import type { InvestmentAsset, InvestmentState } from "../types/Investment";
+import type { InvestmentAsset, InvestmentState, MonthKey } from "../types/Investment";
 import type { BudgetEntry } from "../types/Budget";
 import type { SontokuEntry } from "../types/Sontoku";
 import {
@@ -21,6 +21,7 @@ import {
   Line,
   BarChart,
   Bar,
+  LabelList,
 } from "recharts";
 import {
   getMonthKey,
@@ -33,6 +34,7 @@ import {
 } from "../utils/analytics";
 import { loadInvestmentState, saveInvestmentState } from "../data/investmentStore";
 import { loadBudgets, saveBudgets } from "../data/budgetStore";
+import { expenseCategoryOptions, incomeCategoryOptions } from "../data/categoryOptions";
 import {
   loadSontokuEntries,
   upsertSontokuEntry,
@@ -67,7 +69,96 @@ const chartColors = [
   "#BAB0AC",
 ];
 
-const formatYen = (value: number) => `${Math.round(value).toLocaleString()}円`;
+const formatYen = (value: unknown) => {
+  const resolved = Array.isArray(value) ? value[0] : value;
+  return `${Math.round(Number(resolved ?? 0)).toLocaleString()}円`;
+};
+const formatYenNumber = (value: number) => `${Math.round(value).toLocaleString()}円`;
+
+const sortByDefaultCategoryOrder = (
+  items: Array<{ name: string; value: number }>,
+  categoryOrder: string[]
+) => {
+  const orderMap = new Map(categoryOrder.map((name, index) => [name, index]));
+  return [...items].sort((a, b) => {
+    const aIndex = orderMap.get(a.name) ?? Number.MAX_SAFE_INTEGER;
+    const bIndex = orderMap.get(b.name) ?? Number.MAX_SAFE_INTEGER;
+    if (aIndex !== bIndex) return aIndex - bIndex;
+    return a.name.localeCompare(b.name, "ja");
+  });
+};
+
+const renderMonthlyTrendLabel = (props: any) => {
+  const { x, y, width, height, value } = props;
+  const resolved = Number(value ?? 0);
+  if (!Number.isFinite(resolved)) return null;
+
+  const labelX = Number(x ?? 0) + Number(width ?? 0) / 2;
+  const labelY =
+    resolved >= 0
+      ? Number(y ?? 0) - 8
+      : Number(y ?? 0) + Number(height ?? 0) + 16;
+
+  return (
+    <text
+      x={labelX}
+      y={labelY}
+      textAnchor="middle"
+      fontSize={12}
+      fill="#4b5a52"
+    >
+      {formatYenNumber(resolved)}
+    </text>
+  );
+};
+
+const getNiceStep = (value: number) => {
+  const safe = Math.max(value, 1);
+  const exponent = Math.floor(Math.log10(safe));
+  const base = 10 ** exponent;
+  const normalized = safe / base;
+
+  if (normalized <= 1) return base;
+  if (normalized <= 2) return 2 * base;
+  if (normalized <= 5) return 5 * base;
+  return 10 * base;
+};
+
+const getNiceMonthlyTrendScale = (values: number[]) => {
+  if (values.length === 0) {
+    return {
+      domain: [0, 10000] as [number, number],
+      ticks: [0, 5000, 10000],
+    };
+  }
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const rawMin = min < 0 ? min : 0;
+  const rawMax = max > 0 ? max : 0;
+  const range = Math.max(rawMax - rawMin, 1);
+  const step = getNiceStep(range / 4);
+
+  let domainMin = Math.floor(rawMin / step) * step;
+  let domainMax = Math.ceil(rawMax / step) * step;
+
+  if (domainMin === domainMax) {
+    domainMax = domainMin + step;
+  }
+
+  const ticks: number[] = [];
+  for (let tick = domainMin; tick <= domainMax; tick += step) {
+    ticks.push(tick);
+  }
+
+  return {
+    domain: [domainMin, domainMax] as [number, number],
+    ticks,
+  };
+};
+
+type MonthlyCategoryMode = "income" | "expense" | "net";
+const MONTHLY_TREND_SLOT_WIDTH = 96;
 
 const getMonthKeysFromTransactions = (transactions: Transaction[], fallbackMonthKey: string) => {
   if (transactions.length === 0) return [fallbackMonthKey];
@@ -123,13 +214,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
   );
 
   const [categoryMonthKey, setCategoryMonthKey] = React.useState(currentMonthKey);
+  const [monthlyCategoryMode, setMonthlyCategoryMode] =
+    React.useState<MonthlyCategoryMode>("expense");
   const [selectedCategory, setSelectedCategory] = React.useState<string>("");
-
-  const [periodCategory, setPeriodCategory] = React.useState<PeriodValue>(() => {
-    const preset = "6";
-    const { startMonthKey, endMonthKey } = resolvePresetRange(preset, currentMonthKey);
-    return { preset, startMonthKey, endMonthKey };
-  });
+  const monthlyTrendViewportRef = React.useRef<HTMLDivElement | null>(null);
+  const [monthlyTrendViewportWidth, setMonthlyTrendViewportWidth] = React.useState(0);
+  const [monthlyTrendScrollLeft, setMonthlyTrendScrollLeft] = React.useState(0);
+  const monthlyTrendAutoAlignKeyRef = React.useRef("");
 
   const [periodMonthlyNet, setPeriodMonthlyNet] = React.useState<PeriodValue>(() => {
     const preset = "12";
@@ -170,14 +261,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
       .map((t) => t.category)
       .filter((c) => c && c !== "外税");
     const fromBudget = budgets.flatMap((b) => Object.keys(b.byCategory ?? {}));
-    return Array.from(new Set([...fromTx, ...fromBudget])).sort();
+    const unique = Array.from(new Set([...fromTx, ...fromBudget]));
+    return sortByDefaultCategoryOrder(unique.map((name) => ({ name, value: 0 })), expenseCategoryOptions)
+      .map((item) => item.name);
   }, [transactions, budgets]);
-
-  React.useEffect(() => {
-    if (!selectedCategory && expenseCategories.length > 0) {
-      setSelectedCategory(expenseCategories[0]);
-    }
-  }, [expenseCategories, selectedCategory]);
 
   React.useEffect(() => {
     const entry = budgets.find((b) => b.month === budgetMonthKey);
@@ -185,17 +272,30 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
   }, [budgetMonthKey, budgets]);
 
   React.useEffect(() => {
-    if (periodCategory.preset === "custom") return;
-    const { startMonthKey, endMonthKey } = resolvePresetRange(
-      periodCategory.preset,
-      periodCategory.endMonthKey
-    );
-    setPeriodCategory((prev) => ({
-      ...prev,
-      startMonthKey,
-      endMonthKey,
-    }));
-  }, [periodCategory.preset, periodCategory.endMonthKey]);
+    const node = monthlyTrendViewportRef.current;
+    if (!node) return;
+
+    const updateWidth = () => {
+      setMonthlyTrendViewportWidth(node.clientWidth);
+    };
+    const updateScrollLeft = () => {
+      setMonthlyTrendScrollLeft(node.scrollLeft);
+    };
+
+    updateWidth();
+    updateScrollLeft();
+
+    const observer = new ResizeObserver(() => {
+      updateWidth();
+    });
+    observer.observe(node);
+    node.addEventListener("scroll", updateScrollLeft, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      node.removeEventListener("scroll", updateScrollLeft);
+    };
+  }, [selectedCategory]);
 
   React.useEffect(() => {
     if (periodMonthlyNet.preset === "custom") return;
@@ -243,7 +343,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
           current.contributions.push({
             id,
             assetId: asset.id,
-            month,
+            month: month as MonthKey,
             date: `${month}-${String(day).padStart(2, "0")}`,
             amount: asset.recurring!.amount,
           });
@@ -448,15 +548,185 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
     return point;
   });
 
-  const categoryPieData = sumExpenseByCategoryAllocatedTax(transactions, categoryMonthKey);
+  const monthlyCategorySummary = React.useMemo(() => {
+    if (monthlyCategoryMode === "expense") {
+      const items = sortByDefaultCategoryOrder(
+        sumExpenseByCategoryAllocatedTax(transactions, categoryMonthKey).map((item) => ({
+          name: item.category,
+          value: item.value,
+        })),
+        expenseCategoryOptions
+      );
+      const total = items.reduce((sum, item) => sum + item.value, 0);
+      return { items, total };
+    }
 
-  const categoryTrendMonths = listMonthKeysBetween(
-    periodCategory.startMonthKey,
-    periodCategory.endMonthKey
-  );
+    const monthTx = transactions.filter((t) => getMonthKey(t.date) === categoryMonthKey);
+    const categoryMap = new Map<string, number>();
+
+    if (monthlyCategoryMode === "income") {
+      monthTx
+        .filter((t) => t.type === "income")
+        .forEach((t) => {
+          const key = t.category || "未分類";
+          categoryMap.set(key, (categoryMap.get(key) ?? 0) + t.amount);
+        });
+    } else {
+      const expenseMap = new Map<string, number>(
+        sumExpenseByCategoryAllocatedTax(transactions, categoryMonthKey).map((item) => [
+          item.category,
+          item.value,
+        ])
+      );
+
+      monthTx
+        .filter((t) => t.type === "income")
+        .forEach((t) => {
+          const key = t.category || "未分類";
+          categoryMap.set(key, (categoryMap.get(key) ?? 0) + t.amount);
+        });
+
+      expenseMap.forEach((value, key) => {
+        categoryMap.set(key, (categoryMap.get(key) ?? 0) - value);
+      });
+    }
+
+    const defaultOrder =
+      monthlyCategoryMode === "income"
+        ? incomeCategoryOptions
+        : Array.from(new Set([...incomeCategoryOptions, ...expenseCategoryOptions]));
+    const items = sortByDefaultCategoryOrder(
+      Array.from(categoryMap.entries())
+      .map(([name, value]) => ({ name, value }))
+      .filter((item) => item.value !== 0),
+      defaultOrder
+    );
+    const total = items.reduce((sum, item) => sum + item.value, 0);
+    return { items, total };
+  }, [transactions, categoryMonthKey, monthlyCategoryMode]);
+
+  React.useEffect(() => {
+    if (monthlyCategorySummary.items.length === 0) {
+      if (selectedCategory) setSelectedCategory("");
+      return;
+    }
+    if (
+      selectedCategory &&
+      monthlyCategorySummary.items.some((item) => item.name === selectedCategory)
+    ) {
+      return;
+    }
+    setSelectedCategory("");
+  }, [monthlyCategorySummary.items, selectedCategory]);
+
+  const categoryTrendMonths = listMonthKeysBetween(allMonthKeys[0], allMonthKeys[allMonthKeys.length - 1]);
   const categoryTrendData = selectedCategory
-    ? sumExpenseByCategoryAllocatedTaxByMonth(transactions, categoryTrendMonths, selectedCategory)
+    ? categoryTrendMonths.map((month) => {
+        if (monthlyCategoryMode === "expense") {
+          const found = sumExpenseByCategoryAllocatedTaxByMonth(
+            transactions,
+            [month],
+            selectedCategory
+          )[0];
+          return { month, value: found?.value ?? 0 };
+        }
+
+        const monthTx = transactions.filter((t) => getMonthKey(t.date) === month);
+
+        if (monthlyCategoryMode === "income") {
+          const value = monthTx
+            .filter((t) => t.type === "income" && (t.category || "未分類") === selectedCategory)
+            .reduce((sum, t) => sum + t.amount, 0);
+          return { month, value };
+        }
+
+        const income = monthTx
+          .filter((t) => t.type === "income" && (t.category || "未分類") === selectedCategory)
+          .reduce((sum, t) => sum + t.amount, 0);
+        const expense =
+          sumExpenseByCategoryAllocatedTaxByMonth(transactions, [month], selectedCategory)[0]
+            ?.value ?? 0;
+        return { month, value: income - expense };
+      })
     : [];
+
+  const categoryPieData = monthlyCategorySummary.items
+    .filter((item) => item.value > 0)
+    .map((item) => ({ category: item.name, value: item.value }));
+  const selectedCategoryColor = React.useMemo(() => {
+    const colorIndex = categoryPieData.findIndex((item) => item.category === selectedCategory);
+    if (colorIndex >= 0) return chartColors[colorIndex % chartColors.length];
+
+    const fallbackIndex = monthlyCategorySummary.items.findIndex(
+      (item) => item.name === selectedCategory
+    );
+    return chartColors[(fallbackIndex >= 0 ? fallbackIndex : 0) % chartColors.length];
+  }, [categoryPieData, monthlyCategorySummary.items, selectedCategory]);
+  const canRenderCategoryPie =
+    selectedCategory === "" &&
+    categoryPieData.length > 0 &&
+    monthlyCategorySummary.items.every((item) => item.value > 0);
+  const monthlyTrendChartWidth = Math.max(
+    monthlyTrendViewportWidth,
+    categoryTrendData.length * MONTHLY_TREND_SLOT_WIDTH
+  );
+  const visibleMonthlyTrendRange = React.useMemo(() => {
+    if (categoryTrendData.length === 0) return { start: 0, end: 0 };
+
+    const start = Math.max(0, Math.floor(monthlyTrendScrollLeft / MONTHLY_TREND_SLOT_WIDTH));
+    const visibleCount = Math.max(
+      1,
+      Math.ceil(monthlyTrendViewportWidth / MONTHLY_TREND_SLOT_WIDTH)
+    );
+    const end = Math.min(categoryTrendData.length, start + visibleCount);
+    return { start, end };
+  }, [categoryTrendData.length, monthlyTrendScrollLeft, monthlyTrendViewportWidth]);
+
+  const visibleMonthlyTrendData = React.useMemo(() => {
+    return categoryTrendData.slice(visibleMonthlyTrendRange.start, visibleMonthlyTrendRange.end);
+  }, [categoryTrendData, visibleMonthlyTrendRange]);
+
+  const monthlyTrendScale = React.useMemo(() => {
+    const targetData = visibleMonthlyTrendData.length > 0 ? visibleMonthlyTrendData : categoryTrendData;
+    return getNiceMonthlyTrendScale(targetData.map((item) => item.value));
+  }, [categoryTrendData, visibleMonthlyTrendData]);
+  const monthlyTrendDomain = monthlyTrendScale.domain;
+  const monthlyTrendTicks = monthlyTrendScale.ticks;
+  const monthlyTrendAxisWidth = React.useMemo(() => {
+    const longest = Math.max(
+      formatYenNumber(monthlyTrendDomain[0]).length,
+      formatYenNumber(monthlyTrendDomain[1]).length
+    );
+    return Math.max(88, longest * 9 + 20);
+  }, [monthlyTrendDomain]);
+
+  React.useEffect(() => {
+    const viewport = monthlyTrendViewportRef.current;
+    if (!viewport || !selectedCategory || categoryTrendData.length === 0) return;
+
+    const autoAlignKey = `${selectedCategory}:${categoryMonthKey}:${categoryTrendData.length}`;
+    if (monthlyTrendAutoAlignKeyRef.current === autoAlignKey) return;
+
+    const targetIndex = categoryTrendData.findIndex((item) => item.month === categoryMonthKey);
+    if (targetIndex < 0) return;
+
+    const nextScrollLeft = Math.max(
+      0,
+      Math.min(
+        monthlyTrendChartWidth - monthlyTrendViewportWidth,
+        (targetIndex + 1) * MONTHLY_TREND_SLOT_WIDTH - monthlyTrendViewportWidth
+      )
+    );
+
+    viewport.scrollLeft = nextScrollLeft;
+    monthlyTrendAutoAlignKeyRef.current = autoAlignKey;
+  }, [
+    selectedCategory,
+    categoryMonthKey,
+    categoryTrendData.length,
+    monthlyTrendChartWidth,
+    monthlyTrendViewportWidth,
+  ]);
 
   const monthlyNetMonths = listMonthKeysBetween(
     periodMonthlyNet.startMonthKey,
@@ -602,12 +872,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
     { id: "budget", label: "5) 予算&損得" },
   ] as const;
   const [activeTab, setActiveTab] = React.useState<(typeof tabs)[number]["id"]>(
-    "invest"
+    "category"
   );
 
   return (
     <div className="graphs-page-root">
-      <h1>グラフ / 分析</h1>
       <div className="graphs-tabs">
         {tabs.map((tab) => (
           <button
@@ -702,7 +971,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
-                  <Tooltip formatter={(value: number) => formatYen(value)} />
+                  <Tooltip formatter={(value) => formatYen(value)} />
                   <Legend />
                   {investmentState.assets.map((asset, idx) => (
                     <Area
@@ -731,8 +1000,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                   <YAxis yAxisId="left" />
                   <YAxis yAxisId="right" orientation="right" />
                   <Tooltip
-                    formatter={(value: number, name) =>
-                      name === "profitRate" ? `${value.toFixed(1)}%` : formatYen(value)
+                    formatter={(value, name) =>
+                      name === "profitRate"
+                        ? `${Number(value ?? 0).toFixed(1)}%`
+                        : formatYen(value)
                     }
                   />
                   <Legend />
@@ -828,7 +1099,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                       <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value: number) => formatYen(value)} />
+                  <Tooltip formatter={(value) => formatYen(value)} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -844,7 +1115,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip formatter={(value: number) => formatYen(value)} />
+                  <Tooltip formatter={(value) => formatYen(value)} />
                   <Legend />
                   {accounts.map((account, idx) => (
                     <Area
@@ -867,9 +1138,21 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
 
       {activeTab === "category" && (
       <TabPanel title="1) 月毎収支（カテゴリ内訳 + 推移）">
-        <div className="section-grid">
-          <div className="card chart-card">
-            <div className="inline-controls">
+        <div className="monthly-category-layout">
+          <div className="card monthly-category-sidebar">
+            <div className="inline-controls monthly-category-toolbar">
+              <div className="toggle-group">
+                {(["income", "expense", "net"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={monthlyCategoryMode === mode ? "active" : ""}
+                    onClick={() => setMonthlyCategoryMode(mode)}
+                  >
+                    {mode === "income" ? "収入" : mode === "expense" ? "支出" : "収支"}
+                  </button>
+                ))}
+              </div>
               <label>
                 対象月
                 <input
@@ -879,51 +1162,175 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                 />
               </label>
             </div>
-            {categoryPieData.length === 0 ? (
-              <p className="muted">支出データがありません。</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie data={categoryPieData} dataKey="value" nameKey="category" outerRadius={90}>
-                    {categoryPieData.map((_, idx) => (
-                      <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number) => formatYen(value)} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-          <div className="card chart-card">
-            <div className="inline-controls">
-              <label>
-                カテゴリ
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                >
-                  {expenseCategories.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </label>
+
+            <button
+              type="button"
+              className={`monthly-category-row monthly-category-total${
+                selectedCategory === "" ? " active" : ""
+              }`}
+              onClick={() => setSelectedCategory("")}
+            >
+              <span className="monthly-category-name">total</span>
+              <span
+                className={`monthly-category-value${
+                  monthlyCategorySummary.total < 0 ? " negative" : ""
+                }`}
+              >
+                {formatYen(monthlyCategorySummary.total)}
+              </span>
+            </button>
+            <div className="monthly-category-divider" />
+
+            <div className="monthly-category-list">
+              {monthlyCategorySummary.items.length === 0 ? (
+                <p className="muted">対象データがありません。</p>
+              ) : (
+                monthlyCategorySummary.items.map((item) => (
+                  <button
+                    key={item.name}
+                    type="button"
+                    className={`monthly-category-row${
+                      selectedCategory === item.name ? " active" : ""
+                    }`}
+                    onClick={() => setSelectedCategory(item.name)}
+                  >
+                    <span className="monthly-category-name">{item.name}</span>
+                    <span
+                      className={`monthly-category-value${item.value < 0 ? " negative" : ""}`}
+                    >
+                      {formatYen(item.value)}
+                    </span>
+                  </button>
+                ))
+              )}
             </div>
-            <PeriodFilter value={periodCategory} onChange={setPeriodCategory} />
-            {categoryTrendData.length === 0 ? (
-              <p className="muted">カテゴリデータがありません。</p>
+          </div>
+
+          <div className="card chart-card monthly-category-chart">
+            {selectedCategory ? (
+              <>
+                <div className="monthly-category-chart-header">
+                  <div>
+                    <h3>{selectedCategory} の月推移</h3>
+                    <p className="muted">{categoryTrendMonths[0]} から {categoryTrendMonths[categoryTrendMonths.length - 1]}</p>
+                  </div>
+                  <button type="button" onClick={() => setSelectedCategory("")}>
+                    円グラフに戻す
+                  </button>
+                </div>
+                {categoryTrendData.length === 0 ? (
+                  <p className="muted">カテゴリデータがありません。</p>
+                ) : (
+                  <div
+                    className="monthly-trend-chart-shell"
+                    style={{ gridTemplateColumns: `${monthlyTrendAxisWidth}px minmax(0, 1fr)` }}
+                  >
+                    <div className="monthly-trend-y-axis">
+                      <ResponsiveContainer width="100%" height={320}>
+                        <BarChart
+                          data={categoryTrendData}
+                          margin={{ top: 24, right: 0, bottom: 0, left: 0 }}
+                          accessibilityLayer={false}
+                          tabIndex={-1}
+                        >
+                          <XAxis hide />
+                          <YAxis
+                            width={monthlyTrendAxisWidth}
+                            domain={monthlyTrendDomain}
+                            ticks={monthlyTrendTicks}
+                            allowDataOverflow
+                            tickFormatter={(value) => formatYen(value)}
+                          />
+                          <Bar dataKey="value" fill="transparent" isAnimationActive={false} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div ref={monthlyTrendViewportRef} className="chart-scroll-viewport">
+                      <div
+                        className="chart-scroll-canvas"
+                        style={{ width: `${monthlyTrendChartWidth}px` }}
+                      >
+                        <ResponsiveContainer width="100%" height={320}>
+                          <BarChart
+                            data={categoryTrendData}
+                            barCategoryGap={24}
+                            margin={{ top: 24, right: 8, bottom: 0, left: 0 }}
+                            accessibilityLayer={false}
+                            tabIndex={-1}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="month" />
+                            <YAxis
+                              hide
+                              domain={monthlyTrendDomain}
+                              ticks={monthlyTrendTicks}
+                              allowDataOverflow
+                            />
+                            <Bar
+                              dataKey="value"
+                              name={selectedCategory}
+                              barSize={48}
+                              fill={selectedCategoryColor}
+                            >
+                              <LabelList dataKey="value" content={renderMonthlyTrendLabel} />
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : canRenderCategoryPie ? (
+              <>
+                <div className="monthly-category-chart-header">
+                  <div>
+                    <h3>カテゴリ内訳</h3>
+                    <p className="muted">左のカテゴリ名を押すと月推移を表示します。</p>
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={320}>
+                  <PieChart>
+                    <Pie data={categoryPieData} dataKey="value" nameKey="category" outerRadius={110}>
+                      {categoryPieData.map((_, idx) => (
+                        <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => formatYen(value)} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </>
+            ) : monthlyCategorySummary.items.length === 0 ? (
+              <p className="muted">対象データがありません。</p>
             ) : (
-              <ResponsiveContainer width="100%" height={240}>
-                <LineChart data={categoryTrendData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => formatYen(value)} />
-                  <Line type="monotone" dataKey="value" name={selectedCategory} />
-                </LineChart>
-              </ResponsiveContainer>
+              <>
+                <div className="monthly-category-chart-header">
+                  <div>
+                    <h3>カテゴリ内訳</h3>
+                    <p className="muted">
+                      収支には負の値が含まれるため、円グラフの代わりにカテゴリ棒グラフを表示しています。
+                    </p>
+                  </div>
+                </div>
+                <ResponsiveContainer width="100%" height={320}>
+                  <BarChart
+                    data={monthlyCategorySummary.items.map((item) => ({
+                      category: item.name,
+                      value: item.value,
+                    }))}
+                    layout="vertical"
+                    margin={{ left: 16, right: 16 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis type="category" dataKey="category" width={96} />
+                    <Tooltip formatter={(value) => formatYen(value)} />
+                    <Bar dataKey="value" fill="#4E79A7" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </>
             )}
           </div>
         </div>
@@ -963,7 +1370,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip formatter={(value: number) => formatYen(value)} />
+                  <Tooltip formatter={(value) => formatYen(value)} />
                   <Bar
                     dataKey={monthlyNetMode}
                     name={
@@ -1131,7 +1538,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" />
                       <YAxis />
-                      <Tooltip formatter={(value: number) => formatYen(value)} />
+                      <Tooltip formatter={(value) => formatYen(value)} />
                       <Bar dataKey="gain" name="得" fill="#59A14F" />
                       <Bar dataKey="loss" name="損" fill="#E15759" />
                     </BarChart>
@@ -1145,7 +1552,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip formatter={(value: number) => formatYen(value)} />
+                    <Tooltip formatter={(value) => formatYen(value)} />
                     <Line type="monotone" dataKey="net" name="net" />
                   </LineChart>
                 </ResponsiveContainer>
@@ -1238,7 +1645,8 @@ const AssetForm: React.FC<{
   const [name, setName] = React.useState("");
   const [initialPrincipal, setInitialPrincipal] = React.useState(0);
   const [recurringAmount, setRecurringAmount] = React.useState(0);
-  const [recurringStartMonth, setRecurringStartMonth] = React.useState(currentMonthKey);
+  const [recurringStartMonth, setRecurringStartMonth] =
+    React.useState<MonthKey>(currentMonthKey as MonthKey);
   const [recurringDay, setRecurringDay] = React.useState(1);
 
   return (
@@ -1292,7 +1700,7 @@ const AssetForm: React.FC<{
         <input
           type="month"
           value={recurringStartMonth}
-          onChange={(e) => setRecurringStartMonth(e.target.value)}
+          onChange={(e) => setRecurringStartMonth(e.target.value as MonthKey)}
         />
       </label>
       <label>

@@ -52,7 +52,7 @@ export const App: React.FC = () => {
       <header>
         <nav className="nav-menu">
           <Link to="/">ダッシュボード</Link>
-          <Link to="/add">記入</Link>
+          {/* <Link to="/add">記入</Link> */}
           <Link to="/graphs">グラフ</Link>
         </nav>
       </header>
