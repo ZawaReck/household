@@ -18,22 +18,24 @@
 .graphs-tabs button {
   padding: 8px 14px;
   border-radius: 999px;
-  border: 1px solid #ccd7d0;
-  background: #f5f7f6;
+  border: 1px solid #006428;
+  color: #006428;
+  background: #D7E3DB;
   cursor: pointer;
+  font-weight: 600;
 }
 
 .graphs-tabs button.active {
-  background: #4e79a7;
-  color: #fff;
-  border-color: #4e79a7;
+  background: #006828;
+  color: #F9FFFB;
+  border-color: #006828;
 }
 
 .graphs-section {
   margin-bottom: 20px;
   border: 1px solid #d7e3db;
   border-radius: 12px;
-  background: #fff;
+  background: #F9FFFB;
 }
 
 .graphs-section-header {
@@ -55,7 +57,7 @@
 }
 
 .card {
-  background: #fff;
+  background: #F9FFFB;
   border: 1px solid #e1e7e3;
   border-radius: 12px;
   padding: 12px;
@@ -101,7 +103,7 @@
 }
 
 .monthly-category-row.active {
-  color: #4e79a7;
+  color: #006828;
 }
 
 .monthly-category-total {
@@ -289,15 +291,15 @@ select {
   padding: 6px 12px;
   border-radius: 8px;
   border: 1px solid #ccd7d0;
-  background: #f5f7f6;
+  background: #D7E3DB;
   cursor: pointer;
 }
 
 .toggle-group button.active,
 .period-buttons button.active {
-  background: #4e79a7;
-  color: #fff;
-  border-color: #4e79a7;
+  background: #006828;
+  color: #F9FFFB;
+  border-color: #006828;
 }
 
 .period-filter {
@@ -346,7 +348,7 @@ select {
 .text-button {
   background: none;
   border: none;
-  color: #4e79a7;
+  color: #006828;
   cursor: pointer;
 }
 
