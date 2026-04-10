@@ -112,6 +112,40 @@ const renderMonthlyTrendLabel = (props: any) => {
   );
 };
 
+const renderCategoryPieLabel = (props: any) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, percent, category } = props;
+  if (Number(percent ?? 0) <= 0.1) return null;
+
+  const radius =
+    Number(innerRadius ?? 0) + (Number(outerRadius ?? 0) - Number(innerRadius ?? 0)) * 0.75;
+  const angle = (-Number(midAngle ?? 0) * Math.PI) / 180;
+  const x = Number(cx ?? 0) + radius * Math.cos(angle);
+  const y = Number(cy ?? 0) + radius * Math.sin(angle);
+
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#24332c"
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize={15}
+      fontWeight={600}
+    >
+      {category}
+    </text>
+  );
+};
+
+const renderCategoryPieTooltip = ({ active, payload }: any) => {
+  if (!active || !payload || payload.length === 0) return null;
+
+  const item = payload[0]?.payload;
+  if (!item || Number(item.percent ?? 0) > 0.1) return null;
+
+  return <div className="pie-text-tooltip">{item.category}</div>;
+};
+
 const getNiceStep = (value: number) => {
   const safe = Math.max(value, 1);
   const exponent = Math.floor(Math.log10(safe));
@@ -650,9 +684,16 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
       })
     : [];
 
+  const categoryPieTotal = monthlyCategorySummary.items
+    .filter((item) => item.value > 0)
+    .reduce((sum, item) => sum + item.value, 0);
   const categoryPieData = monthlyCategorySummary.items
     .filter((item) => item.value > 0)
-    .map((item) => ({ category: item.name, value: item.value }));
+    .map((item) => ({
+      category: item.name,
+      value: item.value,
+      percent: categoryPieTotal > 0 ? item.value / categoryPieTotal : 0,
+    }));
   const selectedCategoryColor = React.useMemo(() => {
     const colorIndex = categoryPieData.findIndex((item) => item.category === selectedCategory);
     if (colorIndex >= 0) return chartColors[colorIndex % chartColors.length];
@@ -662,6 +703,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
     );
     return chartColors[(fallbackIndex >= 0 ? fallbackIndex : 0) % chartColors.length];
   }, [categoryPieData, monthlyCategorySummary.items, selectedCategory]);
+  const monthlyCategoryColorMap = React.useMemo(() => {
+    const entries = monthlyCategorySummary.items.map((item, index) => [
+      item.name,
+      chartColors[index % chartColors.length],
+    ] as const);
+    return new Map(entries);
+  }, [monthlyCategorySummary.items]);
   const canRenderCategoryPie =
     selectedCategory === "" &&
     categoryPieData.length > 0 &&
@@ -1094,7 +1142,14 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
-                  <Pie data={portfolioPieData} dataKey="value" nameKey="name" outerRadius={90}>
+                  <Pie
+                    data={portfolioPieData}
+                    dataKey="value"
+                    nameKey="name"
+                    outerRadius={90}
+                    startAngle={90}
+                    endAngle={-270}
+                  >
                     {portfolioPieData.map((_, idx) => (
                       <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
                     ))}
@@ -1194,7 +1249,16 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                     }`}
                     onClick={() => setSelectedCategory(item.name)}
                   >
-                    <span className="monthly-category-name">{item.name}</span>
+                    <span className="monthly-category-name">
+                      <span
+                        className="monthly-category-dot"
+                        style={{ color: monthlyCategoryColorMap.get(item.name) ?? chartColors[0] }}
+                        aria-hidden="true"
+                      >
+                        ●
+                      </span>
+                      {item.name}
+                    </span>
                     <span
                       className={`monthly-category-value${item.value < 0 ? " negative" : ""}`}
                     >
@@ -1290,17 +1354,32 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                     <p className="muted">左のカテゴリ名を押すと月推移を表示します。</p>
                   </div>
                 </div>
-                <ResponsiveContainer width="100%" height={320}>
-                  <PieChart>
-                    <Pie data={categoryPieData} dataKey="value" nameKey="category" outerRadius={110}>
-                      {categoryPieData.map((_, idx) => (
-                        <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => formatYen(value)} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="pie-chart-wrap">
+                  <ResponsiveContainer width="100%" height={320}>
+                    <PieChart>
+                      <Pie
+                        data={categoryPieData}
+                        dataKey="value"
+                        nameKey="category"
+                        outerRadius={110}
+                        startAngle={90}
+                        endAngle={-270}
+                        labelLine={false}
+                        label={renderCategoryPieLabel}
+                      >
+                        {categoryPieData.map((_, idx) => (
+                          <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        cursor={false}
+                        content={renderCategoryPieTooltip}
+                        isAnimationActive={false}
+                        wrapperStyle={{ outline: "none" }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </>
             ) : monthlyCategorySummary.items.length === 0 ? (
               <p className="muted">対象データがありません。</p>
