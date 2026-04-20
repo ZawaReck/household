@@ -182,6 +182,14 @@
   margin: 0 0 4px;
 }
 
+.chart-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+}
+
 .monthly-trend-chart-shell {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr);
@@ -413,7 +421,9 @@ select {
   }
 
   .monthly-category-chart-header,
-  .monthly-category-toolbar {
+  .monthly-category-toolbar,
+  .chart-header-actions {
     flex-direction: column;
+    align-items: stretch;
   }
 }
