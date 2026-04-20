@@ -310,6 +310,16 @@ select {
   border-color: #006828;
 }
 
+.toggle-group button:disabled,
+.period-buttons button:disabled,
+.inline-controls button:disabled,
+.sontoku-form button:disabled,
+.asset-form button:disabled,
+.snapshot-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .period-filter {
   display: flex;
   flex-direction: column;

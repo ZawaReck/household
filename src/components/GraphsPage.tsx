@@ -195,6 +195,7 @@ type OverviewChartMode = "pie" | MonthlyCategoryMode;
 const MONTHLY_TREND_SLOT_WIDTH = 96;
 const POSITIVE_BAR_COLOR = "#00C950";
 const NEGATIVE_BAR_COLOR = "#FF0004";
+const NET_SUMMARY_CATEGORY_NAMES = ["収入", "支出"] as const;
 
 const getBarColorByMode = (mode: MonthlyCategoryMode, value: number) => {
   if (mode === "income") return POSITIVE_BAR_COLOR;
@@ -713,46 +714,35 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
       return { items, total };
     }
 
-    const monthTx = transactions.filter((t) => getMonthKey(t.date) === categoryMonthKey);
-    const categoryMap = new Map<string, number>();
-
     if (monthlyCategoryMode === "income") {
+      const monthTx = transactions.filter((t) => getMonthKey(t.date) === categoryMonthKey);
+      const categoryMap = new Map<string, number>();
       monthTx
         .filter((t) => t.type === "income")
         .forEach((t) => {
           const key = t.category || "未分類";
           categoryMap.set(key, (categoryMap.get(key) ?? 0) + t.amount);
         });
-    } else {
-      const expenseMap = new Map<string, number>(
-        sumExpenseByCategoryAllocatedTax(transactions, categoryMonthKey).map((item) => [
-          item.category,
-          item.value,
-        ])
+      const items = sortByDefaultCategoryOrder(
+        Array.from(categoryMap.entries())
+          .map(([name, value]) => ({ name, value }))
+          .filter((item) => item.value !== 0),
+        incomeCategoryOptions
       );
-
-      monthTx
-        .filter((t) => t.type === "income")
-        .forEach((t) => {
-          const key = t.category || "未分類";
-          categoryMap.set(key, (categoryMap.get(key) ?? 0) + t.amount);
-        });
-
-      expenseMap.forEach((value, key) => {
-        categoryMap.set(key, (categoryMap.get(key) ?? 0) - value);
-      });
+      const total = items.reduce((sum, item) => sum + item.value, 0);
+      return { items, total };
     }
 
-    const defaultOrder =
-      monthlyCategoryMode === "income"
-        ? incomeCategoryOptions
-        : Array.from(new Set([...incomeCategoryOptions, ...expenseCategoryOptions]));
-    const items = sortByDefaultCategoryOrder(
-      Array.from(categoryMap.entries())
-      .map(([name, value]) => ({ name, value }))
-      .filter((item) => item.value !== 0),
-      defaultOrder
-    );
+    const monthSeries = sumIncomeExpenseByMonth(transactions, [categoryMonthKey])[0] ?? {
+      month: categoryMonthKey,
+      income: 0,
+      expense: 0,
+      net: 0,
+    };
+    const items = [
+      { name: "収入", value: monthSeries.income },
+      { name: "支出", value: -monthSeries.expense },
+    ];
     const total = items.reduce((sum, item) => sum + item.value, 0);
     return { items, total };
   }, [transactions, categoryMonthKey, monthlyCategoryMode]);
@@ -787,22 +777,24 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
           return { month, value: found?.value ?? 0 };
         }
 
-        const monthTx = transactions.filter((t) => getMonthKey(t.date) === month);
-
         if (monthlyCategoryMode === "income") {
+          const monthTx = transactions.filter((t) => getMonthKey(t.date) === month);
           const value = monthTx
             .filter((t) => t.type === "income" && (t.category || "未分類") === selectedCategory)
             .reduce((sum, t) => sum + t.amount, 0);
           return { month, value };
         }
 
-        const income = monthTx
-          .filter((t) => t.type === "income" && (t.category || "未分類") === selectedCategory)
-          .reduce((sum, t) => sum + t.amount, 0);
-        const expense =
-          sumExpenseByCategoryAllocatedTaxByMonth(transactions, [month], selectedCategory)[0]
-            ?.value ?? 0;
-        return { month, value: income - expense };
+        const totals = sumIncomeExpenseByMonth(transactions, [month])[0] ?? {
+          month,
+          income: 0,
+          expense: 0,
+          net: 0,
+        };
+        return {
+          month,
+          value: selectedCategory === "収入" ? totals.income : -totals.expense,
+        };
       })
     : [];
 
@@ -826,12 +818,18 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
     return chartColors[(fallbackIndex >= 0 ? fallbackIndex : 0) % chartColors.length];
   }, [categoryPieData, monthlyCategorySummary.items, selectedCategory]);
   const monthlyCategoryColorMap = React.useMemo(() => {
+    if (monthlyCategoryMode === "net") {
+      return new Map<string, string>([
+        ["収入", POSITIVE_BAR_COLOR],
+        ["支出", NEGATIVE_BAR_COLOR],
+      ]);
+    }
     const entries = monthlyCategorySummary.items.map((item, index) => [
       item.name,
       chartColors[index % chartColors.length],
     ] as const);
     return new Map(entries);
-  }, [monthlyCategorySummary.items]);
+  }, [monthlyCategoryMode, monthlyCategorySummary.items]);
   const canRenderCategoryPie =
     selectedCategory === "" &&
     categoryPieData.length > 0 &&
@@ -865,45 +863,31 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
       return { items, total };
     }
 
-    const categoryMap = new Map<string, number>();
-
     if (yearlyCategoryMode === "income") {
+      const categoryMap = new Map<string, number>();
       yearlyTransactions
         .filter((t) => t.type === "income")
         .forEach((t) => {
           const key = t.category || "未分類";
           categoryMap.set(key, (categoryMap.get(key) ?? 0) + t.amount);
         });
-    } else {
-      const expenseMap = new Map<string, number>();
-      yearlyTrendMonths.forEach((month) => {
-        sumExpenseByCategoryAllocatedTax(transactions, month).forEach((item) => {
-          expenseMap.set(item.category, (expenseMap.get(item.category) ?? 0) + item.value);
-        });
-      });
-
-      yearlyTransactions
-        .filter((t) => t.type === "income")
-        .forEach((t) => {
-          const key = t.category || "未分類";
-          categoryMap.set(key, (categoryMap.get(key) ?? 0) + t.amount);
-        });
-
-      expenseMap.forEach((value, key) => {
-        categoryMap.set(key, (categoryMap.get(key) ?? 0) - value);
-      });
+      const items = sortByDefaultCategoryOrder(
+        Array.from(categoryMap.entries())
+          .map(([name, value]) => ({ name, value }))
+          .filter((item) => item.value !== 0),
+        incomeCategoryOptions
+      );
+      const total = items.reduce((sum, item) => sum + item.value, 0);
+      return { items, total };
     }
 
-    const defaultOrder =
-      yearlyCategoryMode === "income"
-        ? incomeCategoryOptions
-        : Array.from(new Set([...incomeCategoryOptions, ...expenseCategoryOptions]));
-    const items = sortByDefaultCategoryOrder(
-      Array.from(categoryMap.entries())
-        .map(([name, value]) => ({ name, value }))
-        .filter((item) => item.value !== 0),
-      defaultOrder
-    );
+    const yearSeries = sumIncomeExpenseByMonth(transactions, yearlyTrendMonths);
+    const incomeTotal = yearSeries.reduce((sum, item) => sum + item.income, 0);
+    const expenseTotal = yearSeries.reduce((sum, item) => sum + item.expense, 0);
+    const items = [
+      { name: "収入", value: incomeTotal },
+      { name: "支出", value: -expenseTotal },
+    ];
     const total = items.reduce((sum, item) => sum + item.value, 0);
     return { items, total };
   }, [transactions, yearlyTransactions, yearlyTrendMonths, yearlyCategoryMode]);
@@ -933,22 +917,24 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
           return { month, value: found?.value ?? 0 };
         }
 
-        const monthTx = transactions.filter((t) => getMonthKey(t.date) === month);
-
         if (yearlyCategoryMode === "income") {
+          const monthTx = transactions.filter((t) => getMonthKey(t.date) === month);
           const value = monthTx
             .filter((t) => t.type === "income" && (t.category || "未分類") === selectedYearlyCategory)
             .reduce((sum, t) => sum + t.amount, 0);
           return { month, value };
         }
 
-        const income = monthTx
-          .filter((t) => t.type === "income" && (t.category || "未分類") === selectedYearlyCategory)
-          .reduce((sum, t) => sum + t.amount, 0);
-        const expense =
-          sumExpenseByCategoryAllocatedTaxByMonth(transactions, [month], selectedYearlyCategory)[0]
-            ?.value ?? 0;
-        return { month, value: income - expense };
+        const totals = sumIncomeExpenseByMonth(transactions, [month])[0] ?? {
+          month,
+          income: 0,
+          expense: 0,
+          net: 0,
+        };
+        return {
+          month,
+          value: selectedYearlyCategory === "収入" ? totals.income : -totals.expense,
+        };
       })
     : [];
 
@@ -972,17 +958,45 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
     return chartColors[(fallbackIndex >= 0 ? fallbackIndex : 0) % chartColors.length];
   }, [yearlyPieData, yearlyCategorySummary.items, selectedYearlyCategory]);
   const yearlyCategoryColorMap = React.useMemo(() => {
+    if (yearlyCategoryMode === "net") {
+      return new Map<string, string>([
+        ["収入", POSITIVE_BAR_COLOR],
+        ["支出", NEGATIVE_BAR_COLOR],
+      ]);
+    }
     const entries = yearlyCategorySummary.items.map((item, index) => [
       item.name,
       chartColors[index % chartColors.length],
     ] as const);
     return new Map(entries);
-  }, [yearlyCategorySummary.items]);
+  }, [yearlyCategoryMode, yearlyCategorySummary.items]);
   const canRenderYearlyPie =
     selectedYearlyCategory === "" &&
     yearlyPieData.length > 0 &&
     yearlyCategorySummary.items.every((item) => item.value > 0);
   const yearlyOverviewSeries = sumIncomeExpenseByMonth(transactions, categoryTrendMonths);
+
+  React.useEffect(() => {
+    if (monthlyCategoryMode !== "net") return;
+    if (selectedCategory && !NET_SUMMARY_CATEGORY_NAMES.includes(selectedCategory as typeof NET_SUMMARY_CATEGORY_NAMES[number])) {
+      setSelectedCategory("");
+    }
+  }, [monthlyCategoryMode, selectedCategory]);
+
+  React.useEffect(() => {
+    if (yearlyCategoryMode !== "net") return;
+    if (yearlyOverviewMode === "pie") {
+      setYearlyOverviewMode("net");
+    }
+    if (
+      selectedYearlyCategory &&
+      !NET_SUMMARY_CATEGORY_NAMES.includes(
+        selectedYearlyCategory as typeof NET_SUMMARY_CATEGORY_NAMES[number]
+      )
+    ) {
+      setSelectedYearlyCategory("");
+    }
+  }, [yearlyCategoryMode, yearlyOverviewMode, selectedYearlyCategory]);
 
   const budgetActuals = sumExpenseByCategoryAllocatedTax(transactions, budgetMonthKey);
   const budgetActualMap = budgetActuals.reduce<Record<string, number>>((acc, item) => {
@@ -1476,7 +1490,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                     <p className="muted">{categoryTrendMonths[0]} から {categoryTrendMonths[categoryTrendMonths.length - 1]}</p>
                   </div>
                   <button type="button" onClick={() => setSelectedCategory("")}>
-                    円グラフに戻す
+                    {monthlyCategoryMode === "net" ? "収支グラフに戻す" : "円グラフに戻す"}
                   </button>
                 </div>
                 {categoryTrendData.length === 0 ? (
@@ -1528,6 +1542,26 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
               </>
             ) : monthlyCategorySummary.items.length === 0 ? (
               <p className="muted">対象データがありません。</p>
+            ) : monthlyCategoryMode === "net" ? (
+              <>
+                <div className="monthly-category-chart-header">
+                  <div>
+                    <h3>月毎収支</h3>
+                    <p className="muted">
+                      {categoryTrendMonths[0]} から {categoryTrendMonths[categoryTrendMonths.length - 1]} を月別に表示します。
+                    </p>
+                  </div>
+                </div>
+                <CategoryMonthlyTrendChart
+                  data={yearlyOverviewSeries.map((item) => ({
+                    month: item.month,
+                    value: item.net,
+                  }))}
+                  category="収支"
+                  mode="net"
+                  focusMonthKey={categoryMonthKey}
+                />
+              </>
             ) : (
               <>
                 <div className="monthly-category-chart-header">
@@ -1676,7 +1710,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                           key={option.key}
                           type="button"
                           className={yearlyOverviewMode === option.key ? "active" : ""}
+                          disabled={option.key === "pie" && yearlyCategoryMode === "net"}
                           onClick={() => {
+                            if (option.key === "pie" && yearlyCategoryMode === "net") return;
                             setSelectedYearlyCategory("");
                             setYearlyOverviewMode(option.key);
                           }}
@@ -1721,7 +1757,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                         key={option.key}
                         type="button"
                         className={yearlyOverviewMode === option.key ? "active" : ""}
-                        onClick={() => setYearlyOverviewMode(option.key)}
+                        disabled={option.key === "pie" && yearlyCategoryMode === "net"}
+                        onClick={() => {
+                          if (option.key === "pie" && yearlyCategoryMode === "net") return;
+                          setYearlyOverviewMode(option.key);
+                        }}
                       >
                         {option.label}
                       </button>
@@ -1775,7 +1815,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                         key={option.key}
                         type="button"
                         className={yearlyOverviewMode === option.key ? "active" : ""}
-                        onClick={() => setYearlyOverviewMode(option.key)}
+                        disabled={option.key === "pie" && yearlyCategoryMode === "net"}
+                        onClick={() => {
+                          if (option.key === "pie" && yearlyCategoryMode === "net") return;
+                          setYearlyOverviewMode(option.key);
+                        }}
                       >
                         {option.label}
                       </button>
@@ -1835,7 +1879,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                         key={option.key}
                         type="button"
                         className={yearlyOverviewMode === option.key ? "active" : ""}
-                        onClick={() => setYearlyOverviewMode(option.key)}
+                        disabled={option.key === "pie" && yearlyCategoryMode === "net"}
+                        onClick={() => {
+                          if (option.key === "pie" && yearlyCategoryMode === "net") return;
+                          setYearlyOverviewMode(option.key);
+                        }}
                       >
                         {option.label}
                       </button>
