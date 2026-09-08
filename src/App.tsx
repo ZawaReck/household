@@ -10,6 +10,7 @@ import type { Transaction } from "./types/Transaction";
 import { loadTransactions, saveTransactions } from "./data/transactionStore";
 import type { Account } from "./types/Account";
 import { loadAccounts, saveAccounts } from "./data/accountStore";
+import { reconcileCardPayments } from "./utils/cardPayments";
 import './App.css';
 
 export const App: React.FC = () => {
@@ -26,6 +27,14 @@ export const App: React.FC = () => {
     useEffect(() => {
       saveAccounts(accounts);
     }, [accounts]);
+
+    useEffect(() => {
+      setTransactions((current) => {
+        const next = reconcileCardPayments(current, accounts);
+        if (JSON.stringify(next) === JSON.stringify(current)) return current;
+        return next;
+      });
+    }, [accounts, transactions]);
 
 		const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);

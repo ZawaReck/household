@@ -3,6 +3,11 @@
 export type TaxMode = "inclusive" | "exclusive";
 export type TaxRate = 0 | 8 | 10;
 export type TransactionClassification = "normal" | "settled" | "special";
+export type SystemTransaction = {
+  kind: "card_payment" | "monthly_adjustment";
+  key: string;
+  cardAccountId?: string;
+};
 
 export interface Transaction {
   id: string; // Unique identifier for the transaction
@@ -17,6 +22,7 @@ export interface Transaction {
   isSpecial: boolean;
   /** 未設定の既存データは normal として扱う。 */
   classification?: TransactionClassification;
+  system?: SystemTransaction;
   groupId?: string;
 
 taxMode?: TaxMode;
