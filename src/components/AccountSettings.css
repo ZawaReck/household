@@ -13,3 +13,6 @@
 .account-editor input, .account-editor select { box-sizing: border-box; width: 100%; min-height: 38px; border: 1px solid #b8d7c0; border-radius: 8px; padding: 7px; color: #245e2d; }
 .account-editor-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .account-editor-actions button:first-child { background: #708076; }
+.card-settings-fields { display: grid; gap: 10px; margin: 0; padding: 12px; border: 1px solid #b8d7c0; border-radius: 8px; }
+.card-settings-fields legend { padding: 0 4px; font-size: 12px; font-weight: 800; }
+.card-settings-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
