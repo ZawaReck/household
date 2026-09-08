@@ -1,0 +1,15 @@
+.account-settings { padding: 16px; color: #245e2d; }
+.account-settings-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.account-settings h2, .account-settings h3 { margin: 0; font-size: 16px; }
+.account-settings button { border: 0; border-radius: 8px; padding: 8px 10px; font-weight: 700; color: #fff; background: #245e2d; cursor: pointer; }
+.account-list { display: grid; gap: 8px; margin-top: 14px; }
+.account-row { display: flex; align-items: center; gap: 8px; padding: 10px; border: 1px solid #d2e2d5; border-radius: 10px; }
+.account-row.is-inactive { opacity: .55; }
+.account-edit { flex: 1; min-width: 0; padding: 0 !important; text-align: left; color: #245e2d !important; background: transparent !important; }
+.account-edit span { display: block; margin-top: 3px; font-size: 12px; font-weight: 500; }
+.account-toggle { font-size: 12px; background: #5c7562 !important; }
+.account-editor { display: grid; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #d2e2d5; }
+.account-editor label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; }
+.account-editor input, .account-editor select { box-sizing: border-box; width: 100%; min-height: 38px; border: 1px solid #b8d7c0; border-radius: 8px; padding: 7px; color: #245e2d; }
+.account-editor-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.account-editor-actions button:first-child { background: #708076; }

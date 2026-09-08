@@ -106,3 +106,34 @@ header {
 
 .summary-card p { margin: 0; font-size: 0.9rem; opacity: 0.8; }
 .summary-card h2 { margin: 5px 0 0; font-size: 2rem; }
+.settings-backdrop {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  background: rgba(16, 31, 20, .32);
+}
+
+.settings-drawer {
+  width: min(390px, 90vw);
+  height: 100%;
+  overflow-y: auto;
+  background: #fbfffb;
+  box-shadow: 4px 0 20px rgba(0, 0, 0, .2);
+}
+
+.settings-drawer-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  color: #fff;
+  background: #245e2d;
+}
+
+.settings-drawer-top button, .nav-menu button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}

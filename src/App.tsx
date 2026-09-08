@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
 import { InputForm } from "./components/InputForm";
 import { DashboardPage } from "./components/DashboardPage";
 import { GraphsPage } from "./components/GraphsPage";
+import { AccountSettings } from "./components/AccountSettings";
 import type { Transaction } from "./types/Transaction";
 import { loadTransactions, saveTransactions } from "./data/transactionStore";
 import type { Account } from "./types/Account";
@@ -16,7 +17,7 @@ export const App: React.FC = () => {
 	const [transactions, setTransactions] = useState<Transaction[]>(() => {
 		return loadTransactions();
 	});
-	const [accounts] = useState<Account[]>(() => loadAccounts());
+	const [accounts, setAccounts] = useState<Account[]>(() => loadAccounts());
 
 		useEffect(() => {
 			saveTransactions(transactions);
@@ -27,6 +28,7 @@ export const App: React.FC = () => {
     }, [accounts]);
 
 		const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const handleAddTransaction = (transaction: Omit<Transaction, "id">) => {
     const newTransaction: Transaction = {
@@ -48,6 +50,23 @@ export const App: React.FC = () => {
     );
   };
 
+  const handleSaveAccount = (updatedAccount: Account) => {
+    const previous = accounts.find((account) => account.id === updatedAccount.id);
+    if (previous && previous.name !== updatedAccount.name) {
+      setTransactions((current) => current.map((transaction) => ({
+        ...transaction,
+        source: transaction.source === previous.name ? updatedAccount.name : transaction.source,
+        destination: transaction.destination === previous.name ? updatedAccount.name : transaction.destination,
+      })));
+    }
+    setAccounts((current) => {
+      const exists = current.some((account) => account.id === updatedAccount.id);
+      return exists
+        ? current.map((account) => account.id === updatedAccount.id ? updatedAccount : account)
+        : [...current, updatedAccount];
+    });
+  };
+
   const [selectedDate] = React.useState(
     new Date().toISOString().slice(0, 10)
   );
@@ -58,11 +77,21 @@ export const App: React.FC = () => {
 			<div className="app-container">
       <header>
         <nav className="nav-menu">
+          <button type="button" onClick={() => setIsSettingsOpen(true)}>☰</button>
           <Link to="/">ダッシュボード</Link>
           {/* <Link to="/add">記入</Link> */}
           <Link to="/graphs">グラフ</Link>
         </nav>
       </header>
+
+      {isSettingsOpen && (
+        <div className="settings-backdrop" onClick={() => setIsSettingsOpen(false)}>
+          <aside className="settings-drawer" onClick={(event) => event.stopPropagation()}>
+            <div className="settings-drawer-top"><strong>設定</strong><button type="button" onClick={() => setIsSettingsOpen(false)}>×</button></div>
+            <AccountSettings accounts={accounts} transactions={transactions} onSave={handleSaveAccount} />
+          </aside>
+        </div>
+      )}
 
       <main>
         <Routes>
