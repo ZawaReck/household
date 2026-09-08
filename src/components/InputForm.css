@@ -56,6 +56,33 @@
   /* border: 2px solid #245E2D; */
 }
 
+.classification-control {
+  width: min(360px, 92%);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin: -8px 0 12px;
+  padding: 3px;
+  border: 1px solid #b8d7c0;
+  border-radius: 999px;
+  background: #f5fbf6;
+}
+
+.classification-control button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #587061;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.classification-control button.active {
+  color: #fff;
+  background: #245e2d;
+}
+
 /* --- Form base --- */
 .input-form form {
   width: min(620px, 96%);

@@ -2,7 +2,8 @@
 
 import React, { useEffect } from "react";
 import type { Transaction } from "../types/Transaction";
-import type { TaxMode, TaxRate } from "../types/Transaction";
+import type { TaxMode, TaxRate, TransactionClassification } from "../types/Transaction";
+import type { Account } from "../types/Account";
 import { expenseCategoryOptions, incomeCategoryOptions } from "../data/categoryOptions";
 import { WheelPickerInline } from "./WheelPickerInline";
 import { DateWheelPicker } from "./DateWheelPicker";
@@ -17,6 +18,7 @@ interface InputFormProps {
   setEditingTransaction: (transaction: Transaction | null) => void;
   selectedDate: string;
   monthlyData: Transaction[];
+  accounts: Account[];
   activeGroupId?: string | null;
   setActiveGroupId?: (groupId: string | null) => void;
   activeGroupDate?: string | null;
@@ -36,6 +38,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   setEditingTransaction,
   selectedDate,
   monthlyData,
+  accounts,
   activeGroupId: activeGroupIdProp,
   setActiveGroupId: setActiveGroupIdProp,
   activeGroupDate: activeGroupDateProp,
@@ -63,29 +66,24 @@ export const InputForm: React.FC<InputFormProps> = ({
     resetForm(nextType, { dateValue: todayISO() });
   };
 
-  const sourceOptions = [
-    "財布",
-    "PayPay",
-    "PayPayカード",
-    "Oliveカード",
-    "ゆうちょ銀行",
-    "ゆうちょ銀行定期",
-    "PayPay銀行",
-    "PayPay銀行定期",
-    "Suica",
-    "TRIALプリカ",
-    "NISA口座",
-    "特定口座",
-    "外貨預金",
-    "他現金",
-  ];
+  const activeAccountNames = React.useMemo(
+    () => accounts.filter((account) => account.isActive).map((account) => account.name),
+    [accounts]
+  );
+  const paymentAccountNames = React.useMemo(
+    () => accounts
+      .filter((account) => account.isActive && account.kind !== "credit_card")
+      .map((account) => account.name),
+    [accounts]
+  );
+  const sourceOptions = type === "expense" ? activeAccountNames : paymentAccountNames;
   const categoryOptions = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
 
   const defaultExpenseCategory = expenseCategoryOptions[0];
   const defaultIncomeCategory = incomeCategoryOptions[0];
-  const defaultSource = sourceOptions[1];
-  const defaultMoveSource = sourceOptions[5];
-  const defaultMoveDestination = sourceOptions[1];
+  const defaultSource = activeAccountNames[0] ?? "";
+  const defaultMoveSource = paymentAccountNames[0] ?? "";
+  const defaultMoveDestination = paymentAccountNames[1] ?? paymentAccountNames[0] ?? "";
 
   const [category, setCategory] = React.useState(defaultExpenseCategory);
   const [amount, setAmount] = React.useState("");
@@ -94,7 +92,14 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [source, setSource] = React.useState(defaultSource); // 拠出元（非move）
   const [sourceMove, setSourceMove] = React.useState(defaultMoveSource); // 移動元（move）
   const [memo, setMemo] = React.useState("");
+  const [classification, setClassification] = React.useState<TransactionClassification>("normal");
   const [destination, setDestination] = React.useState(defaultMoveDestination); // 移動先（move）
+
+  useEffect(() => {
+    if (!activeAccountNames.includes(source)) setSource(defaultSource);
+    if (!paymentAccountNames.includes(sourceMove)) setSourceMove(defaultMoveSource);
+    if (!paymentAccountNames.includes(destination)) setDestination(defaultMoveDestination);
+  }, [activeAccountNames, defaultMoveDestination, defaultMoveSource, defaultSource, destination, paymentAccountNames, source, sourceMove]);
 
   const [isSourcePickerOpen, setIsSourcePickerOpen] = React.useState(false);
   const [openMovePicker, setOpenMovePicker] = React.useState<null | "destination" | "sourceMove">(null);
@@ -248,6 +253,9 @@ export const InputForm: React.FC<InputFormProps> = ({
     setDate(editingTransaction.date);
     setName(editingTransaction.name || "");
     setMemo(editingTransaction.memo || "");
+    setClassification(
+      editingTransaction.classification ?? (editingTransaction.isSpecial ? "special" : "normal")
+    );
 
     if (editingTransaction.type === "move") {
       setSourceMove(editingTransaction.source);
@@ -305,6 +313,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       destination: type === "move" ? destination : "",
       memo,
       isSpecial: false,
+      classification: type === "move" ? "normal" : classification,
       type,
     };
 
@@ -331,6 +340,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     setAmount("");
     setName("");
     setMemo("");
+    setClassification("normal");
     if (!options.keepTaxControls) {
       setIsExternalTax(false);
       setTaxRate(10);
@@ -387,6 +397,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     setDate(t.date);
     setName(t.name || "");
     setMemo(t.memo || "");
+    setClassification(t.classification ?? (t.isSpecial ? "special" : "normal"));
 
     if (t.type === "move") {
       setSourceMove(t.source);
@@ -653,6 +664,27 @@ export const InputForm: React.FC<InputFormProps> = ({
         </button>
       </div>
 
+      {type !== "move" && (
+        <div className="classification-control" role="radiogroup" aria-label="集計区分">
+          {([
+            ["normal", "通常"],
+            ["settled", "通算"],
+            ["special", "特別"],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={classification === value}
+              className={classification === value ? "active" : ""}
+              onClick={() => setClassification(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         <div className="row-2">
           <input
@@ -735,7 +767,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
               {openMovePicker === "sourceMove" && (
                 <WheelPickerInline
-                  options={sourceOptions}
+                  options={paymentAccountNames}
                   value={sourceMove}
                   onChange={(v) => setSourceMove(v)}
                   onClose={() => setOpenMovePicker(null)}
@@ -755,7 +787,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
               {openMovePicker === "destination" && (
                 <WheelPickerInline
-                  options={sourceOptions}
+                  options={paymentAccountNames}
                   value={destination}
                   onChange={(v) => setDestination(v)}
                   onClose={() => setOpenMovePicker(null)}

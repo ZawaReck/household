@@ -2,6 +2,12 @@
 
 import type { Transaction } from "../types/Transaction";
 
+export const transactionClassification = (transaction: Transaction) =>
+  transaction.classification ?? (transaction.isSpecial ? "special" : "normal");
+
+export const isIncludedInRegularAnalytics = (transaction: Transaction) =>
+  transactionClassification(transaction) === "normal";
+
 export const getMonthKey = (dateISO: string) => dateISO.slice(0, 7);
 
 export const monthEndISO = (monthKey: string) => {
@@ -35,7 +41,9 @@ export const sumIncomeExpenseByMonth = (
   monthKeys: string[]
 ) => {
   return monthKeys.map((month) => {
-    const monthTx = transactions.filter((t) => getMonthKey(t.date) === month);
+    const monthTx = transactions.filter(
+      (t) => getMonthKey(t.date) === month && isIncludedInRegularAnalytics(t)
+    );
     const income = monthTx
       .filter((t) => t.type === "income")
       .reduce((sum, t) => sum + t.amount, 0);
@@ -59,7 +67,9 @@ export const sumExpenseByCategoryAllocatedTax = (
   transactions: Transaction[],
   monthKey: string
 ) => {
-  const monthTx = transactions.filter((t) => getMonthKey(t.date) === monthKey);
+  const monthTx = transactions.filter(
+    (t) => getMonthKey(t.date) === monthKey && isIncludedInRegularAnalytics(t)
+  );
   const expenses = monthTx.filter((t) => t.type === "expense");
   const baseItems = expenses.filter((t) => t.isTaxAdjustment !== true);
   const taxItems = expenses.filter((t) => t.isTaxAdjustment === true);

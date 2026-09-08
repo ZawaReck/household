@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { Transaction } from '../types/Transaction';
+import { isIncludedInRegularAnalytics } from "../utils/analytics";
 import './SummaryView.css';
 
 interface Props {
@@ -11,10 +12,10 @@ interface Props {
 
 export const SummaryView: React.FC<Props> = ({ monthlyData, openingBalance }) => {
     const income = monthlyData
-        .filter((transaction) => transaction.type === "income")
+        .filter((transaction) => transaction.type === "income" && isIncludedInRegularAnalytics(transaction))
         .reduce((sum, transaction) => sum + transaction.amount, 0);
     const expense = monthlyData
-        .filter((transaction) => transaction.type === "expense")
+        .filter((transaction) => transaction.type === "expense" && isIncludedInRegularAnalytics(transaction))
         .reduce((sum, transaction) => sum + transaction.amount, 0);
     const total = income - expense;
     const balance = openingBalance + total;

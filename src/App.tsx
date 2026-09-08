@@ -7,6 +7,8 @@ import { DashboardPage } from "./components/DashboardPage";
 import { GraphsPage } from "./components/GraphsPage";
 import type { Transaction } from "./types/Transaction";
 import { loadTransactions, saveTransactions } from "./data/transactionStore";
+import type { Account } from "./types/Account";
+import { loadAccounts, saveAccounts } from "./data/accountStore";
 import './App.css';
 
 export const App: React.FC = () => {
@@ -14,10 +16,15 @@ export const App: React.FC = () => {
 	const [transactions, setTransactions] = useState<Transaction[]>(() => {
 		return loadTransactions();
 	});
+	const [accounts] = useState<Account[]>(() => loadAccounts());
 
 		useEffect(() => {
 			saveTransactions(transactions);
 		}, [transactions]);
+
+    useEffect(() => {
+      saveAccounts(accounts);
+    }, [accounts]);
 
 		const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
@@ -62,6 +69,7 @@ export const App: React.FC = () => {
           <Route path="/" element={
             <DashboardPage
               transactions={transactions}
+              accounts={accounts}
               onDeleteTransaction={handleDeleteTransaction}
               onEditTransaction={(transaction) => {
                 setEditingTransaction(transaction);
@@ -82,6 +90,7 @@ export const App: React.FC = () => {
               setEditingTransaction={setEditingTransaction}
               selectedDate={selectedDate}
               monthlyData={transactions}
+              accounts={accounts}
           />
         } />
 

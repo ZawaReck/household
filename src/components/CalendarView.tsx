@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { Transaction } from "../types/Transaction";
+import { isIncludedInRegularAnalytics } from "../utils/analytics";
 import "./CalendarView.css";
 
 interface CalendarViewProps {
@@ -52,8 +53,8 @@ const weeksToRender = weeksNeeded === 6 ? 6 : weeksNeeded === 4 ? 4 : 5;
           : null;
 
         const dayTransactions = isCurrentMonth ? monthlyData.filter(t => t.date === dateStr) : [];
-        const income = dayTransactions.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
-        const expense = dayTransactions.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
+        const income = dayTransactions.filter(t => t.type === "income" && isIncludedInRegularAnalytics(t)).reduce((sum, t) => sum + t.amount, 0);
+        const expense = dayTransactions.filter(t => t.type === "expense" && isIncludedInRegularAnalytics(t)).reduce((sum, t) => sum + t.amount, 0);
 
         return (
           <div key={index}

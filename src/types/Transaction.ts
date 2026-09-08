@@ -2,6 +2,7 @@
 
 export type TaxMode = "inclusive" | "exclusive";
 export type TaxRate = 0 | 8 | 10;
+export type TransactionClassification = "normal" | "settled" | "special";
 
 export interface Transaction {
   id: string; // Unique identifier for the transaction
@@ -14,6 +15,8 @@ export interface Transaction {
   memo: string; // Optional memo or note for the transaction
   destination: string; // Destination of the transaction (e.g., "Bank", "Cash")
   isSpecial: boolean;
+  /** 未設定の既存データは normal として扱う。 */
+  classification?: TransactionClassification;
   groupId?: string;
 
 taxMode?: TaxMode;
