@@ -32,6 +32,7 @@ import {
   sumExpenseByCategoryAllocatedTax,
   sumExpenseByCategoryAllocatedTaxByMonth,
   calcAccountBalancesAsOf,
+  isIncludedInRegularAnalytics,
 } from "../utils/analytics";
 import { loadInvestmentState, saveInvestmentState } from "../data/investmentStore";
 import { loadBudgets, saveBudgets } from "../data/budgetStore";
@@ -449,7 +450,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
 
   const expenseCategories = React.useMemo(() => {
     const fromTx = transactions
-      .filter((t) => t.type === "expense" && t.isTaxAdjustment !== true)
+      .filter((t) => t.type === "expense" && t.isTaxAdjustment !== true && isIncludedInRegularAnalytics(t))
       .map((t) => t.category)
       .filter((c) => c && c !== "外税");
     const fromBudget = budgets.flatMap((b) => Object.keys(b.byCategory ?? {}));
@@ -718,7 +719,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
       const monthTx = transactions.filter((t) => getMonthKey(t.date) === categoryMonthKey);
       const categoryMap = new Map<string, number>();
       monthTx
-        .filter((t) => t.type === "income")
+        .filter((t) => t.type === "income" && isIncludedInRegularAnalytics(t))
         .forEach((t) => {
           const key = t.category || "未分類";
           categoryMap.set(key, (categoryMap.get(key) ?? 0) + t.amount);
@@ -780,7 +781,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
         if (monthlyCategoryMode === "income") {
           const monthTx = transactions.filter((t) => getMonthKey(t.date) === month);
           const value = monthTx
-            .filter((t) => t.type === "income" && (t.category || "未分類") === selectedCategory)
+            .filter((t) => t.type === "income" && isIncludedInRegularAnalytics(t) && (t.category || "未分類") === selectedCategory)
             .reduce((sum, t) => sum + t.amount, 0);
           return { month, value };
         }
@@ -866,7 +867,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
     if (yearlyCategoryMode === "income") {
       const categoryMap = new Map<string, number>();
       yearlyTransactions
-        .filter((t) => t.type === "income")
+        .filter((t) => t.type === "income" && isIncludedInRegularAnalytics(t))
         .forEach((t) => {
           const key = t.category || "未分類";
           categoryMap.set(key, (categoryMap.get(key) ?? 0) + t.amount);
@@ -920,7 +921,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
         if (yearlyCategoryMode === "income") {
           const monthTx = transactions.filter((t) => getMonthKey(t.date) === month);
           const value = monthTx
-            .filter((t) => t.type === "income" && (t.category || "未分類") === selectedYearlyCategory)
+            .filter((t) => t.type === "income" && isIncludedInRegularAnalytics(t) && (t.category || "未分類") === selectedYearlyCategory)
             .reduce((sum, t) => sum + t.amount, 0);
           return { month, value };
         }
