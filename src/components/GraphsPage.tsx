@@ -80,6 +80,8 @@ const formatYen = (value: unknown) => {
   return `${Math.round(Number(resolved ?? 0)).toLocaleString()}円`;
 };
 const formatYenNumber = (value: number) => `${Math.round(value).toLocaleString()}円`;
+const isAccountVisibleOn = (account: Account, date: string) =>
+  account.openingDate <= date && (account.isActive || Boolean(account.disabledAt && date < account.disabledAt));
 const localDateISO = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const sortByDefaultCategoryOrder = (
@@ -588,21 +590,23 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     const investmentNames = new Set(
       accountMaster.filter((account) => account.kind === "investment").map((account) => account.name)
     );
-    const inactiveNames = new Set(
-      accountMaster.filter((account) => !account.isActive).map((account) => account.name)
-    );
+    const masterNames = new Set(accountMaster.map((account) => account.name));
     accountMaster
-      .filter((account) => account.isActive && account.kind !== "credit_card" && account.kind !== "investment")
+      .filter((account) => isAccountVisibleOn(account, portfolioBalanceDate) && account.kind !== "credit_card" && account.kind !== "investment")
       .forEach((account) => accs.add(account.name));
     transactions.forEach((t) => {
-      if (t.source && !cardNames.has(t.source) && !investmentNames.has(t.source) && !inactiveNames.has(t.source)) accs.add(t.source);
-      if (t.destination && !cardNames.has(t.destination) && !investmentNames.has(t.destination) && !inactiveNames.has(t.destination)) accs.add(t.destination);
+      if (t.source && !masterNames.has(t.source) && !cardNames.has(t.source) && !investmentNames.has(t.source)) accs.add(t.source);
+      if (t.destination && !masterNames.has(t.destination) && !cardNames.has(t.destination) && !investmentNames.has(t.destination)) accs.add(t.destination);
     });
     return Array.from(accs).sort();
-  }, [transactions, accountMaster]);
+  }, [transactions, accountMaster, portfolioBalanceDate]);
+  const portfolioInvestmentAccounts = React.useMemo(
+    () => accountMaster.filter((account) => account.kind === "investment" && isAccountVisibleOn(account, portfolioBalanceDate)),
+    [accountMaster, portfolioBalanceDate],
+  );
   const accountNames = React.useMemo(
-    () => [...regularAccountNames, ...investmentAccounts.filter((account) => account.isActive).map((account) => account.name)],
-    [regularAccountNames, investmentAccounts]
+    () => [...regularAccountNames, ...portfolioInvestmentAccounts.map((account) => account.name)],
+    [regularAccountNames, portfolioInvestmentAccounts]
   );
   const calcRegularBalances = React.useCallback((items: Transaction[], asOf: string) => {
     const fallback = calcAccountBalancesAsOf(items, asOf, regularAccountNames);
@@ -625,11 +629,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     const latestAtOrBefore = [...investmentSnapshots]
       .filter((snapshot) => snapshot.date <= portfolioBalanceDate)
       .sort((a, b) => b.date.localeCompare(a.date))[0];
-    return Object.fromEntries(investmentAccounts.map((account) => [
+    return Object.fromEntries(portfolioInvestmentAccounts.map((account) => [
       account.name,
       latestAtOrBefore?.values[account.id] ?? account.openingBalance,
     ]));
-  }, [investmentAccounts, investmentSnapshots, portfolioBalanceDate]);
+  }, [portfolioInvestmentAccounts, investmentSnapshots, portfolioBalanceDate]);
   const displayedEstimatedBalances = React.useMemo(
     () => ({ ...estimatedBalances, ...investmentValuesForPortfolio }),
     [estimatedBalances, investmentValuesForPortfolio]
@@ -744,7 +748,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     applyBalanceAdjustments(portfolioMonthKey, regularActuals, portfolioBalanceDate);
     handleSaveSnapshot(
       portfolioBalanceDate,
-      Object.fromEntries(investmentAccounts.map((account) => [account.id, portfolioActualInputs[account.name] ?? account.openingBalance]))
+      Object.fromEntries(portfolioInvestmentAccounts.map((account) => [account.id, portfolioActualInputs[account.name] ?? account.openingBalance]))
     );
   };
 
@@ -806,16 +810,19 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     const snapshot = [...investmentSnapshots]
       .filter((item) => item.date <= asOf)
       .sort((a, b) => b.date.localeCompare(a.date))[0];
-    investmentAccounts.forEach((account) => {
-      balances[account.name] = snapshot?.values[account.id] ?? account.openingBalance;
+    portfolioInvestmentAccounts.forEach((account) => {
+      balances[account.name] = isAccountVisibleOn(account, asOf)
+        ? snapshot?.values[account.id] ?? account.openingBalance
+        : 0;
     });
     const point: Record<string, number | string> = { month };
     accountNames.forEach((acc) => {
-      point[acc] = balances[acc] ?? 0;
+      const master = accountMaster.find((account) => account.name === acc);
+      point[acc] = master && !isAccountVisibleOn(master, asOf) ? 0 : balances[acc] ?? 0;
     });
     return point;
   });
-  const selectedInvestmentSnapshotIsExact = investmentAccounts.length === 0 || investmentSnapshots.some((snapshot) => snapshot.date === portfolioAsOf);
+  const selectedInvestmentSnapshotIsExact = portfolioInvestmentAccounts.length === 0 || investmentSnapshots.some((snapshot) => snapshot.date === portfolioAsOf);
 
   const monthlyCategorySummary = React.useMemo(() => {
     if (monthlyCategoryMode === "expense") {
