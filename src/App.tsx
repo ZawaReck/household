@@ -7,6 +7,7 @@ import { DashboardPage } from "./components/DashboardPage";
 import { GraphsPage } from "./components/GraphsPage";
 import { AccountSettings } from "./components/AccountSettings";
 import { CategorySettings } from "./components/CategorySettings";
+import { CsvImportSettings } from "./components/CsvImportSettings";
 import type { Transaction } from "./types/Transaction";
 import { loadTransactions, saveTransactions } from "./data/transactionStore";
 import type { Account } from "./types/Account";
@@ -84,6 +85,9 @@ export const App: React.FC = () => {
     const exists = current.some((category) => category.id === updatedCategory.id);
     return exists ? current.map((category) => category.id === updatedCategory.id ? updatedCategory : category) : [...current, updatedCategory];
   });
+  const handleCsvImport = (imported: Transaction[]) => {
+    setTransactions((current) => [...current, ...imported]);
+  };
 
   const [selectedDate] = React.useState(
     new Date().toISOString().slice(0, 10)
@@ -108,6 +112,7 @@ export const App: React.FC = () => {
             <div className="settings-drawer-top"><strong>設定</strong><button type="button" onClick={() => setIsSettingsOpen(false)}>×</button></div>
             <AccountSettings accounts={accounts} transactions={transactions} onSave={handleSaveAccount} />
             <CategorySettings categories={categories} onSave={handleSaveCategory} />
+            <CsvImportSettings onImport={handleCsvImport} />
           </aside>
         </div>
       )}
