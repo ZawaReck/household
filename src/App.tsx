@@ -117,6 +117,8 @@ export const App: React.FC = () => {
       window.alert("自動生成された記録は履歴から削除できません。関連する設定または元取引を変更してください。");
       return;
     }
+    const card = accounts.find((account) => account.kind === "credit_card" && account.name === target.source);
+    if (card && !window.confirm("このカード利用を削除すると、対応する自動引落Moveの金額も再計算されます。削除しますか？")) return;
     if (target.system?.kind === "scheduled_move" && target.system.scheduleId) {
       setScheduledMoves((current) => current.map((schedule) => schedule.id === target.system?.scheduleId
         ? { ...schedule, skippedDates: Array.from(new Set([...schedule.skippedDates, target.date])), updatedAt: new Date().toISOString() }
@@ -125,6 +127,20 @@ export const App: React.FC = () => {
     if (!target.isTaxAdjustment) setRecentlyDeleted(target);
 		setTransactions((prev) => prev.filter((transaction) => transaction.id !== id));
 	};
+
+  const handleDeleteReceipt = (groupId: string): boolean => {
+    const grouped = transactions.filter((transaction) => transaction.groupId === groupId);
+    if (grouped.length === 0) return false;
+    const includesCardUse = grouped.some((transaction) =>
+      accounts.some((account) => account.kind === "credit_card" && account.name === transaction.source),
+    );
+    const warning = includesCardUse
+      ? "\nカード利用を含むため、対応する自動引落Moveの金額も再計算されます。"
+      : "";
+    if (!window.confirm(`${grouped.filter((transaction) => !transaction.isTaxAdjustment).length}件の明細を含むレシート全体を削除しますか？${warning}`)) return false;
+    setTransactions((current) => current.filter((transaction) => transaction.groupId !== groupId));
+    return true;
+  };
 
   useEffect(() => {
     if (!recentlyDeleted) return;
@@ -307,6 +323,7 @@ export const App: React.FC = () => {
               accounts={accounts}
               categories={categories}
               onDeleteTransaction={handleDeleteTransaction}
+              onDeleteReceipt={handleDeleteReceipt}
               onEditTransaction={(transaction) => {
                 setEditingTransaction(transaction);
               }}
@@ -322,6 +339,7 @@ export const App: React.FC = () => {
               onAddTransaction={handleAddTransaction}
               onUpdateTransaction={handleUpdateTransaction}
               onDeleteTransaction={handleDeleteTransaction}
+              onDeleteReceipt={handleDeleteReceipt}
               editingTransaction={editingTransaction}
               setEditingTransaction={setEditingTransaction}
               selectedDate={selectedDate}

@@ -17,6 +17,7 @@ interface Props {
 	accounts: Account[];
 	categories: Category[];
 	onDeleteTransaction: (id: string) => void;
+	onDeleteReceipt: (groupId: string) => boolean;
 	onEditTransaction: (transaction: Transaction) => void;
 	onAddTransaction: (transaction: Omit<Transaction, "id">) => void;
 	onUpdateTransaction: (transaction: Transaction) => void;
@@ -139,10 +140,11 @@ export const DashboardPage: React.FC<Props> = (props) => {
 				<button type="button" className="input-sheet-close" aria-label="入力画面を閉じる" onClick={closeInputSheet}>×</button>
 			</div>
 			<div className="sticky-input">
-				<InputForm
-					onAddTransaction={props.onAddTransaction}
-					onUpdateTransaction={props.onUpdateTransaction}
-					onDeleteTransaction={props.onDeleteTransaction}
+					<InputForm
+						onAddTransaction={props.onAddTransaction}
+						onUpdateTransaction={props.onUpdateTransaction}
+						onDeleteTransaction={props.onDeleteTransaction}
+						onDeleteReceipt={props.onDeleteReceipt}
 					editingTransaction={props.editingTransaction}
 					setEditingTransaction={props.setEditingTransaction}
 					selectedDate={selectedDate}

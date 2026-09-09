@@ -292,6 +292,7 @@ export const TransactionHistory: React.FC<Props> = ({
             <div className="date-header" id={`history-date-${date}`}>{formatDateHeader(date)}</div>
 
             {orderedVisibleItems.map((t, idx) => {
+              const isDeletable = !t.system || t.system.kind === "scheduled_move";
               const x = getCurrentX(t.id);
               const gid = (t as any).groupId as string | undefined;
               const meta = gid ? groupMeta.get(gid) : null;
@@ -313,6 +314,7 @@ export const TransactionHistory: React.FC<Props> = ({
                   <div
                     className="swipe-row"
                     onWheel={(e) => {
+                      if (!isDeletable) return;
                       const raw =
                         Math.abs(e.deltaX) > Math.abs(e.deltaY)
                           ? e.deltaX
@@ -379,22 +381,24 @@ export const TransactionHistory: React.FC<Props> = ({
                     }}
                   >
                     {/* 背面の削除ボタン */}
-                    <button
-                      className="swipe-delete"
-                      onClick={() => onClickDelete(t.id)}
-                      aria-label="delete"
-                    >
-                      ✕
-                    </button>
+                    {isDeletable && (
+                      <button
+                        className="swipe-delete"
+                        onClick={() => onClickDelete(t.id)}
+                        aria-label="delete"
+                      >
+                        ✕
+                      </button>
+                    )}
 
                     {/* 前面（スワイプする本体） */}
                     <div
                       className={`transaction-item swipe-front type-${t.type} ${boundaryTop ? "group-boundary-top" : ""}`}
                       style={{ transform: `translateX(${x}px)` }}
-                      onPointerDown={(e) => onPointerDownRow(e, t.id)}
-                      onPointerMove={onPointerMoveRow}
-                      onPointerUp={onPointerUpRow}
-                      onPointerCancel={onPointerUpRow}
+                      onPointerDown={isDeletable ? (e) => onPointerDownRow(e, t.id) : undefined}
+                      onPointerMove={isDeletable ? onPointerMoveRow : undefined}
+                      onPointerUp={isDeletable ? onPointerUpRow : undefined}
+                      onPointerCancel={isDeletable ? onPointerUpRow : undefined}
                       onClick={() => {
                         // 開いている時の誤タップ編集を防ぐ
                         if (openId) return;

@@ -19,6 +19,7 @@ interface InputFormProps {
   onAddTransaction: (transaction: Omit<Transaction, "id">) => void;
   onUpdateTransaction: (transaction: Transaction) => void;
   onDeleteTransaction: (id: string) => void;
+  onDeleteReceipt: (groupId: string) => boolean;
   editingTransaction: Transaction | null;
   setEditingTransaction: (transaction: Transaction | null) => void;
   selectedDate: string;
@@ -43,6 +44,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   onAddTransaction,
   onUpdateTransaction,
   onDeleteTransaction,
+  onDeleteReceipt,
   editingTransaction,
   setEditingTransaction,
   selectedDate,
@@ -917,6 +919,10 @@ export const InputForm: React.FC<InputFormProps> = ({
     );
   }
 
+  if (editingTransaction?.system?.kind === "monthly_adjustment") {
+    return <div className="input-form system-move-editor"><h3>月末残高の自動調整</h3><p>{editingTransaction.date} · {editingTransaction.source} · {editingTransaction.amount.toLocaleString()}円</p><p className="muted">この記録は月末残高の再確認によってのみ再計算できます。</p><div className="form-buttons receipt-buttons"><button type="button" onClick={() => setEditingTransaction(null)}>閉じる</button></div></div>;
+  }
+
   const tabIndex = type === "expense" ? 0 : type === "income" ? 1 : 2;
 
   return (
@@ -1163,6 +1169,17 @@ export const InputForm: React.FC<InputFormProps> = ({
           {editingTransaction && (
             <button type="button" disabled={Boolean(editingTransaction.system)} onClick={copyEditingRecord}>
               コピー
+            </button>
+          )}
+
+          {!editingTransaction && activeGroupId && committedGroupItems.length > 0 && (
+            <button type="button" onClick={() => {
+              if (!onDeleteReceipt(activeGroupId)) return;
+              setActiveGroupId(null);
+              setActiveGroupDate(null);
+              resetForm(type, { dateValue: selectedDate });
+            }}>
+              レシート全体を削除
             </button>
           )}
 
