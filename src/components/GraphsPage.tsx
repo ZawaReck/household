@@ -50,7 +50,7 @@ import {
 } from "../data/accountActualStore";
 import { PeriodFilter } from "./PeriodFilter";
 import type { PeriodValue } from "./PeriodFilter";
-import { accountBalanceAsOf } from "../utils/accountBalances";
+import { accountBalanceAsOf, creditCardOutstandingAsOf } from "../utils/accountBalances";
 import "./GraphsPage.css";
 
 interface Props {
@@ -638,12 +638,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     (account) => account.isActive && account.kind === "credit_card" && account.creditCard
   );
   const cardStatuses = activeCardAccounts.map((account) => {
-    const used = transactions.reduce((sum, transaction) => {
-      if (transaction.date > portfolioAsOf) return sum;
-      if (transaction.type === "expense" && !transaction.system && transaction.source === account.name) return sum + transaction.amount;
-      if (transaction.type === "move" && transaction.destination === account.name && transaction.system?.kind === "card_payment") return sum - transaction.amount;
-      return sum;
-    }, 0);
+    const used = creditCardOutstandingAsOf(account, transactions, portfolioBalanceDate);
     return { account, used, available: (account.creditCard?.limit ?? 0) - used };
   });
   const cardMonthConfirmed = cardStatuses.length > 0 && cardStatuses.every(({ account, available }) =>

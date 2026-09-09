@@ -1,7 +1,12 @@
 import React from "react";
 import type { Account, AccountKind } from "../types/Account";
 import type { Transaction } from "../types/Transaction";
-import { accountBalanceAsOf, hasFutureAccountActivity } from "../utils/accountBalances";
+import {
+  accountBalanceAsOf,
+  creditCardOutstandingAsOf,
+  hasFutureAccountActivity,
+  hasFutureAutomaticCardPayment,
+} from "../utils/accountBalances";
 import "./AccountSettings.css";
 
 type Props = {
@@ -66,13 +71,26 @@ export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSav
 
   const toggleActive = (account: Account) => {
     if (account.isActive) {
-      const balance = accountBalanceAsOf(account, transactions, today);
-      if (balance !== 0 || hasFutureAccountActivity(account, transactions, today)) {
-        window.alert("無効化には、今日時点の残高が0円で未来の取引・Moveがないことが必要です。");
-        return;
+      if (account.kind === "credit_card") {
+        const outstanding = creditCardOutstandingAsOf(account, transactions, today);
+        if (outstanding !== 0 || hasFutureAutomaticCardPayment(account, transactions, today)) {
+          window.alert("カードの無効化には、未引落利用額が0円で未来の自動引落Moveがないことが必要です。");
+          return;
+        }
+      } else {
+        const balance = accountBalanceAsOf(account, transactions, today);
+        if (balance !== 0 || hasFutureAccountActivity(account, transactions, today)) {
+          window.alert("無効化には、今日時点の残高が0円で未来の取引・Moveがないことが必要です。");
+          return;
+        }
       }
     }
-    onSave({ ...account, isActive: !account.isActive, updatedAt: new Date().toISOString() });
+    onSave({
+      ...account,
+      isActive: !account.isActive,
+      disabledAt: account.isActive ? today : undefined,
+      updatedAt: new Date().toISOString(),
+    });
   };
 
   return (

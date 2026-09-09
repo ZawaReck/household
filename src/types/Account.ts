@@ -17,6 +17,8 @@ export type Account = {
   initialProfit?: number;
   openingDate: string;
   isActive: boolean;
+  /** 無効化した日。過去時点の資産表示で使用する。 */
+  disabledAt?: string;
   creditCard?: CreditCardSettings;
   createdAt: string;
   updatedAt: string;

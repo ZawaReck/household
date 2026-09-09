@@ -21,3 +21,32 @@ export const hasFutureAccountActivity = (account: Account, transactions: Transac
       transaction.date > today &&
       (transaction.source === account.name || transaction.destination === account.name)
   );
+
+export const creditCardOutstandingAsOf = (account: Account, transactions: Transaction[], asOf: string) =>
+  transactions.reduce((outstanding, transaction) => {
+    if (transaction.date > asOf) return outstanding;
+    if (
+      transaction.type === "expense" &&
+      !transaction.system &&
+      transaction.source === account.name &&
+      (transaction.date > account.openingDate || transaction.cardCycle?.cardAccountId === account.id)
+    ) {
+      return outstanding + transaction.amount;
+    }
+    if (
+      transaction.type === "move" &&
+      transaction.destination === account.name &&
+      transaction.system?.kind === "card_payment"
+    ) {
+      return outstanding - transaction.amount;
+    }
+    return outstanding;
+  }, 0);
+
+export const hasFutureAutomaticCardPayment = (account: Account, transactions: Transaction[], today: string) =>
+  transactions.some((transaction) =>
+    transaction.date > today &&
+    transaction.type === "move" &&
+    transaction.destination === account.name &&
+    transaction.system?.kind === "card_payment"
+  );
