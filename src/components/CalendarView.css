@@ -8,6 +8,7 @@
 
 /* ナビゲーション部分 */
 .calendar-nav {
+  position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -15,6 +16,12 @@
   padding: 15px;
   background-color: #f9fbf9;
   border-bottom: 1.5px solid #006428;
+}
+
+.calendar-search-trigger {
+  position: absolute;
+  right: 0;
+  font-size: 1.35rem;
 }
 
 /* グリッド全体 */

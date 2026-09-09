@@ -8,6 +8,7 @@ import { CalendarView } from "./CalendarView";
 import { SummaryView} from "./SummaryView";
 import { InputForm } from "./InputForm";
 import { TransactionHistory } from "./TransactionHistory";
+import { HistorySearch } from "./HistorySearch";
 import './DashboardPage.css';
 
 interface Props {
@@ -26,6 +27,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 	const [currentDate, setCurrentDate] = useState(new Date());
 	const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
 	const [activeGroupDate, setActiveGroupDate] = useState<string | null>(null);
+	const [isSearchOpen, setIsSearchOpen] = useState(false);
 
 	const year = currentDate.getFullYear();
 	const month = currentDate.getMonth();
@@ -60,6 +62,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 						monthlyData={monthlyData}
 						onMonthChange={(offset: number) => setCurrentDate(new Date(year, month + offset, 1))}
 						onDateClick={setSelectedDate}
+						onOpenSearch={() => setIsSearchOpen(true)}
 						/>
 						<SummaryView
 							monthlyData={monthlyData}
@@ -102,6 +105,22 @@ export const DashboardPage: React.FC<Props> = (props) => {
 				/>
 			</div>
 		</section>
+		{isSearchOpen && (
+			<HistorySearch
+				transactions={props.transactions}
+				onClose={() => setIsSearchOpen(false)}
+				onDeleteTransaction={props.onDeleteTransaction}
+				onEditTransaction={(transaction) => {
+					setIsSearchOpen(false);
+					props.onEditTransaction(transaction);
+				}}
+				onSelectGroup={(groupId, date) => {
+					setIsSearchOpen(false);
+					setActiveGroupId(groupId);
+					setActiveGroupDate(date);
+				}}
+			/>
+		)}
 	</div>
 	);
 }

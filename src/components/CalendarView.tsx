@@ -11,9 +11,10 @@ interface CalendarViewProps {
 	monthlyData: Transaction[];
 	onMonthChange: (offset: number) => void;
   onDateClick: (dateStr: string) => void;
+  onOpenSearch?: () => void;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange, onDateClick }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange, onDateClick, onOpenSearch }) => {
 	const firstDayOfMonth = new Date(year, month, 1);
 	const start = new Date (year, month, 1 - firstDayOfMonth.getDay()); // 週の始まりの日曜日
 
@@ -35,6 +36,9 @@ const weeksToRender = weeksNeeded === 6 ? 6 : weeksNeeded === 4 ? 4 : 5;
 				<button onClick={() => onMonthChange(-1)}>◁</button>
 				<span>{year}年 {month + 1}月</span>
 				<button onClick={() => onMonthChange(1)}>▷</button>
+				{onOpenSearch && (
+					<button className="calendar-search-trigger" type="button" aria-label="履歴検索" onClick={onOpenSearch}>⌕</button>
+				)}
 			</div>
 			<div className="calendar-weekdays">
       {["日", "月", "火", "水", "木", "金", "土"].map((day) => (
