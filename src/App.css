@@ -205,6 +205,22 @@ header {
   transform: translateX(-50%);
 }
 
+.auto-generated-toast {
+  position: fixed;
+  z-index: 99;
+  right: 18px;
+  bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: #173c25;
+  color: white;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 24%);
+}
+.auto-generated-toast button { border: 0; background: transparent; color: white; font-size: 1.2rem; }
+
 .undo-toast span {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -224,4 +240,5 @@ header {
   .undo-toast {
     bottom: calc(76px + env(safe-area-inset-bottom));
   }
+  .auto-generated-toast { right: 12px; bottom: calc(76px + env(safe-area-inset-bottom)); }
 }

@@ -10,6 +10,7 @@ import { CategorySettings } from "./components/CategorySettings";
 import { CsvImportSettings } from "./components/CsvImportSettings";
 import { BackupSettings } from "./components/BackupSettings";
 import { LogoutSettings } from "./components/LogoutSettings";
+import { ScheduledMoveSettings } from "./components/ScheduledMoveSettings";
 import type { Transaction } from "./types/Transaction";
 import { loadTransactions, saveTransactions } from "./data/transactionStore";
 import type { Account } from "./types/Account";
@@ -17,6 +18,9 @@ import { loadAccounts, saveAccounts } from "./data/accountStore";
 import { reconcileCardPayments } from "./utils/cardPayments";
 import type { Category } from "./types/Category";
 import { loadCategories, saveCategories } from "./data/categoryStore";
+import { loadScheduledMoves, saveScheduledMoves } from "./data/scheduledMoveStore";
+import { reconcileScheduledMoves } from "./utils/scheduledMoves";
+import type { ScheduledMove } from "./types/ScheduledMove";
 import './App.css';
 
 export const App: React.FC = () => {
@@ -26,6 +30,7 @@ export const App: React.FC = () => {
 	});
 	const [accounts, setAccounts] = useState<Account[]>(() => loadAccounts());
   const [categories, setCategories] = useState<Category[]>(() => loadCategories());
+  const [scheduledMoves, setScheduledMoves] = useState<ScheduledMove[]>(() => loadScheduledMoves());
 
 		useEffect(() => {
 			saveTransactions(transactions);
@@ -35,6 +40,7 @@ export const App: React.FC = () => {
       saveAccounts(accounts);
     }, [accounts]);
     useEffect(() => { saveCategories(categories); }, [categories]);
+    useEffect(() => { saveScheduledMoves(scheduledMoves); }, [scheduledMoves]);
 
     useEffect(() => {
       setTransactions((current) => {
@@ -44,9 +50,17 @@ export const App: React.FC = () => {
       });
     }, [accounts, transactions]);
 
+    useEffect(() => {
+      const result = reconcileScheduledMoves(transactions, scheduledMoves);
+      if (result.transactions === transactions) return;
+      setTransactions(result.transactions);
+      setGeneratedMoveCount(result.generatedCount);
+    }, [scheduledMoves, transactions]);
+
 		const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [recentlyDeleted, setRecentlyDeleted] = useState<Transaction | null>(null);
+    const [generatedMoveCount, setGeneratedMoveCount] = useState(0);
     const [showFutureTransactions, setShowFutureTransactions] = useState(() =>
       localStorage.getItem("showFutureTransactions") !== "false"
     );
@@ -79,9 +93,14 @@ export const App: React.FC = () => {
 	const handleDeleteTransaction = (id: string) => {
 		const target = transactions.find((transaction) => transaction.id === id);
     if (!target) return;
-    if (target.system) {
+    if (target.system && target.system.kind !== "scheduled_move") {
       window.alert("自動生成された記録は履歴から削除できません。関連する設定または元取引を変更してください。");
       return;
+    }
+    if (target.system?.kind === "scheduled_move" && target.system.scheduleId) {
+      setScheduledMoves((current) => current.map((schedule) => schedule.id === target.system?.scheduleId
+        ? { ...schedule, skippedDates: Array.from(new Set([...schedule.skippedDates, target.date])), updatedAt: new Date().toISOString() }
+        : schedule));
     }
     if (!target.isTaxAdjustment) setRecentlyDeleted(target);
 		setTransactions((prev) => prev.filter((transaction) => transaction.id !== id));
@@ -98,6 +117,11 @@ export const App: React.FC = () => {
     setTransactions((current) => current.some(({ id }) => id === recentlyDeleted.id)
       ? current
       : [...current, recentlyDeleted]);
+    if (recentlyDeleted.system?.kind === "scheduled_move" && recentlyDeleted.system.scheduleId) {
+      setScheduledMoves((current) => current.map((schedule) => schedule.id === recentlyDeleted.system?.scheduleId
+        ? { ...schedule, skippedDates: schedule.skippedDates.filter((date) => date !== recentlyDeleted.date), updatedAt: new Date().toISOString() }
+        : schedule));
+    }
     setRecentlyDeleted(null);
   };
 
@@ -111,11 +135,30 @@ export const App: React.FC = () => {
 
   const handleSaveAccount = (updatedAccount: Account) => {
     const previous = accounts.find((account) => account.id === updatedAccount.id);
+    if (previous?.isActive && !updatedAccount.isActive) {
+      const usedBySchedule = scheduledMoves.some((schedule) => {
+        const revision = schedule.revisions[schedule.revisions.length - 1];
+        return schedule.isActive && (revision.source === previous.name || revision.destination === previous.name);
+      });
+      if (usedBySchedule) {
+        window.alert("有効な定期Moveで使用中の口座は無効化できません。先に定期Moveを停止または変更してください。");
+        return;
+      }
+    }
     if (previous && previous.name !== updatedAccount.name) {
       setTransactions((current) => current.map((transaction) => ({
         ...transaction,
         source: transaction.source === previous.name ? updatedAccount.name : transaction.source,
         destination: transaction.destination === previous.name ? updatedAccount.name : transaction.destination,
+      })));
+      setScheduledMoves((current) => current.map((schedule) => ({
+        ...schedule,
+        revisions: schedule.revisions.map((revision) => ({
+          ...revision,
+          source: revision.source === previous.name ? updatedAccount.name : revision.source,
+          destination: revision.destination === previous.name ? updatedAccount.name : revision.destination,
+        })),
+        updatedAt: new Date().toISOString(),
       })));
     }
     setAccounts((current) => {
@@ -179,6 +222,7 @@ export const App: React.FC = () => {
             <div className="settings-drawer-top"><strong>設定</strong><button type="button" onClick={() => setIsSettingsOpen(false)}>×</button></div>
             <AccountSettings accounts={accounts} transactions={transactions} onSave={handleSaveAccount} />
             <CategorySettings categories={categories} onSave={handleSaveCategory} onMerge={handleMergeCategory} />
+            <ScheduledMoveSettings accounts={accounts} schedules={scheduledMoves} onChange={setScheduledMoves} />
             <section className="view-settings">
               <h2>表示</h2>
               <label>
@@ -249,6 +293,12 @@ export const App: React.FC = () => {
         <div className="undo-toast" role="status">
           <span>「{recentlyDeleted.name || recentlyDeleted.category}」を削除しました</span>
           <button type="button" onClick={undoDelete}>元に戻す</button>
+        </div>
+      )}
+      {generatedMoveCount > 0 && (
+        <div className="auto-generated-toast" role="status">
+          定期Moveを{generatedMoveCount}件追加しました
+          <button type="button" aria-label="通知を閉じる" onClick={() => setGeneratedMoveCount(0)}>×</button>
         </div>
       )}
     </div>
