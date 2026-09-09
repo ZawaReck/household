@@ -50,6 +50,7 @@ import {
 } from "../data/accountActualStore";
 import { PeriodFilter } from "./PeriodFilter";
 import type { PeriodValue } from "./PeriodFilter";
+import { accountBalanceAsOf } from "../utils/accountBalances";
 import "./GraphsPage.css";
 
 interface Props {
@@ -404,6 +405,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
   );
 
   const [portfolioMonthKey, setPortfolioMonthKey] = React.useState(currentMonthKey);
+  const [portfolioBalanceDate, setPortfolioBalanceDate] = React.useState(todayISO);
   const [accountActualState, setAccountActualState] = React.useState(() =>
     loadAccountActualState()
   );
@@ -587,21 +589,32 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     () => [...regularAccountNames, ...investmentAccounts.filter((account) => account.isActive).map((account) => account.name)],
     [regularAccountNames, investmentAccounts]
   );
+  const calcRegularBalances = React.useCallback((items: Transaction[], asOf: string) => {
+    const fallback = calcAccountBalancesAsOf(items, asOf, regularAccountNames);
+    return Object.fromEntries(regularAccountNames.map((name) => {
+      const account = accountMaster.find((item) => item.name === name && item.kind !== "credit_card" && item.kind !== "investment");
+      return [name, account ? accountBalanceAsOf(account, items, asOf) : (fallback[name] ?? 0)];
+    }));
+  }, [accountMaster, regularAccountNames]);
 
   const portfolioAsOf = monthEndISO(portfolioMonthKey);
+  React.useEffect(() => {
+    const saved = accountActualState.basisDateByMonth[portfolioMonthKey];
+    setPortfolioBalanceDate(saved ?? (portfolioMonthKey === currentMonthKey ? todayISO : portfolioAsOf));
+  }, [accountActualState.basisDateByMonth, currentMonthKey, portfolioAsOf, portfolioMonthKey, todayISO]);
   const estimatedBalances = React.useMemo(
-    () => calcAccountBalancesAsOf(transactions, portfolioAsOf, accountNames),
-    [transactions, portfolioAsOf, accountNames]
+    () => calcRegularBalances(transactions, portfolioBalanceDate),
+    [transactions, portfolioBalanceDate, calcRegularBalances]
   );
   const investmentValuesForPortfolio = React.useMemo(() => {
     const latestAtOrBefore = [...investmentSnapshots]
-      .filter((snapshot) => snapshot.date <= portfolioAsOf)
+      .filter((snapshot) => snapshot.date <= portfolioBalanceDate)
       .sort((a, b) => b.date.localeCompare(a.date))[0];
     return Object.fromEntries(investmentAccounts.map((account) => [
       account.name,
       latestAtOrBefore?.values[account.id] ?? account.openingBalance,
     ]));
-  }, [investmentAccounts, investmentSnapshots, portfolioAsOf]);
+  }, [investmentAccounts, investmentSnapshots, portfolioBalanceDate]);
   const displayedEstimatedBalances = React.useMemo(
     () => ({ ...estimatedBalances, ...investmentValuesForPortfolio }),
     [estimatedBalances, investmentValuesForPortfolio]
@@ -674,8 +687,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     };
   };
 
-  const applyBalanceAdjustments = (monthKey: string, actuals: Record<string, number>) => {
-    const asOf = monthEndISO(monthKey);
+  const applyBalanceAdjustments = (monthKey: string, actuals: Record<string, number>, basisDate: string) => {
     setTransactions((prev) => {
       const toRemove = new Set(
         prev
@@ -687,7 +699,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
           .map((t) => t.id)
       );
       const kept = prev.filter((t) => !toRemove.has(t.id));
-      const estimated = calcAccountBalancesAsOf(kept, asOf, regularAccountNames);
+      const estimated = calcRegularBalances(kept, basisDate);
       const adjustments: Transaction[] = [];
       regularAccountNames.forEach((account) => {
         const actual = Number(actuals[account] ?? 0);
@@ -703,6 +715,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     const regularActuals = Object.fromEntries(
       regularAccountNames.map((account) => [account, portfolioActualInputs[account] ?? 0])
     );
+    const isMonthEndUpdate = portfolioBalanceDate === portfolioAsOf;
+    const previousConfirmed = accountActualState.confirmedByMonth[portfolioMonthKey] ?? [];
     const nextState = {
       ...accountActualState,
       byMonth: {
@@ -711,14 +725,15 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
       },
       confirmedByMonth: {
         ...accountActualState.confirmedByMonth,
-        [portfolioMonthKey]: [...regularAccountNames],
+        [portfolioMonthKey]: isMonthEndUpdate ? Array.from(new Set([...previousConfirmed, ...regularAccountNames])) : previousConfirmed,
       },
+      basisDateByMonth: { ...accountActualState.basisDateByMonth, [portfolioMonthKey]: portfolioBalanceDate },
     };
     setAccountActualState(nextState);
     saveAccountActualState(nextState);
-    applyBalanceAdjustments(portfolioMonthKey, regularActuals);
+    applyBalanceAdjustments(portfolioMonthKey, regularActuals, portfolioBalanceDate);
     handleSaveSnapshot(
-      monthEndISO(portfolioMonthKey),
+      portfolioBalanceDate,
       Object.fromEntries(investmentAccounts.map((account) => [account.id, portfolioActualInputs[account.name] ?? account.openingBalance]))
     );
   };
@@ -782,7 +797,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
   const portfolioRange = listMonthKeysBetween(portfolioMonths[0], portfolioMonths[portfolioMonths.length - 1]);
   const portfolioAreaData = portfolioRange.map((month) => {
     const asOf = monthEndISO(month);
-    const balances = calcAccountBalancesAsOf(transactions, asOf, regularAccountNames);
+    const balances = calcRegularBalances(transactions, asOf);
     const snapshot = [...investmentSnapshots]
       .filter((item) => item.date <= asOf)
       .sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -1412,12 +1427,17 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                 対象月
                 <input
                   type="month"
+                  max={currentMonthKey}
                   value={portfolioMonthKey}
                   onChange={(e) => setPortfolioMonthKey(e.target.value)}
                 />
               </label>
+              <label>
+                残高基準日
+                <input type="date" min={`${portfolioMonthKey}-01`} max={portfolioMonthKey === currentMonthKey ? todayISO : portfolioAsOf} value={portfolioBalanceDate} onChange={(event) => setPortfolioBalanceDate(event.target.value)} />
+              </label>
               <button type="button" onClick={handleSavePortfolioActuals}>
-                全口座の月末残高を確定
+                {portfolioBalanceDate === portfolioAsOf ? "全口座の月末残高を確定" : "この日の残高を更新"}
               </button>
               <label><input type="checkbox" checked={includePendingCardPayments} onChange={(event) => setIncludePendingCardPayments(event.target.checked)} />カード引落予定を差し引く</label>
             </div>
@@ -1469,7 +1489,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
           </div>
           <div className="card">
             <h3>クレジットカード月末確認</h3>
-            {cardStatuses.length === 0 ? <p className="muted">有効なカードがありません。</p> : (
+            {portfolioBalanceDate !== portfolioAsOf ? <p className="muted">カードの確認済み操作は月末日の更新時に行えます。</p> : cardStatuses.length === 0 ? <p className="muted">有効なカードがありません。</p> : (
               <>
                 <div className="table-wrap">
                   <table>

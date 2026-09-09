@@ -23,6 +23,8 @@ import { loadBudgets, saveBudgets } from "./data/budgetStore";
 import { loadScheduledMoves, saveScheduledMoves } from "./data/scheduledMoveStore";
 import { reconcileScheduledMoves } from "./utils/scheduledMoves";
 import type { ScheduledMove } from "./types/ScheduledMove";
+import { loadAccountActualState, saveAccountActualState } from "./data/accountActualStore";
+import { reconcileMonthlyAdjustments } from "./utils/monthlyAdjustments";
 import './App.css';
 
 export const App: React.FC = () => {
@@ -58,6 +60,13 @@ export const App: React.FC = () => {
       setTransactions(result.transactions);
       setGeneratedMoveCount(result.generatedCount);
     }, [scheduledMoves, transactions]);
+
+    useEffect(() => {
+      setTransactions((current) => {
+        const next = reconcileMonthlyAdjustments(current, accounts, loadAccountActualState());
+        return JSON.stringify(next) === JSON.stringify(current) ? current : next;
+      });
+    }, [accounts, transactions]);
 
 		const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -162,6 +171,18 @@ export const App: React.FC = () => {
         })),
         updatedAt: new Date().toISOString(),
       })));
+      const actualState = loadAccountActualState();
+      const byMonth = Object.fromEntries(Object.entries(actualState.byMonth).map(([month, values]) => {
+        if (!(previous.name in values)) return [month, values];
+        const renamed = { ...values, [updatedAccount.name]: values[previous.name] };
+        delete renamed[previous.name];
+        return [month, renamed];
+      }));
+      const confirmedByMonth = Object.fromEntries(Object.entries(actualState.confirmedByMonth).map(([month, names]) => [
+        month,
+        names.map((name) => name === previous.name ? updatedAccount.name : name),
+      ]));
+      saveAccountActualState({ ...actualState, byMonth, confirmedByMonth });
     }
     setAccounts((current) => {
       const exists = current.some((account) => account.id === updatedAccount.id);

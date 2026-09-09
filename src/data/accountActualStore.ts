@@ -5,11 +5,12 @@ import { safeLoadJSON, safeSaveJSON } from "./storage";
 export type AccountActualState = {
   byMonth: Record<string, Record<string, number>>;
   confirmedByMonth: Record<string, string[]>;
+  basisDateByMonth: Record<string, string>;
 };
 
 const STORAGE_KEY = "accountActualBalances";
 
-const defaultState: AccountActualState = { byMonth: {}, confirmedByMonth: {} };
+const defaultState: AccountActualState = { byMonth: {}, confirmedByMonth: {}, basisDateByMonth: {} };
 
 export const loadAccountActualState = (): AccountActualState => {
   const data = safeLoadJSON<AccountActualState>(STORAGE_KEY, defaultState);
@@ -19,6 +20,10 @@ export const loadAccountActualState = (): AccountActualState => {
     confirmedByMonth:
       data.confirmedByMonth && typeof data.confirmedByMonth === "object"
         ? data.confirmedByMonth
+        : {},
+    basisDateByMonth:
+      data.basisDateByMonth && typeof data.basisDateByMonth === "object"
+        ? data.basisDateByMonth
         : {},
   };
 };
