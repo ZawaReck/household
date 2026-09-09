@@ -7,6 +7,8 @@ import { reconcileCardPayments } from "../src/utils/cardPayments";
 import { reconcileMonthlyAdjustments } from "../src/utils/monthlyAdjustments";
 import { reconcileScheduledMoves } from "../src/utils/scheduledMoves";
 import { reconcileReceiptTaxAdjustments } from "../src/utils/receiptTaxes";
+import { mergeValues } from "../src/utils/backup";
+import { applyDeletionTombstones } from "../src/data/deletionStore";
 
 const transaction = (partial: Partial<Transaction> & Pick<Transaction, "id" | "type" | "amount" | "date">): Transaction => ({
   name: "test",
@@ -120,5 +122,37 @@ describe("month-end reconciliation", () => {
     const rebuilt = reconcileMonthlyAdjustments(edited, [wallet], state);
     expect(rebuilt.filter((item) => item.system?.kind === "monthly_adjustment")).toHaveLength(1);
     expect(rebuilt.find((item) => item.system?.kind === "monthly_adjustment")).toMatchObject({ type: "income", amount: 50 });
+  });
+});
+
+describe("backup and sync merging", () => {
+  it("merges monthly budgets by month and keeps the newer revision", () => {
+    const current = {
+      entries: [
+        { month: "2026-08", byCategory: { 食費: 30_000 }, updatedAtISO: "2026-08-01T00:00:00.000Z" },
+        { month: "2026-09", byCategory: { 食費: 35_000 }, updatedAtISO: "2026-09-01T00:00:00.000Z" },
+      ],
+    };
+    const incoming = {
+      entries: [
+        { month: "2026-09", byCategory: { 食費: 40_000 }, updatedAtISO: "2026-09-02T00:00:00.000Z" },
+        { month: "2026-10", byCategory: { 食費: 42_000 }, updatedAtISO: "2026-10-01T00:00:00.000Z" },
+      ],
+    };
+
+    expect(mergeValues(current, incoming)).toEqual({
+      entries: [
+        current.entries[0],
+        incoming.entries[0],
+        incoming.entries[1],
+      ],
+    });
+  });
+
+  it("applies deletion tombstones to entries nested in a store object", () => {
+    const value = { entries: [{ id: "keep", note: "残す" }, { id: "deleted", note: "削除" }] };
+    expect(applyDeletionTombstones("sontokuEntries", value, {
+      sontokuEntries: { deleted: "2026-09-10T00:00:00.000Z" },
+    })).toEqual({ entries: [{ id: "keep", note: "残す" }] });
   });
 });

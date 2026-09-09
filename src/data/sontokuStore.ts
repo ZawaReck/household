@@ -1,6 +1,7 @@
 /* src/data/sontokuStore.ts */
 
 import type { SontokuEntry } from "../types/Sontoku";
+import { recordDeletedIds } from "./deletionStore";
 import { safeLoadJSON, safeSaveJSON } from "./storage";
 
 const STORAGE_KEY = "sontokuEntries";
@@ -38,4 +39,5 @@ export const deleteSontokuEntry = (id: string) => {
   const current = loadSontokuEntries();
   const next = current.filter((e) => e.id !== id);
   safeSaveJSON(STORAGE_KEY, { entries: next });
+  recordDeletedIds(STORAGE_KEY, [id]);
 };

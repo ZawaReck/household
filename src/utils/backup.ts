@@ -22,13 +22,19 @@ const timestamp = (value: unknown) => {
 
 export const mergeValues = (current: unknown, incoming: unknown): unknown => {
   if (Array.isArray(current) && Array.isArray(incoming)) {
-    if (incoming.every((item) => item && typeof item === "object" && "id" in item)) {
+    const objectItems = [...current, ...incoming].filter((item) => item != null);
+    const mergeKey = objectItems.length > 0 && objectItems.every((item) => typeof item === "object" && item && "id" in item)
+      ? "id"
+      : objectItems.length > 0 && objectItems.every((item) => typeof item === "object" && item && "month" in item)
+        ? "month"
+        : null;
+    if (mergeKey) {
       const merged = new Map<string, unknown>();
       for (const item of [...current, ...incoming]) {
-        if (!item || typeof item !== "object" || !("id" in item)) continue;
-        const id = String((item as { id: unknown }).id);
-        const previous = merged.get(id);
-        if (!previous || timestamp(item) >= timestamp(previous)) merged.set(id, item);
+        if (!item || typeof item !== "object" || !(mergeKey in item)) continue;
+        const key = String((item as Record<string, unknown>)[mergeKey]);
+        const previous = merged.get(key);
+        if (!previous || timestamp(item) >= timestamp(previous)) merged.set(key, item);
       }
       return Array.from(merged.values());
     }

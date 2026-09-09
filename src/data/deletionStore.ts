@@ -36,11 +36,21 @@ export const applyDeletionTombstones = (
   value: unknown,
   tombstones = loadDeletionTombstones(),
 ) => {
-  if (!Array.isArray(value)) return value;
   const deleted = tombstones[collection] ?? {};
-  return value.filter((item) => {
-    if (!item || typeof item !== "object" || !("id" in item)) return true;
-    const deletedAt = deleted[String((item as { id: unknown }).id)];
-    return !deletedAt || itemTimestamp(item) > deletedAt;
-  });
+  const filter = (candidate: unknown): unknown => {
+    if (Array.isArray(candidate)) {
+      return candidate
+        .filter((item) => {
+          if (!item || typeof item !== "object" || !("id" in item)) return true;
+          const deletedAt = deleted[String((item as { id: unknown }).id)];
+          return !deletedAt || itemTimestamp(item) > deletedAt;
+        })
+        .map(filter);
+    }
+    if (candidate && typeof candidate === "object") {
+      return Object.fromEntries(Object.entries(candidate as Record<string, unknown>).map(([key, nested]) => [key, filter(nested)]));
+    }
+    return candidate;
+  };
+  return filter(value);
 };

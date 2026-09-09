@@ -1,7 +1,8 @@
 import React from "react";
-import { backupKeys } from "../utils/backup";
+import { backupKeys, mergeValues } from "../utils/backup";
 import { getGoogleIdToken } from "./AuthGate";
 import { writeOfflineValue } from "../data/offlineStore";
+import { applyDeletionTombstones, DELETION_TOMBSTONE_KEY, loadDeletionTombstones } from "../data/deletionStore";
 import {
   adoptDataEpoch,
   clearEpochReplacementPending,
@@ -89,16 +90,32 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
         for (const record of payload.records) {
           if (!backupKeys.includes(record.key) || record.updatedAt <= (meta.updatedAt[record.key] ?? "")) continue;
           const previousRaw = localStorage.getItem(record.key);
-          if (record.deletedAt) {
+          const hasObserved = Object.prototype.hasOwnProperty.call(meta.observed, record.key);
+          const localDirty = hasObserved ? meta.observed[record.key] !== previousRaw : previousRaw !== null;
+          if (record.deletedAt && !localDirty) {
             localStorage.removeItem(record.key);
             void writeOfflineValue(record.key, null);
           } else {
-            localStorage.setItem(record.key, JSON.stringify(record.value));
-            void writeOfflineValue(record.key, record.value);
+            const localValue = previousRaw == null ? null : JSON.parse(previousRaw);
+            const nextValue = localDirty
+              ? mergeValues(record.deletedAt ? null : record.value, localValue)
+              : record.value;
+            localStorage.setItem(record.key, JSON.stringify(nextValue));
+            void writeOfflineValue(record.key, nextValue);
           }
           meta.updatedAt[record.key] = record.updatedAt;
-          meta.observed[record.key] = localStorage.getItem(record.key);
-          if (previousRaw !== meta.observed[record.key]) appliedRemote = true;
+          if (!localDirty) meta.observed[record.key] = localStorage.getItem(record.key);
+          if (previousRaw !== localStorage.getItem(record.key)) appliedRemote = true;
+        }
+        const tombstones = loadDeletionTombstones();
+        for (const key of backupKeys) {
+          if (key === DELETION_TOMBSTONE_KEY) continue;
+          const raw = localStorage.getItem(key);
+          if (raw == null) continue;
+          const filtered = JSON.stringify(applyDeletionTombstones(key, JSON.parse(raw), tombstones));
+          if (filtered === raw) continue;
+          localStorage.setItem(key, filtered);
+          void writeOfflineValue(key, JSON.parse(filtered));
         }
         meta.lastPull = payload.serverTime ?? new Date().toISOString();
         const now = new Date().toISOString();

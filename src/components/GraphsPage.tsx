@@ -821,7 +821,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     portfolioActualInputs[account] ?? displayedEstimatedBalances[account] ?? 0,
   ]));
   const portfolioAssetTotal = Object.values(portfolioDisplayValues).reduce((sum, value) => sum + value, 0);
-  const selectedPendingCardTotal = includePendingCardPayments ? pendingCardTotal(portfolioAsOf) : 0;
+  const selectedPendingCardTotal = includePendingCardPayments ? pendingCardTotal(portfolioBalanceDate) : 0;
 
   const portfolioPieData = accountNames.map((acc) => {
     return { name: acc, value: portfolioDisplayValues[acc] ?? 0 };
