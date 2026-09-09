@@ -3,6 +3,7 @@
 import React from "react";
 import type { Transaction } from "../types/Transaction";
 import type { Account } from "../types/Account";
+import type { Category } from "../types/Category";
 import type { InvestmentAsset, InvestmentState } from "../types/Investment";
 import type { BudgetEntry } from "../types/Budget";
 import type { SontokuEntry } from "../types/Sontoku";
@@ -55,6 +56,7 @@ interface Props {
   transactions: Transaction[];
   setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
   accounts: Account[];
+  categories: Category[];
 }
 
 const chartColors = [
@@ -390,7 +392,7 @@ const CategoryMonthlyTrendChart: React.FC<{
   );
 };
 
-export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, accounts: accountMaster }) => {
+export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, accounts: accountMaster, categories }) => {
   const todayISO = new Date().toISOString().slice(0, 10);
   const currentMonthKey = getMonthKey(todayISO);
   const allMonthKeys = getMonthKeysFromTransactions(transactions, currentMonthKey);
@@ -426,6 +428,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
   const [budgetMonthKey, setBudgetMonthKey] = React.useState(currentMonthKey);
   const [budgets, setBudgets] = React.useState<BudgetEntry[]>(() => loadBudgets());
   const [budgetDraft, setBudgetDraft] = React.useState<Record<string, number>>({});
+  const [budgetApplyEndMonth, setBudgetApplyEndMonth] = React.useState(currentMonthKey);
 
   const [sontokuEntries, setSontokuEntries] = React.useState<SontokuEntry[]>(() =>
     loadSontokuEntries()
@@ -445,21 +448,36 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     note: "",
   });
 
+  const inactiveExpenseCategoryNames = React.useMemo(() => new Set(
+    categories
+      .filter((category) => category.type === "expense" && !category.isActive)
+      .map((category) => category.name)
+  ), [categories]);
+
   const expenseCategories = React.useMemo(() => {
     const fromTx = transactions
       .filter((t) => t.type === "expense" && t.isTaxAdjustment !== true && isIncludedInRegularAnalytics(t))
       .map((t) => t.category)
-      .filter((c) => c && c !== "外税");
-    const fromBudget = budgets.flatMap((b) => Object.keys(b.byCategory ?? {}));
-    const unique = Array.from(new Set([...fromTx, ...fromBudget]));
+      .filter((c) => c && c !== "外税" && !inactiveExpenseCategoryNames.has(c));
+    const activeMaster = categories
+      .filter((category) => category.type === "expense" && category.isActive)
+      .map((category) => category.name);
+    const unique = Array.from(new Set([...activeMaster, ...fromTx]));
     return sortByDefaultCategoryOrder(unique.map((name) => ({ name, value: 0 })), expenseCategoryOptions)
       .map((item) => item.name);
-  }, [transactions, budgets]);
+  }, [transactions, categories, inactiveExpenseCategoryNames]);
 
   React.useEffect(() => {
     const entry = budgets.find((b) => b.month === budgetMonthKey);
-    setBudgetDraft(entry ? { ...entry.byCategory } : {});
-  }, [budgetMonthKey, budgets]);
+    const inherited = [...budgets]
+      .filter((budget) => budget.month < budgetMonthKey)
+      .sort((a, b) => b.month.localeCompare(a.month))[0];
+    const source = entry?.byCategory ?? inherited?.byCategory ?? {};
+    setBudgetDraft(Object.fromEntries(
+      Object.entries(source).filter(([category]) => !inactiveExpenseCategoryNames.has(category))
+    ));
+    setBudgetApplyEndMonth((current) => current < budgetMonthKey ? budgetMonthKey : current);
+  }, [budgetMonthKey, budgets, inactiveExpenseCategoryNames]);
 
   React.useEffect(() => {
     if (sontokuPeriod.preset === "custom") return;
@@ -483,7 +501,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     saveInvestmentState(next);
   };
 
-  const investmentAccounts = accountMaster.filter((account) => account.kind === "investment");
+  const investmentAccounts = accountMaster.filter((account) => account.isActive && account.kind === "investment");
   const investmentAssets: InvestmentAsset[] = investmentAccounts.map((account) => ({
     id: account.id,
     name: account.name,
@@ -543,25 +561,48 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     return { date: snapshot.date, profit, profitRate };
   });
 
-  const accountNames = React.useMemo(() => {
+  const regularAccountNames = React.useMemo(() => {
     const accs = new Set<string>();
     const cardNames = new Set(
       accountMaster.filter((account) => account.kind === "credit_card").map((account) => account.name)
     );
+    const investmentNames = new Set(
+      accountMaster.filter((account) => account.kind === "investment").map((account) => account.name)
+    );
+    const inactiveNames = new Set(
+      accountMaster.filter((account) => !account.isActive).map((account) => account.name)
+    );
     accountMaster
-      .filter((account) => account.isActive && account.kind !== "credit_card")
+      .filter((account) => account.isActive && account.kind !== "credit_card" && account.kind !== "investment")
       .forEach((account) => accs.add(account.name));
     transactions.forEach((t) => {
-      if (t.source && !cardNames.has(t.source)) accs.add(t.source);
-      if (t.destination && !cardNames.has(t.destination)) accs.add(t.destination);
+      if (t.source && !cardNames.has(t.source) && !investmentNames.has(t.source) && !inactiveNames.has(t.source)) accs.add(t.source);
+      if (t.destination && !cardNames.has(t.destination) && !investmentNames.has(t.destination) && !inactiveNames.has(t.destination)) accs.add(t.destination);
     });
     return Array.from(accs).sort();
   }, [transactions, accountMaster]);
+  const accountNames = React.useMemo(
+    () => [...regularAccountNames, ...investmentAccounts.filter((account) => account.isActive).map((account) => account.name)],
+    [regularAccountNames, investmentAccounts]
+  );
 
   const portfolioAsOf = monthEndISO(portfolioMonthKey);
   const estimatedBalances = React.useMemo(
     () => calcAccountBalancesAsOf(transactions, portfolioAsOf, accountNames),
     [transactions, portfolioAsOf, accountNames]
+  );
+  const investmentValuesForPortfolio = React.useMemo(() => {
+    const latestAtOrBefore = [...investmentSnapshots]
+      .filter((snapshot) => snapshot.date <= portfolioAsOf)
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
+    return Object.fromEntries(investmentAccounts.map((account) => [
+      account.name,
+      latestAtOrBefore?.values[account.id] ?? account.openingBalance,
+    ]));
+  }, [investmentAccounts, investmentSnapshots, portfolioAsOf]);
+  const displayedEstimatedBalances = React.useMemo(
+    () => ({ ...estimatedBalances, ...investmentValuesForPortfolio }),
+    [estimatedBalances, investmentValuesForPortfolio]
   );
   const activeCardAccounts = accountMaster.filter(
     (account) => account.isActive && account.kind === "credit_card" && account.creditCard
@@ -584,14 +625,14 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     const monthActuals = accountActualState.byMonth[portfolioMonthKey] ?? {};
     const fallback: Record<string, number> = {};
     accountNames.forEach((acc) => {
-      fallback[acc] = monthActuals[acc] ?? estimatedBalances[acc] ?? 0;
+      fallback[acc] = investmentValuesForPortfolio[acc] ?? monthActuals[acc] ?? estimatedBalances[acc] ?? 0;
     });
     const keys = Object.keys(fallback);
     const same =
       keys.length === Object.keys(portfolioActualInputs).length &&
       keys.every((k) => portfolioActualInputs[k] === fallback[k]);
     if (!same) setPortfolioActualInputs(fallback);
-  }, [portfolioMonthKey, accountActualState, accountNames, estimatedBalances, portfolioActualInputs]);
+  }, [portfolioMonthKey, accountActualState, accountNames, estimatedBalances, investmentValuesForPortfolio, portfolioActualInputs]);
 
   React.useEffect(() => {
     const saved = accountActualState.byMonth[portfolioMonthKey] ?? {};
@@ -644,9 +685,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
           .map((t) => t.id)
       );
       const kept = prev.filter((t) => !toRemove.has(t.id));
-      const estimated = calcAccountBalancesAsOf(kept, asOf, accountNames);
+      const estimated = calcAccountBalancesAsOf(kept, asOf, regularAccountNames);
       const adjustments: Transaction[] = [];
-      accountNames.forEach((account) => {
+      regularAccountNames.forEach((account) => {
         const actual = Number(actuals[account] ?? 0);
         const net = actual - (estimated[account] ?? 0);
         if (net === 0) return;
@@ -657,20 +698,27 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
   };
 
   const handleSavePortfolioActuals = () => {
+    const regularActuals = Object.fromEntries(
+      regularAccountNames.map((account) => [account, portfolioActualInputs[account] ?? 0])
+    );
     const nextState = {
       ...accountActualState,
       byMonth: {
         ...accountActualState.byMonth,
-        [portfolioMonthKey]: { ...portfolioActualInputs },
+        [portfolioMonthKey]: regularActuals,
       },
       confirmedByMonth: {
         ...accountActualState.confirmedByMonth,
-        [portfolioMonthKey]: [...accountNames],
+        [portfolioMonthKey]: [...regularAccountNames],
       },
     };
     setAccountActualState(nextState);
     saveAccountActualState(nextState);
-    applyBalanceAdjustments(portfolioMonthKey, portfolioActualInputs);
+    applyBalanceAdjustments(portfolioMonthKey, regularActuals);
+    handleSaveSnapshot(
+      monthEndISO(portfolioMonthKey),
+      Object.fromEntries(investmentAccounts.map((account) => [account.id, portfolioActualInputs[account.name] ?? account.openingBalance]))
+    );
   };
 
   const handleConfirmCards = () => {
@@ -701,7 +749,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
 
   const portfolioPieData = accountNames.map((acc) => {
     const actual = portfolioActualInputs[acc];
-    const value = Number.isFinite(actual) ? actual : estimatedBalances[acc] ?? 0;
+    const value = Number.isFinite(actual) ? actual : displayedEstimatedBalances[acc] ?? 0;
     return { name: acc, value };
   });
 
@@ -1019,9 +1067,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
   }, {});
 
   const handleSaveBudget = () => {
+    const existing = budgets.find((budget) => budget.month === budgetMonthKey);
+    const inactiveHistory = Object.fromEntries(
+      Object.entries(existing?.byCategory ?? {}).filter(([category]) => inactiveExpenseCategoryNames.has(category))
+    );
     const entry: BudgetEntry = {
       month: budgetMonthKey,
-      byCategory: { ...budgetDraft },
+      byCategory: { ...inactiveHistory, ...budgetDraft },
       updatedAtISO: new Date().toISOString(),
     };
     const next = budgets.some((b) => b.month === budgetMonthKey)
@@ -1030,6 +1082,32 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     setBudgets(next);
     saveBudgets(next);
   };
+
+  const handleApplyBudgetRange = () => {
+    if (budgetApplyEndMonth < budgetMonthKey) {
+      window.alert("終了月は開始月以降を選択してください。");
+      return;
+    }
+    const months = listMonthKeysBetween(budgetMonthKey, budgetApplyEndMonth);
+    if (!window.confirm(`${budgetMonthKey}〜${budgetApplyEndMonth}（${months.length}か月）の既存予算を上書きしますか？`)) return;
+    const now = new Date().toISOString();
+    const byMonth = new Map(budgets.map((budget) => [budget.month, budget]));
+    months.forEach((month) => {
+      const existing = byMonth.get(month);
+      const inactiveHistory = Object.fromEntries(
+        Object.entries(existing?.byCategory ?? {}).filter(([category]) => inactiveExpenseCategoryNames.has(category))
+      );
+      byMonth.set(month, { month, byCategory: { ...inactiveHistory, ...budgetDraft }, updatedAtISO: now });
+    });
+    const next = Array.from(byMonth.values()).sort((a, b) => a.month.localeCompare(b.month));
+    setBudgets(next);
+    saveBudgets(next);
+  };
+
+  const configuredBudgetEntries = Object.entries(budgetDraft).filter(([, value]) => value > 0);
+  const totalBudget = configuredBudgetEntries.reduce((sum, [, value]) => sum + value, 0);
+  const totalBudgetActual = Object.values(budgetActualMap).reduce((sum, value) => sum + value, 0);
+  const totalBudgetRate = totalBudget > 0 ? (totalBudgetActual / totalBudget) * 100 : null;
 
   const handleSubmitSontoku = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1323,12 +1401,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                   </thead>
                   <tbody>
                     {accountNames.map((account) => {
-                      const estimated = estimatedBalances[account] ?? 0;
+                      const estimated = displayedEstimatedBalances[account] ?? 0;
                       const actual = portfolioActualInputs[account] ?? 0;
                       const diff = actual - estimated;
                       const total = accountNames.reduce(
                         (sum, acc) =>
-                          sum + (portfolioActualInputs[acc] ?? estimatedBalances[acc] ?? 0),
+                          sum + (portfolioActualInputs[acc] ?? displayedEstimatedBalances[acc] ?? 0),
                         0
                       );
                       const ratio = total !== 0 ? (actual / total) * 100 : 0;
@@ -1958,8 +2036,19 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                 />
               </label>
               <button type="button" onClick={handleSaveBudget}>
-                予算を保存
+                この月だけ保存
               </button>
+            </div>
+            <div className="budget-total-card">
+              <div><strong>総額</strong><span>{formatYen(totalBudgetActual)} / {totalBudget > 0 ? formatYen(totalBudget) : "未設定"}</span></div>
+              {totalBudgetRate != null && <>
+                <progress max={100} value={Math.min(totalBudgetRate, 100)} className={totalBudgetRate > 100 ? "is-over" : ""} />
+                <span className={totalBudgetRate > 100 ? "negative" : ""}>{totalBudgetRate.toFixed(1)}%・残り {formatYen(totalBudget - totalBudgetActual)}</span>
+              </>}
+            </div>
+            <div className="inline-controls budget-range-controls">
+              <label>一括適用の終了月<input type="month" min={budgetMonthKey} value={budgetApplyEndMonth} onChange={(event) => setBudgetApplyEndMonth(event.target.value)} /></label>
+              <button type="button" onClick={handleApplyBudgetRange}>終了月まで上書き</button>
             </div>
             {expenseCategories.length === 0 ? (
               <p className="muted">カテゴリがありません。</p>
@@ -1977,26 +2066,32 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                   <tbody>
                     {expenseCategories.map((category) => {
                       const actual = budgetActualMap[category] ?? 0;
-                      const budget = budgetDraft[category] ?? 0;
-                      const diff = budget - actual;
+                      const budget = budgetDraft[category];
+                      const isConfigured = budget != null && budget > 0;
+                      const diff = isConfigured ? budget - actual : null;
+                      const rate = isConfigured ? (actual / budget) * 100 : null;
                       return (
                         <tr key={category}>
                           <td>{category}</td>
                           <td>
                             <input
                               type="number"
-                              value={budget}
-                              onChange={(e) =>
-                                setBudgetDraft((prev) => ({
-                                  ...prev,
-                                  [category]: Number(e.target.value) || 0,
-                                }))
-                              }
+                              min="1"
+                              step="1"
+                              placeholder="未設定"
+                              value={budget ?? ""}
+                              onChange={(e) => setBudgetDraft((prev) => {
+                                const next = { ...prev };
+                                const value = Number(e.target.value);
+                                if (!e.target.value || value <= 0) delete next[category];
+                                else next[category] = Math.floor(value);
+                                return next;
+                              })}
                             />
                           </td>
                           <td>{formatYen(actual)}</td>
-                          <td className={diff >= 0 ? "positive" : "negative"}>
-                            {formatYen(diff)}
+                          <td className={diff != null && diff < 0 ? "negative" : ""}>
+                            {isConfigured ? <div className="budget-cell"><progress max={100} value={Math.min(rate ?? 0, 100)} className={(rate ?? 0) > 100 ? "is-over" : ""} /><span>{rate?.toFixed(1)}%・残り {formatYen(diff ?? 0)}</span></div> : "実績のみ"}
                           </td>
                         </tr>
                       );

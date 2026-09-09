@@ -18,6 +18,7 @@ import { loadAccounts, saveAccounts } from "./data/accountStore";
 import { reconcileCardPayments } from "./utils/cardPayments";
 import type { Category } from "./types/Category";
 import { loadCategories, saveCategories } from "./data/categoryStore";
+import { loadBudgets, saveBudgets } from "./data/budgetStore";
 import { loadScheduledMoves, saveScheduledMoves } from "./data/scheduledMoveStore";
 import { reconcileScheduledMoves } from "./utils/scheduledMoves";
 import type { ScheduledMove } from "./types/ScheduledMove";
@@ -176,6 +177,14 @@ export const App: React.FC = () => {
           ? { ...transaction, category: updatedCategory.name }
           : transaction
       ));
+      saveBudgets(loadBudgets().map((budget) => {
+        if (!(previous.name in budget.byCategory)) return budget;
+        const byCategory = { ...budget.byCategory };
+        const amount = byCategory[previous.name];
+        delete byCategory[previous.name];
+        byCategory[updatedCategory.name] = amount;
+        return { ...budget, byCategory };
+      }));
     }
     setCategories((current) => {
       const exists = current.some((category) => category.id === updatedCategory.id);
@@ -279,6 +288,7 @@ export const App: React.FC = () => {
             transactions={visibleTransactions}
             setTransactions={setTransactions}
             accounts={accounts}
+            categories={categories}
           />
         } />
         </Routes>

@@ -25,7 +25,7 @@ export const MonthEndReminder: React.FC<Props> = ({ accounts, transactions }) =>
   const confirmed = new Set(actuals.confirmedByMonth[targetMonth] ?? []);
   const snapshot = investments.snapshots.find((item) => item.date === targetMonthEnd);
 
-  const missing = accounts.filter((account) => account.isActive).filter((account) => {
+  const missing = accounts.filter((account) => account.isActive && account.openingDate <= targetMonthEnd).filter((account) => {
     if (account.kind === "investment") return snapshot?.values[account.id] == null;
     if (account.kind !== "credit_card") return !confirmed.has(account.name);
     const used = transactions.reduce((sum, transaction) => {
