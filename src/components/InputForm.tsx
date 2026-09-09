@@ -476,15 +476,23 @@ export const InputForm: React.FC<InputFormProps> = ({
     return Number.isFinite(n) ? n : NaN;
   };
 
-  const hasFormDraft = () => {
-    if (amount.trim() === "") return false;
-    if (type !== "move" && name.trim() === "") return false;
+  const draftValidationError = () => {
+    if (amount.trim() === "") return "金額を入力してください。";
+    if (type !== "move" && name.trim() === "") return "摘要を入力してください。";
     const n = parseAmount();
-    if (!Number.isFinite(n) || n <= 0) return false;
-    if (type === "move" && (!sourceMove || !destination || sourceMove === destination)) return false;
-    if (type === "expense" && !Number.isInteger(n)) return false;
-    return true;
+    if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) return "金額は1円以上の整数で入力してください。";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "日付を入力してください。";
+    if (type === "move" && (!sourceMove || !destination)) return "移動元と移動先を選択してください。";
+    if (type === "move" && sourceMove === destination) return "移動元と移動先には別の口座を選択してください。";
+    if (type !== "move" && !source) return type === "income" ? "入金先を選択してください。" : "拠出元を選択してください。";
+    if (type !== "move" && !category) return "カテゴリを選択してください。";
+    if (type === "move" && moveFee.trim() !== "") {
+      const fee = Number(moveFee);
+      if (!Number.isInteger(fee) || fee < 0) return "手数料は0円以上の整数で入力してください。";
+    }
+    return null;
   };
+  const hasFormDraft = () => draftValidationError() == null;
 
   React.useEffect(() => {
     if (!editingTransaction) {
@@ -511,7 +519,8 @@ export const InputForm: React.FC<InputFormProps> = ({
     e.preventDefault();
 
     if (type !== "expense" || editingTransaction || entryMode === "individual") return;
-    if (!hasFormDraft()) return;
+    const error = draftValidationError();
+    if (error) { window.alert(error); return; }
 
     const draft = buildDraft();
 
@@ -625,7 +634,8 @@ export const InputForm: React.FC<InputFormProps> = ({
     }
 
     if (editingTransaction) {
-      if (!hasFormDraft()) return;
+      const error = draftValidationError();
+      if (error) { window.alert(error); return; }
 
       const gid = (editingTransaction as any).groupId as string | undefined;
       if (gid) setActiveGroupId(gid);
@@ -710,15 +720,17 @@ export const InputForm: React.FC<InputFormProps> = ({
         if (hasFormDraft()) {
           const draft = buildDraft();
           itemsToCommit = receiptItems.map((it, i) => (i === editingReceiptIndex ? draft : it));
-        } else {
-          return;
-        }
+        } else { window.alert(draftValidationError()); return; }
       } else if (hasFormDraft()) {
         const draft = buildDraft();
         itemsToCommit = [...receiptItems, draft];
+      } else if (amount.trim() !== "" || name.trim() !== "") {
+        window.alert(draftValidationError());
+        return;
       }
     } else {
-      if (!hasFormDraft()) return;
+      const error = draftValidationError();
+      if (error) { window.alert(error); return; }
       itemsToCommit = [buildDraft()];
     }
 
@@ -818,9 +830,8 @@ export const InputForm: React.FC<InputFormProps> = ({
   const getCommittedDisplayAmount = (t: Transaction) => {
     if (t.type !== "expense") return t.amount;
     if (!committedGroupIsExternal) return t.amount;
-    if (committedGroupVisibleItems.length >= 2) return t.amount;
     const r = normalizeTaxRate((t as any).taxRate);
-    return calcTaxedAmount(t.amount, r);
+    return calcTaxedAmount(Number(t.taxBaseAmount ?? t.amount), r);
   };
 
   // --- 表示（TransactionHistoryと同じ見た目）を共通化 ---
