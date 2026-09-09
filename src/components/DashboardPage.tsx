@@ -39,6 +39,8 @@ export const DashboardPage: React.FC<Props> = (props) => {
 	const [isInputSheetOpen, setIsInputSheetOpen] = useState(false);
 	const [isInputSheetExpanded, setIsInputSheetExpanded] = useState(false);
 	const [isEditingDirty, setIsEditingDirty] = useState(false);
+	const sheetDragStartY = React.useRef<number | null>(null);
+	const sheetWasDragged = React.useRef(false);
 
 	const year = currentDate.getFullYear();
 	const month = currentDate.getMonth();
@@ -95,6 +97,24 @@ export const DashboardPage: React.FC<Props> = (props) => {
 			document.getElementById(`history-date-${date}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 		});
 	};
+	const handleSheetPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+		sheetDragStartY.current = event.clientY;
+		sheetWasDragged.current = false;
+		event.currentTarget.setPointerCapture(event.pointerId);
+	};
+	const handleSheetPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+		if (sheetDragStartY.current == null) return;
+		const delta = event.clientY - sheetDragStartY.current;
+		if (Math.abs(delta) < 12) return;
+		sheetWasDragged.current = true;
+		if (delta <= -30) setIsInputSheetExpanded(true);
+		if (delta >= 30) setIsInputSheetExpanded(false);
+	};
+	const handleSheetPointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
+		if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+		sheetDragStartY.current = null;
+		window.setTimeout(() => { sheetWasDragged.current = false; }, 0);
+	};
 
 
 	return (
@@ -146,7 +166,11 @@ export const DashboardPage: React.FC<Props> = (props) => {
 					type="button"
 					className="input-sheet-handle"
 					aria-label={isInputSheetExpanded ? "入力画面を縮める" : "入力画面を広げる"}
-					onClick={() => setIsInputSheetExpanded((current) => !current)}
+					onPointerDown={handleSheetPointerDown}
+					onPointerMove={handleSheetPointerMove}
+					onPointerUp={handleSheetPointerUp}
+					onPointerCancel={handleSheetPointerUp}
+					onClick={() => { if (!sheetWasDragged.current) setIsInputSheetExpanded((current) => !current); }}
 				><span /></button>
 				<button type="button" className="input-sheet-close" aria-label="入力画面を閉じる" onClick={closeInputSheet}>×</button>
 			</div>
@@ -180,9 +204,13 @@ export const DashboardPage: React.FC<Props> = (props) => {
 					if (openEditSheet(transaction)) setIsSearchOpen(false);
 				}}
 				onSelectGroup={(groupId, date) => {
+					if (!confirmDiscardEdit()) return;
 					setIsSearchOpen(false);
 					setActiveGroupId(groupId);
 					setActiveGroupDate(date);
+					props.setEditingTransaction(null);
+					setIsInputSheetOpen(true);
+					setIsInputSheetExpanded(false);
 				}}
 			/>
 		)}
