@@ -411,6 +411,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     {}
   );
   const [cardAvailableInputs, setCardAvailableInputs] = React.useState<Record<string, number>>({});
+  const [includePendingCardPayments, setIncludePendingCardPayments] = React.useState(false);
+  const [portfolioChartMode, setPortfolioChartMode] = React.useState<"pie" | "stacked">("pie");
 
   const [categoryMonthKey, setCategoryMonthKey] = React.useState(currentMonthKey);
   const [monthlyCategoryMode, setMonthlyCategoryMode] =
@@ -747,21 +749,54 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     saveAccountActualState(nextState);
   };
 
+  const pendingCardDeductions = (asOf: string) => {
+    const deductions: Record<string, number> = {};
+    activeCardAccounts.forEach((card) => {
+      const paymentAccount = accountMaster.find((account) => account.id === card.creditCard?.defaultPaymentAccountId);
+      if (!paymentAccount) return;
+      const outstanding = transactions.reduce((sum, transaction) => {
+        if (transaction.date > asOf) return sum;
+        if (transaction.type === "expense" && !transaction.system && transaction.source === card.name) return sum + transaction.amount;
+        if (transaction.type === "move" && transaction.destination === card.name && transaction.system?.kind === "card_payment") return sum - transaction.amount;
+        return sum;
+      }, 0);
+      deductions[paymentAccount.name] = (deductions[paymentAccount.name] ?? 0) + Math.max(0, outstanding);
+    });
+    return deductions;
+  };
+
+  const selectedMonthDeductions = includePendingCardPayments ? pendingCardDeductions(portfolioAsOf) : {};
+  const portfolioDisplayValues = Object.fromEntries(accountNames.map((account) => [
+    account,
+    (portfolioActualInputs[account] ?? displayedEstimatedBalances[account] ?? 0) - (selectedMonthDeductions[account] ?? 0),
+  ]));
+
   const portfolioPieData = accountNames.map((acc) => {
-    const actual = portfolioActualInputs[acc];
-    const value = Number.isFinite(actual) ? actual : displayedEstimatedBalances[acc] ?? 0;
-    return { name: acc, value };
+    return { name: acc, value: portfolioDisplayValues[acc] ?? 0 };
   });
 
-  const portfolioRange = listMonthKeysBetween(allMonthKeys[0], allMonthKeys[allMonthKeys.length - 1]);
+  const portfolioMonths = Array.from(new Set([
+    ...allMonthKeys,
+    ...investmentSnapshots.map((snapshot) => getMonthKey(snapshot.date)),
+  ])).sort();
+  const portfolioRange = listMonthKeysBetween(portfolioMonths[0], portfolioMonths[portfolioMonths.length - 1]);
   const portfolioAreaData = portfolioRange.map((month) => {
-    const balances = calcAccountBalancesAsOf(transactions, monthEndISO(month), accountNames);
+    const asOf = monthEndISO(month);
+    const balances = calcAccountBalancesAsOf(transactions, asOf, regularAccountNames);
+    const snapshot = [...investmentSnapshots]
+      .filter((item) => item.date <= asOf)
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
+    investmentAccounts.forEach((account) => {
+      balances[account.name] = snapshot?.values[account.id] ?? account.openingBalance;
+    });
+    const deductions = includePendingCardPayments ? pendingCardDeductions(asOf) : {};
     const point: Record<string, number | string> = { month };
     accountNames.forEach((acc) => {
-      point[acc] = balances[acc] ?? 0;
+      point[acc] = (balances[acc] ?? 0) - (deductions[acc] ?? 0);
     });
     return point;
   });
+  const selectedInvestmentSnapshotIsExact = investmentAccounts.length === 0 || investmentSnapshots.some((snapshot) => snapshot.date === portfolioAsOf);
 
   const monthlyCategorySummary = React.useMemo(() => {
     if (monthlyCategoryMode === "expense") {
@@ -1382,9 +1417,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                 />
               </label>
               <button type="button" onClick={handleSavePortfolioActuals}>
-                月末実残高を確定
+                全口座の月末残高を確定
               </button>
+              <label><input type="checkbox" checked={includePendingCardPayments} onChange={(event) => setIncludePendingCardPayments(event.target.checked)} />カード引落予定を差し引く</label>
             </div>
+            {!selectedInvestmentSnapshotIsExact && <p className="muted">投資口座は直近の評価額を仮表示しています。この月を確定すると月末評価額として保存されます。</p>}
             {accountNames.length === 0 ? (
               <p className="muted">口座データがありません。</p>
             ) : (
@@ -1404,12 +1441,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                       const estimated = displayedEstimatedBalances[account] ?? 0;
                       const actual = portfolioActualInputs[account] ?? 0;
                       const diff = actual - estimated;
-                      const total = accountNames.reduce(
-                        (sum, acc) =>
-                          sum + (portfolioActualInputs[acc] ?? displayedEstimatedBalances[acc] ?? 0),
-                        0
-                      );
-                      const ratio = total !== 0 ? (actual / total) * 100 : 0;
+                      const displayed = portfolioDisplayValues[account] ?? actual;
+                      const total = Object.values(portfolioDisplayValues).reduce((sum, value) => sum + value, 0);
+                      const ratio = total !== 0 ? (displayed / total) * 100 : 0;
                       return (
                         <tr key={account}>
                           <td>{account}</td>
@@ -1453,10 +1487,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
             )}
           </div>
           <div className="card chart-card">
-            <h3>口座別構成</h3>
+            <div className="chart-header-actions"><h3>{portfolioChartMode === "pie" ? "口座別構成" : "口座別残高推移"}</h3><div className="toggle-group"><button type="button" className={portfolioChartMode === "pie" ? "active" : ""} onClick={() => setPortfolioChartMode("pie")}>円</button><button type="button" className={portfolioChartMode === "stacked" ? "active" : ""} onClick={() => setPortfolioChartMode("stacked")}>積上</button></div></div>
             {portfolioPieData.length === 0 ? (
               <p className="muted">データがありません。</p>
-            ) : (
+            ) : portfolioChartMode === "pie" ? (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
                   <Pie
@@ -1475,32 +1509,24 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
-            )}
-          </div>
-          <div className="card chart-card">
-            <h3>推定残高推移</h3>
-            {portfolioAreaData.length === 0 ? (
-              <p className="muted">データがありません。</p>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={portfolioAreaData}>
+                <BarChart data={portfolioAreaData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip formatter={(value) => formatYen(value)} />
                   <Legend />
                   {accountNames.map((account, idx) => (
-                    <Area
+                    <Bar
                       key={account}
-                      type="monotone"
                       dataKey={account}
                       name={account}
                       stackId="1"
-                      stroke={chartColors[idx % chartColors.length]}
                       fill={chartColors[idx % chartColors.length]}
                     />
                   ))}
-                </AreaChart>
+                </BarChart>
               </ResponsiveContainer>
             )}
           </div>

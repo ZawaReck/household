@@ -30,6 +30,7 @@ interface InputFormProps {
   activeGroupDate?: string | null;
   setActiveGroupDate?: (date: string | null) => void;
   draftScope?: string;
+  onEditingDirtyChange?: (dirty: boolean) => void;
 }
 
 type DraftTx = Omit<Transaction, "id">;
@@ -53,6 +54,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   activeGroupDate: activeGroupDateProp,
   setActiveGroupDate: setActiveGroupDateProp,
   draftScope = "input",
+  onEditingDirtyChange,
 }) => {
   const [type, setType] = React.useState<"expense" | "income" | "move">("expense");
 
@@ -481,6 +483,26 @@ export const InputForm: React.FC<InputFormProps> = ({
     if (type === "expense" && !Number.isInteger(n)) return false;
     return true;
   };
+
+  React.useEffect(() => {
+    if (!editingTransaction) {
+      onEditingDirtyChange?.(false);
+      return;
+    }
+    const editingSource = editingTransaction.type === "move" ? sourceMove : source;
+    const dirty =
+      String(editingTransaction.amount) !== amount ||
+      editingTransaction.date !== date ||
+      (editingTransaction.name || "") !== name ||
+      (editingTransaction.memo || "") !== memo ||
+      (editingTransaction.classification ?? (editingTransaction.isSpecial ? "special" : "normal")) !== classification ||
+      editingTransaction.source !== editingSource ||
+      (editingTransaction.destination || "") !== (editingTransaction.type === "move" ? destination : "") ||
+      (editingTransaction.type !== "move" && editingTransaction.category !== category) ||
+      (editingTransaction.type === "expense" && normalizeTaxMode(editingTransaction.taxMode) !== (isExternalTax ? "exclusive" : "inclusive")) ||
+      (editingTransaction.type === "expense" && normalizeTaxRate(editingTransaction.taxRate) !== taxRate);
+    onEditingDirtyChange?.(dirty);
+  }, [amount, category, classification, date, destination, editingTransaction, isExternalTax, memo, name, onEditingDirtyChange, source, sourceMove, taxRate]);
 
   // 追加（submit）: 仮置きに追加 / 仮編集なら更新 / 本編集なら何もしない（本編集は登録ボタンで更新）
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
