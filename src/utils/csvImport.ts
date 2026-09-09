@@ -2,6 +2,12 @@ import type { Transaction } from "../types/Transaction";
 
 const categoryMap: Record<string, string> = { 趣味: "趣味費", ポイント等: "副次収入", 月給: "月収" };
 
+export type InvalidCsvRow = {
+  rowNumber: number;
+  raw: string;
+  reason: string;
+};
+
 const splitCsvLine = (line: string) => {
   const fields: string[] = [];
   let current = "";
@@ -17,15 +23,28 @@ const splitCsvLine = (line: string) => {
   return fields.map((field) => field.trim());
 };
 
-export const importHouseholdCsv = (raw: string): { transactions: Transaction[]; invalidRows: number[] } => {
+const isValidDate = (value: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+};
+
+export const importHouseholdCsv = (raw: string): { transactions: Transaction[]; invalidRows: InvalidCsvRow[] } => {
   const lines = raw.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim() !== "");
   const rows = lines.slice(1);
-  const invalidRows: number[] = [];
+  const invalidRows: InvalidCsvRow[] = [];
   const transactions: Transaction[] = [];
   rows.forEach((line, index) => {
     const [amountRaw, date, memo = "", categoryRaw = "その他"] = splitCsvLine(line);
     const amount = Number(amountRaw.replace(/,/g, ""));
-    if (!Number.isFinite(amount) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) { invalidRows.push(index + 2); return; }
+    const errors: string[] = [];
+    if (!Number.isFinite(amount)) errors.push("金額が数値ではありません");
+    if (!isValidDate(date)) errors.push("日付が YYYY-MM-DD の実在日ではありません");
+    if (errors.length > 0) {
+      invalidRows.push({ rowNumber: index + 2, raw: line, reason: errors.join(" / ") });
+      return;
+    }
     transactions.push({
       id: crypto.randomUUID(),
       type: amount < 0 ? "expense" : "income",
