@@ -301,7 +301,10 @@ export const App: React.FC = () => {
     ));
   };
   const handleCsvImport = (imported: Transaction[]) => {
-    setTransactions((current) => [...current, ...imported]);
+    setTransactions((current) => {
+      const existingIds = new Set(current.map((transaction) => transaction.id));
+      return [...current, ...imported.filter((transaction) => !existingIds.has(transaction.id))];
+    });
   };
 
   const [selectedDate] = React.useState(

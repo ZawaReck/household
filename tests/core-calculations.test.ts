@@ -10,6 +10,7 @@ import { reconcileReceiptTaxAdjustments } from "../src/utils/receiptTaxes";
 import { mergeValues } from "../src/utils/backup";
 import { applyDeletionTombstones } from "../src/data/deletionStore";
 import { invalidateChangedCardConfirmations } from "../src/utils/cardConfirmations";
+import { importHouseholdCsv } from "../src/utils/csvImport";
 
 const transaction = (partial: Partial<Transaction> & Pick<Transaction, "id" | "type" | "amount" | "date">): Transaction => ({
   name: "test",
@@ -235,5 +236,25 @@ describe("backup and sync merging", () => {
     expect(applyDeletionTombstones("sontokuEntries", value, {
       sontokuEntries: { deleted: "2026-09-10T00:00:00.000Z" },
     })).toEqual({ entries: [{ id: "keep", note: "残す" }] });
+  });
+});
+
+describe("CSV import", () => {
+  it("creates stable row IDs and maps known legacy categories", () => {
+    const csv = "金額,日付,メモ,カテゴリ\n-1200,2026-09-01,書籍,趣味\n300000,2026-09-02,給与,月給";
+    const first = importHouseholdCsv(csv);
+    const second = importHouseholdCsv(csv);
+    expect(first.invalidRows).toEqual([]);
+    expect(first.transactions.map(({ id }) => id)).toEqual(second.transactions.map(({ id }) => id));
+    expect(first.transactions).toMatchObject([
+      { type: "expense", amount: 1200, name: "書籍", category: "趣味費", source: "" },
+      { type: "income", amount: 300000, name: "給与", category: "月収", source: "" },
+    ]);
+  });
+
+  it("requires explicit exclusion for zero and fractional yen rows", () => {
+    const result = importHouseholdCsv("金額,日付,メモ,カテゴリ\n0,2026-09-01,zero,その他\n1.5,2026-09-02,fraction,その他");
+    expect(result.transactions).toEqual([]);
+    expect(result.invalidRows).toHaveLength(2);
   });
 });
