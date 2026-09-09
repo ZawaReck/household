@@ -1,5 +1,6 @@
 import type { InputDraft } from "../types/InputDraft";
 import { writeOfflineValue } from "./offlineStore";
+import { recordDeletedIds } from "./deletionStore";
 
 const STORAGE_KEY = "drafts.v1";
 
@@ -15,6 +16,9 @@ const parse = (raw: string | null): InputDraft[] => {
 export const loadInputDrafts = () => parse(localStorage.getItem(STORAGE_KEY));
 
 export const saveInputDrafts = (drafts: InputDraft[]) => {
+  const retainedIds = new Set(drafts.map((draft) => draft.id));
+  const removedIds = loadInputDrafts().filter((draft) => !retainedIds.has(draft.id)).map((draft) => draft.id);
+  recordDeletedIds(STORAGE_KEY, removedIds);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(drafts));
   void writeOfflineValue(STORAGE_KEY, drafts);
   window.dispatchEvent(new CustomEvent("household-local-change", { detail: STORAGE_KEY }));

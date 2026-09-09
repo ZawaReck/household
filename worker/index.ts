@@ -188,7 +188,7 @@ const sendMonthEndReminders = async (controller: ScheduledController, env: Env) 
     const month = oldestIncompleteMonth(records, latestMonth);
     if (!month) continue;
     try {
-      await webpush.sendNotification(JSON.parse(String(row.subscription_json)), JSON.stringify({ title: "家計簿 月末更新", body: `${month}の残高更新が未完了です。`, url: "/graphs?tab=portfolio" }));
+      await webpush.sendNotification(JSON.parse(String(row.subscription_json)), JSON.stringify({ title: "家計簿 月末更新", body: `${month}の残高更新が未完了です。`, url: `/graphs?tab=portfolio&month=${month}` }));
     } catch (error) {
       const statusCode = (error as { statusCode?: number }).statusCode;
       if (statusCode === 404 || statusCode === 410) await env.DB.prepare("DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?").bind(row.user_id, row.endpoint).run();
