@@ -4,6 +4,7 @@ import type { Account } from "../types/Account";
 import type { Transaction } from "../types/Transaction";
 import { loadAccountActualState } from "../data/accountActualStore";
 import { loadInvestmentState } from "../data/investmentStore";
+import { creditCardOutstandingAsOf } from "../utils/accountBalances";
 import "./MonthEndReminder.css";
 
 type Props = { accounts: Account[]; transactions: Transaction[] };
@@ -28,12 +29,7 @@ export const MonthEndReminder: React.FC<Props> = ({ accounts, transactions }) =>
   const missing = accounts.filter((account) => account.isActive && account.openingDate <= targetMonthEnd).filter((account) => {
     if (account.kind === "investment") return snapshot?.values[account.id] == null;
     if (account.kind !== "credit_card") return !confirmed.has(account.name);
-    const used = transactions.reduce((sum, transaction) => {
-      if (transaction.date > targetMonthEnd) return sum;
-      if (transaction.type === "expense" && !transaction.system && transaction.source === account.name) return sum + transaction.amount;
-      if (transaction.type === "move" && transaction.destination === account.name && transaction.system?.kind === "card_payment") return sum - transaction.amount;
-      return sum;
-    }, 0);
+    const used = creditCardOutstandingAsOf(account, transactions, targetMonthEnd);
     const available = (account.creditCard?.limit ?? 0) - used;
     return !confirmed.has(account.name) || actuals.byMonth[targetMonth]?.[account.name] !== available;
   });

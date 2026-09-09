@@ -145,7 +145,9 @@ const needsMonthEndUpdate = (records: Record<string, unknown>, month: string) =>
     if (account.kind !== "credit_card") return !confirmed;
     const used = transactions.reduce((sum, transaction) => {
       if (String(transaction.date ?? "") > monthEnd) return sum;
-      if (transaction.type === "expense" && !transaction.system && transaction.source === accountName) return sum + Number(transaction.amount ?? 0);
+      const cardCycle = transaction.cardCycle as { cardAccountId?: string } | undefined;
+      const isAfterOpening = String(transaction.date ?? "") > String(account.openingDate ?? "");
+      if (transaction.type === "expense" && !transaction.system && transaction.source === accountName && (isAfterOpening || cardCycle?.cardAccountId === String(account.id))) return sum + Number(transaction.amount ?? 0);
       const system = transaction.system as { kind?: string } | undefined;
       if (transaction.type === "move" && transaction.destination === accountName && system?.kind === "card_payment") return sum - Number(transaction.amount ?? 0);
       return sum;

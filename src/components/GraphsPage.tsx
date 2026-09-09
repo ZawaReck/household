@@ -786,12 +786,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   };
 
   const pendingCardTotal = (asOf: string) => activeCardAccounts.reduce((cardTotal, card) => {
-      const outstanding = transactions.reduce((sum, transaction) => {
-        if (transaction.date > asOf) return sum;
-        if (transaction.type === "expense" && !transaction.system && transaction.source === card.name) return sum + transaction.amount;
-        if (transaction.type === "move" && transaction.destination === card.name && transaction.system?.kind === "card_payment") return sum - transaction.amount;
-        return sum;
-      }, 0);
+      const outstanding = creditCardOutstandingAsOf(card, transactions, asOf);
       return cardTotal + Math.max(0, outstanding);
     }, 0);
 
