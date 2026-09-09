@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { Transaction } from "../types/Transaction";
+import type { Account } from "../types/Account";
 import type { InvestmentAsset, InvestmentState, MonthKey } from "../types/Investment";
 import type { BudgetEntry } from "../types/Budget";
 import type { SontokuEntry } from "../types/Sontoku";
@@ -54,6 +55,7 @@ import "./GraphsPage.css";
 interface Props {
   transactions: Transaction[];
   setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
+  accounts: Account[];
 }
 
 const chartColors = [
@@ -394,7 +396,7 @@ const CategoryMonthlyTrendChart: React.FC<{
   );
 };
 
-export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) => {
+export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, accounts: accountMaster }) => {
   const todayISO = new Date().toISOString().slice(0, 10);
   const currentMonthKey = getMonthKey(todayISO);
   const allMonthKeys = getMonthKeysFromTransactions(transactions, currentMonthKey);
@@ -590,25 +592,31 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
     return { date: snapshot.date, profit, profitRate };
   });
 
-  const accounts = React.useMemo(() => {
+  const accountNames = React.useMemo(() => {
     const accs = new Set<string>();
+    const cardNames = new Set(
+      accountMaster.filter((account) => account.kind === "credit_card").map((account) => account.name)
+    );
+    accountMaster
+      .filter((account) => account.isActive && account.kind !== "credit_card")
+      .forEach((account) => accs.add(account.name));
     transactions.forEach((t) => {
-      if (t.source) accs.add(t.source);
-      if (t.destination) accs.add(t.destination);
+      if (t.source && !cardNames.has(t.source)) accs.add(t.source);
+      if (t.destination && !cardNames.has(t.destination)) accs.add(t.destination);
     });
     return Array.from(accs).sort();
-  }, [transactions]);
+  }, [transactions, accountMaster]);
 
   const portfolioAsOf = monthEndISO(portfolioMonthKey);
   const estimatedBalances = React.useMemo(
-    () => calcAccountBalancesAsOf(transactions, portfolioAsOf, accounts),
-    [transactions, portfolioAsOf, accounts]
+    () => calcAccountBalancesAsOf(transactions, portfolioAsOf, accountNames),
+    [transactions, portfolioAsOf, accountNames]
   );
 
   React.useEffect(() => {
     const monthActuals = accountActualState.byMonth[portfolioMonthKey] ?? {};
     const fallback: Record<string, number> = {};
-    accounts.forEach((acc) => {
+    accountNames.forEach((acc) => {
       fallback[acc] = monthActuals[acc] ?? estimatedBalances[acc] ?? 0;
     });
     const keys = Object.keys(fallback);
@@ -616,7 +624,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
       keys.length === Object.keys(portfolioActualInputs).length &&
       keys.every((k) => portfolioActualInputs[k] === fallback[k]);
     if (!same) setPortfolioActualInputs(fallback);
-  }, [portfolioMonthKey, accountActualState, accounts, estimatedBalances, portfolioActualInputs]);
+  }, [portfolioMonthKey, accountActualState, accountNames, estimatedBalances, portfolioActualInputs]);
 
   const handlePortfolioActualChange = (account: string, value: string) => {
     setPortfolioActualInputs((prev) => ({
@@ -637,33 +645,33 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
       type: isIncome ? "income" : "expense",
       amount: Math.abs(net),
       date,
-      name: "差額調整",
+      name: "不明金",
       category: "その他",
       source: account,
       destination: "",
-      memo: "差額調整",
-      isSpecial: true,
+      memo: "月末実残高照合による自動調整",
+      isSpecial: false,
+      classification: "normal",
+      system: { kind: "monthly_adjustment", key: `${monthKey}:${account}` },
     };
   };
 
   const applyBalanceAdjustments = (monthKey: string, actuals: Record<string, number>) => {
     const asOf = monthEndISO(monthKey);
     setTransactions((prev) => {
-      const estimated = calcAccountBalancesAsOf(prev, asOf, accounts);
       const toRemove = new Set(
         prev
           .filter(
             (t) =>
-              getMonthKey(t.date) === monthKey &&
-              t.category === "その他" &&
-              t.name === "差額調整" &&
-              t.source
+              t.system?.kind === "monthly_adjustment" &&
+              getMonthKey(t.date) === monthKey
           )
           .map((t) => t.id)
       );
       const kept = prev.filter((t) => !toRemove.has(t.id));
+      const estimated = calcAccountBalancesAsOf(kept, asOf, accountNames);
       const adjustments: Transaction[] = [];
-      accounts.forEach((account) => {
+      accountNames.forEach((account) => {
         const actual = Number(actuals[account] ?? 0);
         const net = actual - (estimated[account] ?? 0);
         if (net === 0) return;
@@ -680,13 +688,17 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
         ...accountActualState.byMonth,
         [portfolioMonthKey]: { ...portfolioActualInputs },
       },
+      confirmedByMonth: {
+        ...accountActualState.confirmedByMonth,
+        [portfolioMonthKey]: [...accountNames],
+      },
     };
     setAccountActualState(nextState);
     saveAccountActualState(nextState);
     applyBalanceAdjustments(portfolioMonthKey, portfolioActualInputs);
   };
 
-  const portfolioPieData = accounts.map((acc) => {
+  const portfolioPieData = accountNames.map((acc) => {
     const actual = portfolioActualInputs[acc];
     const value = Number.isFinite(actual) ? actual : estimatedBalances[acc] ?? 0;
     return { name: acc, value };
@@ -694,9 +706,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
 
   const portfolioRange = listMonthKeysBetween(allMonthKeys[0], allMonthKeys[allMonthKeys.length - 1]);
   const portfolioAreaData = portfolioRange.map((month) => {
-    const balances = calcAccountBalancesAsOf(transactions, monthEndISO(month), accounts);
+    const balances = calcAccountBalancesAsOf(transactions, monthEndISO(month), accountNames);
     const point: Record<string, number | string> = { month };
-    accounts.forEach((acc) => {
+    accountNames.forEach((acc) => {
       point[acc] = balances[acc] ?? 0;
     });
     return point;
@@ -1296,10 +1308,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                 />
               </label>
               <button type="button" onClick={handleSavePortfolioActuals}>
-                実残高を保存して調整
+                月末実残高を確定
               </button>
             </div>
-            {accounts.length === 0 ? (
+            {accountNames.length === 0 ? (
               <p className="muted">口座データがありません。</p>
             ) : (
               <div className="table-wrap">
@@ -1314,11 +1326,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                     </tr>
                   </thead>
                   <tbody>
-                    {accounts.map((account) => {
+                    {accountNames.map((account) => {
                       const estimated = estimatedBalances[account] ?? 0;
                       const actual = portfolioActualInputs[account] ?? 0;
                       const diff = actual - estimated;
-                      const total = accounts.reduce(
+                      const total = accountNames.reduce(
                         (sum, acc) =>
                           sum + (portfolioActualInputs[acc] ?? estimatedBalances[acc] ?? 0),
                         0
@@ -1384,7 +1396,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions }) =
                   <YAxis />
                   <Tooltip formatter={(value) => formatYen(value)} />
                   <Legend />
-                  {accounts.map((account, idx) => (
+                  {accountNames.map((account, idx) => (
                     <Area
                       key={account}
                       type="monotone"

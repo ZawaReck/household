@@ -136,6 +136,7 @@ export const App: React.FC = () => {
           <GraphsPage
             transactions={transactions}
             setTransactions={setTransactions}
+            accounts={accounts}
           />
         } />
         </Routes>
