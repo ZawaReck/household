@@ -50,6 +50,10 @@ body {
   background: #f9fffb;
 }
 
+.sync-status { position: fixed; z-index: 60; top: 8px; right: 10px; padding: 4px 8px; border-radius: 999px; font-size: 11px; color: #fff; background: #66736a; }
+.sync-synced { background: #2f7d42; }
+.sync-error { background: #b23a3a; }
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;

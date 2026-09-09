@@ -5,10 +5,11 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { AuthGate } from './components/AuthGate.tsx'
+import { SyncManager } from './components/SyncManager.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthGate><App /></AuthGate>
+    <AuthGate><SyncManager><App /></SyncManager></AuthGate>
   </StrictMode>,
 )
 

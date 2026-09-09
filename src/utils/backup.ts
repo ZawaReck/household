@@ -1,6 +1,7 @@
 export type BackupPayload = { version: 1; exportedAt: string; dataEpoch: string; data: Record<string, unknown> };
 export type RestoreMode = "replace" | "merge";
-const keys = ["transactions", "accounts.v1", "categories.v1", "budgets", "investments", "accountActualBalances", "sontokuEntries", "drafts.v1"];
+export const backupKeys = ["transactions", "accounts.v1", "categories.v1", "budgets", "investments", "accountActualBalances", "sontokuEntries", "drafts.v1"];
+const keys = backupKeys;
 const epochKey = "dataEpoch";
 const read = (key: string) => JSON.parse(localStorage.getItem(key) ?? "null") as unknown;
 export const buildBackup = (): BackupPayload => ({ version: 1, exportedAt: new Date().toISOString(), dataEpoch: localStorage.getItem(epochKey) ?? crypto.randomUUID(), data: Object.fromEntries(keys.map((key) => [key, read(key)])) });
