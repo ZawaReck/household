@@ -13,6 +13,8 @@ export type Account = {
   name: string;
   kind: AccountKind;
   openingBalance: number;
+  /** 投資口座のみ。運用開始日時点の評価損益。 */
+  initialProfit?: number;
   openingDate: string;
   isActive: boolean;
   creditCard?: CreditCardSettings;

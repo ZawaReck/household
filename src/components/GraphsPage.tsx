@@ -3,7 +3,7 @@
 import React from "react";
 import type { Transaction } from "../types/Transaction";
 import type { Account } from "../types/Account";
-import type { InvestmentAsset, InvestmentState, MonthKey } from "../types/Investment";
+import type { InvestmentAsset, InvestmentState } from "../types/Investment";
 import type { BudgetEntry } from "../types/Budget";
 import type { SontokuEntry } from "../types/Sontoku";
 import {
@@ -49,7 +49,6 @@ import {
 } from "../data/accountActualStore";
 import { PeriodFilter } from "./PeriodFilter";
 import type { PeriodValue } from "./PeriodFilter";
-import { daysInMonth } from "../utils/date";
 import "./GraphsPage.css";
 
 interface Props {
@@ -211,11 +210,6 @@ const getMonthKeysFromTransactions = (transactions: Transaction[], fallbackMonth
   const months = Array.from(new Set(transactions.map((t) => getMonthKey(t.date))));
   months.sort();
   return months;
-};
-
-const clampDayForMonth = (monthKey: string, day: number) => {
-  const [y, m] = monthKey.split("-").map((v) => Number(v));
-  return Math.min(Math.max(day, 1), daysInMonth(y, m));
 };
 
 const resolvePresetRange = (preset: PeriodValue["preset"], endMonthKey: string) => {
@@ -483,60 +477,17 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     setSontokuEntries(loadSontokuEntries());
   }, []);
 
-  React.useEffect(() => {
-    setInvestmentState((prev) => {
-      let changed = false;
-      const current = { ...prev };
-      const existingIds = new Set(current.contributions.map((c) => c.id));
-      const nowMonthKey = currentMonthKey;
-      current.assets.forEach((asset) => {
-        if (!asset.recurring) return;
-        const monthKeys = listMonthKeysBetween(asset.recurring.startMonth, nowMonthKey);
-        monthKeys.forEach((month) => {
-          const id = `ic_${asset.id}_${month}`;
-          if (existingIds.has(id)) return;
-          const day = clampDayForMonth(month, asset.recurring!.dayOfMonth);
-          current.contributions.push({
-            id,
-            assetId: asset.id,
-            month: month as MonthKey,
-            date: `${month}-${String(day).padStart(2, "0")}`,
-            amount: asset.recurring!.amount,
-          });
-          existingIds.add(id);
-          changed = true;
-        });
-      });
-      if (changed) saveInvestmentState(current);
-      return current;
-    });
-  }, [currentMonthKey]);
-
   const updateInvestmentState = (next: InvestmentState) => {
     setInvestmentState(next);
     saveInvestmentState(next);
   };
 
-  const handleAddAsset = (asset: InvestmentAsset) => {
-    updateInvestmentState({
-      ...investmentState,
-      assets: [...investmentState.assets, asset],
-    });
-  };
-
-  const handleDeleteAsset = (id: string) => {
-    updateInvestmentState({
-      ...investmentState,
-      assets: investmentState.assets.filter((a) => a.id !== id),
-      contributions: investmentState.contributions.filter((c) => c.assetId !== id),
-      snapshots: investmentState.snapshots.map((s) => ({
-        ...s,
-        values: Object.fromEntries(
-          Object.entries(s.values).filter(([key]) => key !== id)
-        ),
-      })),
-    });
-  };
+  const investmentAccounts = accountMaster.filter((account) => account.kind === "investment");
+  const investmentAssets: InvestmentAsset[] = investmentAccounts.map((account) => ({
+    id: account.id,
+    name: account.name,
+    initialPrincipal: account.openingBalance - (account.initialProfit ?? 0),
+  }));
 
   const handleSaveSnapshot = (date: string, values: Record<string, number>) => {
     const id = `is_${date}`;
@@ -555,40 +506,39 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
   const latestSnapshot = investmentSnapshots[investmentSnapshots.length - 1];
   const snapshotDateForTable = latestSnapshot?.date ?? todayISO;
 
-  const investmentPrincipalByAsset = investmentState.assets.reduce<Record<string, number>>(
-    (acc, asset) => {
-      const base = asset.initialPrincipal ?? 0;
-      const contribSum = investmentState.contributions
-        .filter((c) => c.assetId === asset.id && c.date <= snapshotDateForTable)
-        .reduce((sum, c) => sum + c.amount, 0);
-      acc[asset.id] = base + contribSum;
-      return acc;
-    },
-    {}
-  );
+  const investmentFlows = (account: Account, date: string) => {
+    let deposits = 0;
+    let withdrawals = 0;
+    transactions.forEach((transaction) => {
+      if (transaction.type !== "move" || transaction.date <= account.openingDate || transaction.date > date) return;
+      if (transaction.destination === account.name) deposits += transaction.amount;
+      if (transaction.source === account.name) withdrawals += transaction.amount;
+    });
+    const initialPrincipal = account.openingBalance - (account.initialProfit ?? 0);
+    return { deposits, withdrawals, cumulativeDeposits: initialPrincipal + deposits };
+  };
 
   const investmentChartData = investmentSnapshots.map((snapshot) => {
     const point: Record<string, number | string> = { date: snapshot.date };
-    investmentState.assets.forEach((asset) => {
+    investmentAssets.forEach((asset) => {
       point[asset.id] = snapshot.values[asset.id] ?? 0;
     });
     return point;
   });
 
   const investmentProfitData = investmentSnapshots.map((snapshot) => {
-    const totalValue = investmentState.assets.reduce(
+    const totalValue = investmentAssets.reduce(
       (sum, asset) => sum + (snapshot.values[asset.id] ?? 0),
       0
     );
-    const totalPrincipal = investmentState.assets.reduce((sum, asset) => {
-      const base = asset.initialPrincipal ?? 0;
-      const contribSum = investmentState.contributions
-        .filter((c) => c.assetId === asset.id && c.date <= snapshot.date)
-        .reduce((s, c) => s + c.amount, 0);
-      return sum + base + contribSum;
-    }, 0);
-    const profit = totalValue - totalPrincipal;
-    const profitRate = totalPrincipal > 0 ? (profit / totalPrincipal) * 100 : 0;
+    const totals = investmentAccounts.reduce((acc, account) => {
+      const flow = investmentFlows(account, snapshot.date);
+      acc.deposits += flow.cumulativeDeposits;
+      acc.withdrawals += flow.withdrawals;
+      return acc;
+    }, { deposits: 0, withdrawals: 0 });
+    const profit = totalValue + totals.withdrawals - totals.deposits;
+    const profitRate = totals.deposits > 0 ? (profit / totals.deposits) * 100 : 0;
     return { date: snapshot.date, profit, profitRate };
   });
 
@@ -1167,15 +1117,16 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
         <div className="section-grid">
           <div className="card">
             <h3>資産一覧</h3>
-            {investmentState.assets.length === 0 ? (
-              <p className="muted">資産が未登録です。</p>
+            {investmentAccounts.length === 0 ? (
+              <p className="muted">設定で投資口座を登録してください。</p>
             ) : (
               <div className="table-wrap">
                 <table>
                   <thead>
                     <tr>
                       <th>資産</th>
-                      <th>元本</th>
+                      <th>累計入金</th>
+                      <th>累計出金</th>
                       <th>現在額</th>
                       <th>損益</th>
                       <th>損益率</th>
@@ -1183,34 +1134,24 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                     </tr>
                   </thead>
                   <tbody>
-                    {investmentState.assets.map((asset) => {
-                      const principal = investmentPrincipalByAsset[asset.id] ?? 0;
-                      const current =
-                        latestSnapshot?.values[asset.id] ??
-                        investmentSnapshots[investmentSnapshots.length - 1]?.values[asset.id] ??
-                        0;
-                      const profit = current - principal;
-                      const rate = principal > 0 ? (profit / principal) * 100 : 0;
+                    {investmentAccounts.map((account) => {
+                      const flow = investmentFlows(account, snapshotDateForTable);
+                      const current = latestSnapshot?.values[account.id] ?? account.openingBalance;
+                      const profit = current + flow.withdrawals - flow.cumulativeDeposits;
+                      const rate = flow.cumulativeDeposits > 0 ? (profit / flow.cumulativeDeposits) * 100 : null;
                       return (
-                        <tr key={asset.id}>
-                          <td>{asset.name}</td>
-                          <td>{formatYen(principal)}</td>
+                        <tr key={account.id}>
+                          <td>{account.name}</td>
+                          <td>{formatYen(flow.cumulativeDeposits)}</td>
+                          <td>{formatYen(flow.withdrawals)}</td>
                           <td>{formatYen(current)}</td>
                           <td className={profit >= 0 ? "positive" : "negative"}>
                             {formatYen(profit)}
                           </td>
                           <td className={profit >= 0 ? "positive" : "negative"}>
-                            {rate.toFixed(1)}%
+                            {rate == null ? "—" : `${rate.toFixed(1)}%`}
                           </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="text-button"
-                              onClick={() => handleDeleteAsset(asset.id)}
-                            >
-                              削除
-                            </button>
-                          </td>
+                          <td />
                         </tr>
                       );
                     })}
@@ -1220,11 +1161,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
             )}
           </div>
           <div className="card">
-            <h3>資産追加</h3>
-            <AssetForm onSubmit={handleAddAsset} currentMonthKey={currentMonthKey} />
+            <p className="muted">投資口座の追加・開始残高・開始時点損益は設定から変更します。入出金はMoveから自動集計します。</p>
             <h3>現在額更新</h3>
             <SnapshotForm
-              assets={investmentState.assets}
+              assets={investmentAssets}
               defaultDate={todayISO}
               latestSnapshot={latestSnapshot}
               onSave={handleSaveSnapshot}
@@ -1245,7 +1185,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                   <YAxis />
                   <Tooltip formatter={(value) => formatYen(value)} />
                   <Legend />
-                  {investmentState.assets.map((asset, idx) => (
+                  {investmentAssets.map((asset, idx) => (
                     <Area
                       key={asset.id}
                       type="monotone"
@@ -2149,84 +2089,6 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
       </TabPanel>
       )}
     </div>
-  );
-};
-
-const AssetForm: React.FC<{
-  onSubmit: (asset: InvestmentAsset) => void;
-  currentMonthKey: string;
-}> = ({ onSubmit, currentMonthKey }) => {
-  const [name, setName] = React.useState("");
-  const [initialPrincipal, setInitialPrincipal] = React.useState(0);
-  const [recurringAmount, setRecurringAmount] = React.useState(0);
-  const [recurringStartMonth, setRecurringStartMonth] =
-    React.useState<MonthKey>(currentMonthKey as MonthKey);
-  const [recurringDay, setRecurringDay] = React.useState(1);
-
-  return (
-    <form
-      className="asset-form"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!name.trim()) return;
-        const asset: InvestmentAsset = {
-          id: `ia_${crypto.randomUUID()}`,
-          name: name.trim(),
-          initialPrincipal: Number(initialPrincipal) || 0,
-          ...(recurringAmount > 0
-            ? {
-                recurring: {
-                  amount: Number(recurringAmount) || 0,
-                  startMonth: recurringStartMonth,
-                  dayOfMonth: Number(recurringDay) || 1,
-                },
-              }
-            : {}),
-        };
-        onSubmit(asset);
-        setName("");
-        setInitialPrincipal(0);
-        setRecurringAmount(0);
-      }}
-    >
-      <label>
-        資産名
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
-      </label>
-      <label>
-        初期元本
-        <input
-          type="number"
-          value={initialPrincipal}
-          onChange={(e) => setInitialPrincipal(Number(e.target.value) || 0)}
-        />
-      </label>
-      <label>
-        積立額（月）
-        <input
-          type="number"
-          value={recurringAmount}
-          onChange={(e) => setRecurringAmount(Number(e.target.value) || 0)}
-        />
-      </label>
-      <label>
-        積立開始月
-        <input
-          type="month"
-          value={recurringStartMonth}
-          onChange={(e) => setRecurringStartMonth(e.target.value as MonthKey)}
-        />
-      </label>
-      <label>
-        積立日
-        <input
-          type="number"
-          value={recurringDay}
-          onChange={(e) => setRecurringDay(Number(e.target.value) || 1)}
-        />
-      </label>
-      <button type="submit">追加</button>
-    </form>
   );
 };
 

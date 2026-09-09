@@ -106,6 +106,9 @@ export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSav
             </select>
           </label>
           <label>開始残高<input type="number" value={draft.openingBalance} onChange={(event) => setDraft({ ...draft, openingBalance: Number(event.target.value) })} /></label>
+          {draft.kind === "investment" && (
+            <label>開始時点損益<input type="number" value={draft.initialProfit ?? 0} onChange={(event) => setDraft({ ...draft, initialProfit: Number(event.target.value) })} /></label>
+          )}
           <label>開始基準日<input type="date" value={draft.openingDate} onChange={(event) => setDraft({ ...draft, openingDate: event.target.value })} /></label>
           {draft.kind === "credit_card" && draft.creditCard && (
             <fieldset className="card-settings-fields">
