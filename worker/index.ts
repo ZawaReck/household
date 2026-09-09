@@ -62,22 +62,23 @@ const handleApi = async (request: Request, env: Env) => {
     : "";
 
   if (request.method === "GET") {
-    if (!requestedEpoch) return json({ error: "missing_data_epoch" }, 400);
     const epochRow = await env.DB.prepare("SELECT data_epoch FROM sync_epochs WHERE user_id = ?").bind(userId).first<{ data_epoch: string }>();
-    if (!epochRow) {
+    if (!requestedEpoch && epochRow) return json({ error: "client_update_required", dataEpoch: epochRow.data_epoch }, 409);
+    const effectiveEpoch = requestedEpoch || "legacy";
+    if (!epochRow && requestedEpoch) {
       const now = new Date().toISOString();
       await env.DB.batch([
-        env.DB.prepare("INSERT INTO sync_epochs (user_id, data_epoch, updated_at) VALUES (?, ?, ?)").bind(userId, requestedEpoch, now),
-        env.DB.prepare("UPDATE sync_records SET data_epoch = ? WHERE user_id = ? AND data_epoch = 'legacy'").bind(requestedEpoch, userId),
+        env.DB.prepare("INSERT INTO sync_epochs (user_id, data_epoch, updated_at) VALUES (?, ?, ?)").bind(userId, effectiveEpoch, now),
+        env.DB.prepare("UPDATE sync_records SET data_epoch = ? WHERE user_id = ? AND data_epoch = 'legacy'").bind(effectiveEpoch, userId),
       ]);
-    } else if (epochRow.data_epoch !== requestedEpoch) {
+    } else if (epochRow && epochRow.data_epoch !== effectiveEpoch) {
       return json({ error: "data_epoch_mismatch", dataEpoch: epochRow.data_epoch }, 409);
     }
     const since = url.searchParams.get("since") ?? "";
     const serverTime = new Date().toISOString();
     const result = await env.DB.prepare(
       "SELECT record_key, value_json, updated_at, deleted_at FROM sync_records WHERE user_id = ? AND data_epoch = ? AND updated_at > ? ORDER BY updated_at"
-    ).bind(userId, requestedEpoch, since).all();
+    ).bind(userId, effectiveEpoch, since).all();
     return json({ records: result.results.map((row) => ({
       key: row.record_key,
       value: row.value_json == null ? null : JSON.parse(String(row.value_json)),
@@ -89,9 +90,10 @@ const handleApi = async (request: Request, env: Env) => {
   if (request.method === "PUT") {
     const body = await request.json<{ records?: SyncRecord[]; dataEpoch?: string; replaceEpoch?: boolean }>();
     if (!Array.isArray(body.records) || body.records.length > 500) return json({ error: "invalid_records" }, 400);
-    if (!body.dataEpoch) return json({ error: "missing_data_epoch" }, 400);
     const epochRow = await env.DB.prepare("SELECT data_epoch FROM sync_epochs WHERE user_id = ?").bind(userId).first<{ data_epoch: string }>();
-    if (epochRow && epochRow.data_epoch !== body.dataEpoch && !body.replaceEpoch) {
+    if (!body.dataEpoch && epochRow) return json({ error: "client_update_required", dataEpoch: epochRow.data_epoch }, 409);
+    const effectiveEpoch = body.dataEpoch || "legacy";
+    if (epochRow && epochRow.data_epoch !== effectiveEpoch && !body.replaceEpoch) {
       return json({ error: "data_epoch_mismatch", dataEpoch: epochRow.data_epoch }, 409);
     }
     const now = new Date().toISOString();
@@ -101,14 +103,14 @@ const handleApi = async (request: Request, env: Env) => {
        ON CONFLICT(user_id, record_key) DO UPDATE SET
          value_json = excluded.value_json, updated_at = excluded.updated_at, deleted_at = excluded.deleted_at, data_epoch = excluded.data_epoch
        WHERE excluded.updated_at >= sync_records.updated_at`
-    ).bind(userId, record.key, record.deletedAt ? null : JSON.stringify(record.value), record.updatedAt, record.deletedAt ?? null, body.dataEpoch));
+    ).bind(userId, record.key, record.deletedAt ? null : JSON.stringify(record.value), record.updatedAt, record.deletedAt ?? null, effectiveEpoch));
     const epochStatement = env.DB.prepare(
       `INSERT INTO sync_epochs (user_id, data_epoch, updated_at) VALUES (?, ?, ?)
        ON CONFLICT(user_id) DO UPDATE SET data_epoch = excluded.data_epoch, updated_at = excluded.updated_at`
-    ).bind(userId, body.dataEpoch, now);
+    ).bind(userId, effectiveEpoch, now);
     const prefix = body.replaceEpoch
       ? [env.DB.prepare("DELETE FROM sync_records WHERE user_id = ?").bind(userId), epochStatement]
-      : [epochStatement];
+      : body.dataEpoch ? [epochStatement] : [];
     await env.DB.batch([...prefix, ...statements]);
     return json({ ok: true });
   }
