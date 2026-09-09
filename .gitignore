@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 
 /public/fixtures/demoData.local.json
+amounts.csv
+client_secret_*.apps.googleusercontent.com.json
+.wrangler/
