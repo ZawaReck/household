@@ -910,7 +910,7 @@ export const InputForm: React.FC<InputFormProps> = ({
           </select>
         </label>
         <div className="form-buttons receipt-buttons">
-          <button type="button" onClick={() => { onUpdateTransaction({ ...editingTransaction, date, source: sourceMove }); setEditingTransaction(null); }}>更新</button>
+          <button type="button" onClick={() => { onUpdateTransaction({ ...editingTransaction, date, source: sourceMove, system: { ...editingTransaction.system!, manualDate: date !== editingTransaction.date || editingTransaction.system?.manualDate, manualSource: sourceMove !== editingTransaction.source || editingTransaction.system?.manualSource } }); setEditingTransaction(null); }}>更新</button>
           <button type="button" onClick={() => setEditingTransaction(null)}>キャンセル</button>
         </div>
       </div>

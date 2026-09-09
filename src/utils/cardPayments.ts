@@ -1,5 +1,6 @@
 import type { Account } from "../types/Account";
 import type { Transaction } from "../types/Transaction";
+import { isBusinessDay } from "@modelgeek/japanese-holidays";
 
 const dateISO = (date: Date) => {
   const year = date.getFullYear();
@@ -15,8 +16,7 @@ const toPaymentDate = (statementYear: number, statementMonth: number, delayMonth
   const year = statementYear + Math.floor(paymentMonthIndex / 12);
   const month = (paymentMonthIndex % 12) + 1;
   const date = new Date(year, month - 1, Math.min(day, daysInMonth(year, month)));
-  // 祝日判定は通知・実行基盤と合わせて後続実装する。まず土日だけ翌平日へ補正する。
-  while (date.getDay() === 0 || date.getDay() === 6) date.setDate(date.getDate() + 1);
+  while (!isBusinessDay(date)) date.setDate(date.getDate() + 1);
   return dateISO(date);
 };
 
@@ -35,12 +35,19 @@ export const reconcileCardPayments = (transactions: Transaction[], accounts: Acc
     const paymentAccount = accounts.find((account) => account.id === settings.defaultPaymentAccountId && account.isActive);
     if (!paymentAccount) continue;
 
-    const buckets = new Map<string, { amount: number; statementYear: number; statementMonth: number }>();
+    const buckets = new Map<string, { amount: number; statementYear: number; statementMonth: number; paymentDay: number; paymentDelayMonths: number }>();
     for (const transaction of transactions) {
       if (transaction.type !== "expense" || transaction.source !== card.name || transaction.system) continue;
-      const statement = statementMonthFor(transaction.date, settings.closingDay);
-      const key = `${card.id}:${statement.year}-${String(statement.month).padStart(2, "0")}`;
-      const bucket = buckets.get(key) ?? { amount: 0, statementYear: statement.year, statementMonth: statement.month };
+      const cycle = transaction.cardCycle?.cardAccountId === card.id ? transaction.cardCycle : {
+        cardAccountId: card.id,
+        closingDay: settings.closingDay,
+        paymentDay: settings.paymentDay,
+        paymentDelayMonths: settings.paymentDelayMonths,
+      };
+      const statement = statementMonthFor(transaction.date, cycle.closingDay);
+      const cycleKey = `${cycle.closingDay}-${cycle.paymentDay}-${cycle.paymentDelayMonths}`;
+      const key = `${card.id}:${cycleKey}:${statement.year}-${String(statement.month).padStart(2, "0")}`;
+      const bucket = buckets.get(key) ?? { amount: 0, statementYear: statement.year, statementMonth: statement.month, paymentDay: cycle.paymentDay, paymentDelayMonths: cycle.paymentDelayMonths };
       bucket.amount += transaction.amount;
       buckets.set(key, bucket);
     }
@@ -52,7 +59,7 @@ export const reconcileCardPayments = (transactions: Transaction[], accounts: Acc
         id,
         type: "move",
         amount: bucket.amount,
-        date: toPaymentDate(bucket.statementYear, bucket.statementMonth, settings.paymentDelayMonths, settings.paymentDay),
+        date: toPaymentDate(bucket.statementYear, bucket.statementMonth, bucket.paymentDelayMonths, bucket.paymentDay),
         name: `${card.name} 引落`,
         category: "move",
         source: paymentAccount.name,
@@ -71,10 +78,17 @@ export const reconcileCardPayments = (transactions: Transaction[], accounts: Acc
       .filter((transaction) => transaction.system?.kind === "card_payment")
       .map((transaction) => [transaction.id, transaction])
   );
+  const today = dateISO(new Date());
   const generated = Array.from(desired.values()).map((next) => {
     const current = existing.get(next.id);
-    // 将来のUIで日付・引落元を個別編集した際には、system.manualOverrideを持たせて維持する。
-    return current ? { ...next, date: current.date, source: current.source } : next;
+    if (!current) return next;
+    const alreadyPaid = current.date <= today;
+    return {
+      ...next,
+      date: current.system?.manualDate || alreadyPaid ? current.date : next.date,
+      source: current.system?.manualSource || alreadyPaid ? current.source : next.source,
+      system: { ...next.system!, manualDate: current.system?.manualDate, manualSource: current.system?.manualSource },
+    };
   });
   return [...manual, ...generated];
 };

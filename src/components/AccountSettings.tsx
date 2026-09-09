@@ -117,7 +117,7 @@ export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSav
               <div className="card-settings-grid">
                 <label>締め日<input type="number" min="1" max="31" value={draft.creditCard.closingDay} onChange={(event) => setDraft({ ...draft, creditCard: { ...draft.creditCard!, closingDay: Number(event.target.value) } })} /></label>
                 <label>引落日<input type="number" min="1" max="31" value={draft.creditCard.paymentDay} onChange={(event) => setDraft({ ...draft, creditCard: { ...draft.creditCard!, paymentDay: Number(event.target.value) } })} /></label>
-                <label>引落月数<input type="number" min="1" max="2" value={draft.creditCard.paymentDelayMonths} onChange={(event) => setDraft({ ...draft, creditCard: { ...draft.creditCard!, paymentDelayMonths: Number(event.target.value) } })} /></label>
+                <label>引落月数<input type="number" min="0" max="2" value={draft.creditCard.paymentDelayMonths} onChange={(event) => setDraft({ ...draft, creditCard: { ...draft.creditCard!, paymentDelayMonths: Number(event.target.value) } })} /></label>
               </div>
               <label>既定引落元
                 <select value={draft.creditCard.defaultPaymentAccountId ?? ""} onChange={(event) => setDraft({ ...draft, creditCard: { ...draft.creditCard!, defaultPaymentAccountId: event.target.value || undefined } })}>

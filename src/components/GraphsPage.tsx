@@ -764,27 +764,22 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     saveAccountActualState(nextState);
   };
 
-  const pendingCardDeductions = (asOf: string) => {
-    const deductions: Record<string, number> = {};
-    activeCardAccounts.forEach((card) => {
-      const paymentAccount = accountMaster.find((account) => account.id === card.creditCard?.defaultPaymentAccountId);
-      if (!paymentAccount) return;
+  const pendingCardTotal = (asOf: string) => activeCardAccounts.reduce((cardTotal, card) => {
       const outstanding = transactions.reduce((sum, transaction) => {
         if (transaction.date > asOf) return sum;
         if (transaction.type === "expense" && !transaction.system && transaction.source === card.name) return sum + transaction.amount;
         if (transaction.type === "move" && transaction.destination === card.name && transaction.system?.kind === "card_payment") return sum - transaction.amount;
         return sum;
       }, 0);
-      deductions[paymentAccount.name] = (deductions[paymentAccount.name] ?? 0) + Math.max(0, outstanding);
-    });
-    return deductions;
-  };
+      return cardTotal + Math.max(0, outstanding);
+    }, 0);
 
-  const selectedMonthDeductions = includePendingCardPayments ? pendingCardDeductions(portfolioAsOf) : {};
   const portfolioDisplayValues = Object.fromEntries(accountNames.map((account) => [
     account,
-    (portfolioActualInputs[account] ?? displayedEstimatedBalances[account] ?? 0) - (selectedMonthDeductions[account] ?? 0),
+    portfolioActualInputs[account] ?? displayedEstimatedBalances[account] ?? 0,
   ]));
+  const portfolioAssetTotal = Object.values(portfolioDisplayValues).reduce((sum, value) => sum + value, 0);
+  const selectedPendingCardTotal = includePendingCardPayments ? pendingCardTotal(portfolioAsOf) : 0;
 
   const portfolioPieData = accountNames.map((acc) => {
     return { name: acc, value: portfolioDisplayValues[acc] ?? 0 };
@@ -804,10 +799,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     investmentAccounts.forEach((account) => {
       balances[account.name] = snapshot?.values[account.id] ?? account.openingBalance;
     });
-    const deductions = includePendingCardPayments ? pendingCardDeductions(asOf) : {};
     const point: Record<string, number | string> = { month };
     accountNames.forEach((acc) => {
-      point[acc] = (balances[acc] ?? 0) - (deductions[acc] ?? 0);
+      point[acc] = balances[acc] ?? 0;
     });
     return point;
   });
@@ -1442,6 +1436,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
               <label><input type="checkbox" checked={includePendingCardPayments} onChange={(event) => setIncludePendingCardPayments(event.target.checked)} />カード引落予定を差し引く</label>
             </div>
             {!selectedInvestmentSnapshotIsExact && <p className="muted">投資口座は直近の評価額を仮表示しています。この月を確定すると月末評価額として保存されます。</p>}
+            <div className="budget-total-card">
+              <div><strong>総資産</strong><span>{formatYen(portfolioAssetTotal - selectedPendingCardTotal)}</span></div>
+              {includePendingCardPayments && <div className="muted"><span>カード引落予定額</span><span>−{formatYen(selectedPendingCardTotal)}</span></div>}
+            </div>
             {accountNames.length === 0 ? (
               <p className="muted">口座データがありません。</p>
             ) : (
@@ -1462,8 +1460,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                       const actual = portfolioActualInputs[account] ?? 0;
                       const diff = actual - estimated;
                       const displayed = portfolioDisplayValues[account] ?? actual;
-                      const total = Object.values(portfolioDisplayValues).reduce((sum, value) => sum + value, 0);
-                      const ratio = total !== 0 ? (displayed / total) * 100 : 0;
+                      const ratio = portfolioAssetTotal !== 0 ? (displayed / portfolioAssetTotal) * 100 : 0;
                       return (
                         <tr key={account}>
                           <td>{account}</td>

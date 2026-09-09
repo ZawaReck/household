@@ -8,6 +8,14 @@ export type SystemTransaction = {
   key: string;
   cardAccountId?: string;
   scheduleId?: string;
+  manualDate?: boolean;
+  manualSource?: boolean;
+};
+export type CardCycleSnapshot = {
+  cardAccountId: string;
+  closingDay: number;
+  paymentDay: number;
+  paymentDelayMonths: number;
 };
 
 export interface Transaction {
@@ -26,6 +34,7 @@ export interface Transaction {
   system?: SystemTransaction;
   groupId?: string;
   relationId?: string;
+  cardCycle?: CardCycleSnapshot;
 
 taxMode?: TaxMode;
 taxRate?: TaxRate;

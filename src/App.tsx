@@ -94,9 +94,18 @@ export const App: React.FC = () => {
     }, [deleteUndoSeconds]);
 
   const handleAddTransaction = (transaction: Omit<Transaction, "id">) => {
+    const card = transaction.type === "expense"
+      ? accounts.find((account) => account.kind === "credit_card" && account.name === transaction.source && account.creditCard)
+      : undefined;
     const newTransaction: Transaction = {
       ...transaction,
       id: crypto.randomUUID(),
+      cardCycle: card?.creditCard ? {
+        cardAccountId: card.id,
+        closingDay: card.creditCard.closingDay,
+        paymentDay: card.creditCard.paymentDay,
+        paymentDelayMonths: card.creditCard.paymentDelayMonths,
+      } : undefined,
     };
     setTransactions((prev) => [...prev, newTransaction]);
   };
@@ -137,9 +146,25 @@ export const App: React.FC = () => {
   };
 
   const handleUpdateTransaction = (updatedTransaction: Transaction) => {
+    const card = updatedTransaction.type === "expense"
+      ? accounts.find((account) => account.kind === "credit_card" && account.name === updatedTransaction.source && account.creditCard)
+      : undefined;
+    const previous = transactions.find((transaction) => transaction.id === updatedTransaction.id);
+    const sourceChanged = previous?.source !== updatedTransaction.source;
+    const withCardCycle = {
+      ...updatedTransaction,
+      cardCycle: card?.creditCard
+        ? (!sourceChanged && updatedTransaction.cardCycle ? updatedTransaction.cardCycle : {
+          cardAccountId: card.id,
+          closingDay: card.creditCard.closingDay,
+          paymentDay: card.creditCard.paymentDay,
+          paymentDelayMonths: card.creditCard.paymentDelayMonths,
+        })
+        : undefined,
+    };
     setTransactions((prev) =>
       prev.map((t) =>
-        t.id === updatedTransaction.id ? { ...t, ...updatedTransaction } : t
+        t.id === updatedTransaction.id ? { ...t, ...withCardCycle } : t
       )
     );
   };
