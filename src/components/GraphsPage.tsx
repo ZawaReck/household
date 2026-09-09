@@ -1145,7 +1145,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     { id: "budget", label: "5) 予算&損得" },
   ] as const;
   const [activeTab, setActiveTab] = React.useState<(typeof tabs)[number]["id"]>(
-    "category"
+    () => {
+      const requested = new URLSearchParams(window.location.search).get("tab");
+      return tabs.some((tab) => tab.id === requested)
+        ? requested as (typeof tabs)[number]["id"]
+        : "category";
+    }
   );
 
   return (

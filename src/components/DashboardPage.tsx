@@ -9,6 +9,7 @@ import { SummaryView} from "./SummaryView";
 import { InputForm } from "./InputForm";
 import { TransactionHistory } from "./TransactionHistory";
 import { HistorySearch } from "./HistorySearch";
+import { MonthEndReminder } from "./MonthEndReminder";
 import './DashboardPage.css';
 
 interface Props {
@@ -79,6 +80,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 
 	return (
 		<div className="dashboard-page-root">
+			<MonthEndReminder accounts={props.accounts} transactions={props.transactions} />
 			<section className="column calendar-section">
 				<div className="scroll-content">
 					<CalendarView
