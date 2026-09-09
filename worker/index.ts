@@ -70,6 +70,9 @@ export default {
   async fetch(request: Request, env: Env) {
     const url = new URL(request.url);
     if (url.pathname.startsWith("/api/")) return handleApi(request, env);
+    if (/\/(?:[^/]+\.)?local(?:\.[^/]+)?$/i.test(url.pathname)) {
+      return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
+    }
     return env.ASSETS.fetch(request);
   },
 } satisfies ExportedHandler<Env>;
