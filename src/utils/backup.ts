@@ -1,18 +1,11 @@
 import { applyDeletionTombstones, DELETION_TOMBSTONE_KEY, type DeletionTombstones } from "../data/deletionStore";
+import { getOrCreateDataEpoch, rotateDataEpoch } from "../data/dataEpoch";
 
 export type BackupPayload = { version: 1; exportedAt: string; dataEpoch: string; data: Record<string, unknown> };
 export type RestoreMode = "replace" | "merge";
 export const backupKeys = ["transactions", "accounts.v1", "categories.v1", "budgets", "investments", "accountActualBalances", "sontokuEntries", "scheduledMoves.v1", "drafts.v1", DELETION_TOMBSTONE_KEY];
 const keys = backupKeys;
-const epochKey = "dataEpoch";
 const read = (key: string) => JSON.parse(localStorage.getItem(key) ?? "null") as unknown;
-const getOrCreateDataEpoch = () => {
-  const current = localStorage.getItem(epochKey);
-  if (current) return current;
-  const created = crypto.randomUUID();
-  localStorage.setItem(epochKey, created);
-  return created;
-};
 export const buildBackup = (): BackupPayload => ({ version: 1, exportedAt: new Date().toISOString(), dataEpoch: getOrCreateDataEpoch(), data: Object.fromEntries(keys.map((key) => [key, read(key)])) });
 export const downloadBackup = () => {
   const blob = new Blob([JSON.stringify(buildBackup(), null, 2)], { type: "application/json" });
@@ -91,6 +84,7 @@ export const restoreBackup = (payload: BackupPayload, mode: RestoreMode) => {
       void writeOfflineValue(key, merged);
     }
   }
-  localStorage.setItem(epochKey, mode === "replace" ? crypto.randomUUID() : (localStorage.getItem(epochKey) ?? payload.dataEpoch));
+  if (mode === "replace") rotateDataEpoch();
+  else if (!localStorage.getItem("dataEpoch")) localStorage.setItem("dataEpoch", payload.dataEpoch);
 };
 import { writeOfflineValue } from "../data/offlineStore";
