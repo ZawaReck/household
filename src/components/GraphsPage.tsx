@@ -408,6 +408,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
   const [portfolioActualInputs, setPortfolioActualInputs] = React.useState<Record<string, number>>(
     {}
   );
+  const [cardAvailableInputs, setCardAvailableInputs] = React.useState<Record<string, number>>({});
 
   const [categoryMonthKey, setCategoryMonthKey] = React.useState(currentMonthKey);
   const [monthlyCategoryMode, setMonthlyCategoryMode] =
@@ -562,6 +563,22 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     () => calcAccountBalancesAsOf(transactions, portfolioAsOf, accountNames),
     [transactions, portfolioAsOf, accountNames]
   );
+  const activeCardAccounts = accountMaster.filter(
+    (account) => account.isActive && account.kind === "credit_card" && account.creditCard
+  );
+  const cardStatuses = activeCardAccounts.map((account) => {
+    const used = transactions.reduce((sum, transaction) => {
+      if (transaction.date > portfolioAsOf) return sum;
+      if (transaction.type === "expense" && !transaction.system && transaction.source === account.name) return sum + transaction.amount;
+      if (transaction.type === "move" && transaction.destination === account.name && transaction.system?.kind === "card_payment") return sum - transaction.amount;
+      return sum;
+    }, 0);
+    return { account, used, available: (account.creditCard?.limit ?? 0) - used };
+  });
+  const cardMonthConfirmed = cardStatuses.length > 0 && cardStatuses.every(({ account, available }) =>
+    (accountActualState.confirmedByMonth[portfolioMonthKey] ?? []).includes(account.name) &&
+    accountActualState.byMonth[portfolioMonthKey]?.[account.name] === available
+  );
 
   React.useEffect(() => {
     const monthActuals = accountActualState.byMonth[portfolioMonthKey] ?? {};
@@ -575,6 +592,14 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
       keys.every((k) => portfolioActualInputs[k] === fallback[k]);
     if (!same) setPortfolioActualInputs(fallback);
   }, [portfolioMonthKey, accountActualState, accountNames, estimatedBalances, portfolioActualInputs]);
+
+  React.useEffect(() => {
+    const saved = accountActualState.byMonth[portfolioMonthKey] ?? {};
+    setCardAvailableInputs(Object.fromEntries(cardStatuses.map(({ account, available }) => [
+      account.name,
+      saved[account.name] ?? available,
+    ])));
+  }, [portfolioMonthKey, accountActualState, transactions, accountMaster]);
 
   const handlePortfolioActualChange = (account: string, value: string) => {
     setPortfolioActualInputs((prev) => ({
@@ -646,6 +671,32 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     setAccountActualState(nextState);
     saveAccountActualState(nextState);
     applyBalanceAdjustments(portfolioMonthKey, portfolioActualInputs);
+  };
+
+  const handleConfirmCards = () => {
+    const mismatched = cardStatuses.find(({ account, available }) => cardAvailableInputs[account.name] !== available);
+    if (mismatched) {
+      window.alert(`${mismatched.account.name}の実利用可能額と計算値が一致していません。利用記録を修正してください。`);
+      return;
+    }
+    const confirmed = new Set(accountActualState.confirmedByMonth[portfolioMonthKey] ?? []);
+    cardStatuses.forEach(({ account }) => confirmed.add(account.name));
+    const nextState = {
+      ...accountActualState,
+      byMonth: {
+        ...accountActualState.byMonth,
+        [portfolioMonthKey]: {
+          ...(accountActualState.byMonth[portfolioMonthKey] ?? {}),
+          ...cardAvailableInputs,
+        },
+      },
+      confirmedByMonth: {
+        ...accountActualState.confirmedByMonth,
+        [portfolioMonthKey]: Array.from(confirmed),
+      },
+    };
+    setAccountActualState(nextState);
+    saveAccountActualState(nextState);
   };
 
   const portfolioPieData = accountNames.map((acc) => {
@@ -1297,6 +1348,25 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                   </tbody>
                 </table>
               </div>
+            )}
+          </div>
+          <div className="card">
+            <h3>クレジットカード月末確認</h3>
+            {cardStatuses.length === 0 ? <p className="muted">有効なカードがありません。</p> : (
+              <>
+                <div className="table-wrap">
+                  <table>
+                    <thead><tr><th>カード</th><th>利用額</th><th>計算利用可能額</th><th>実利用可能額</th></tr></thead>
+                    <tbody>{cardStatuses.map(({ account, used, available }) => (
+                      <tr key={account.id}>
+                        <td>{account.name}</td><td>{formatYen(used)}</td><td>{formatYen(available)}</td>
+                        <td><input type="number" value={cardAvailableInputs[account.name] ?? available} onChange={(event) => setCardAvailableInputs((current) => ({ ...current, [account.name]: Number(event.target.value) }))} /></td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+                <button type="button" onClick={handleConfirmCards}>{cardMonthConfirmed ? "確認済み" : "カード残高を確認済みにする"}</button>
+              </>
             )}
           </div>
           <div className="card chart-card">
