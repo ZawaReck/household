@@ -526,17 +526,27 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     () => accountMaster.filter((account) => account.isActive && account.kind === "investment"),
     [accountMaster],
   );
+  const historicalInvestmentAccounts = React.useMemo(
+    () => accountMaster.filter((account) => account.kind === "investment"),
+    [accountMaster],
+  );
   const investmentAssets: InvestmentAsset[] = React.useMemo(() => investmentAccounts.map((account) => ({
     id: account.id,
     name: account.name,
     initialPrincipal: account.openingBalance - (account.initialProfit ?? 0),
     openingValue: account.openingBalance,
   })), [investmentAccounts]);
+  const historicalInvestmentAssets: InvestmentAsset[] = React.useMemo(() => historicalInvestmentAccounts.map((account) => ({
+    id: account.id,
+    name: account.name,
+    initialPrincipal: account.openingBalance - (account.initialProfit ?? 0),
+    openingValue: account.openingBalance,
+  })), [historicalInvestmentAccounts]);
 
   const handleSaveSnapshot = (date: string, values: Record<string, number>) => {
     const id = `is_${date}`;
     const nextSnapshots = investmentState.snapshots.some((s) => s.id === id)
-      ? investmentState.snapshots.map((s) => (s.id === id ? { id, date, values } : s))
+      ? investmentState.snapshots.map((s) => (s.id === id ? { id, date, values: { ...s.values, ...values } } : s))
       : [...investmentState.snapshots, { id, date, values }];
     updateInvestmentState({
       ...investmentState,
@@ -549,6 +559,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   ), [investmentState.snapshots]);
   const latestSnapshot = investmentSnapshots[investmentSnapshots.length - 1];
   const snapshotDateForTable = latestSnapshot?.date ?? todayISO;
+  const investmentValueAt = React.useCallback((account: Account, date: string) => {
+    const snapshot = [...investmentSnapshots]
+      .filter((item) => item.date <= date && item.values[account.id] != null)
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
+    return snapshot?.values[account.id] ?? account.openingBalance;
+  }, [investmentSnapshots]);
 
   const investmentFlows = (account: Account, date: string) => {
     if (date < account.openingDate) return { deposits: 0, withdrawals: 0, cumulativeDeposits: 0 };
@@ -565,25 +581,26 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
 
   const investmentChartData = investmentSnapshots.map((snapshot) => {
     const point: Record<string, number | string> = { date: snapshot.date };
-    investmentAssets.forEach((asset) => {
-      const account = investmentAccounts.find((item) => item.id === asset.id);
-      point[asset.id] = account && snapshot.date >= account.openingDate
-        ? snapshot.values[asset.id] ?? account.openingBalance
+    historicalInvestmentAssets.forEach((asset) => {
+      const account = historicalInvestmentAccounts.find((item) => item.id === asset.id);
+      point[asset.id] = account && isAccountVisibleOn(account, snapshot.date)
+        ? investmentValueAt(account, snapshot.date)
         : 0;
     });
     return point;
   });
 
   const investmentProfitData = investmentSnapshots.map((snapshot) => {
-    const totalValue = investmentAssets.reduce(
+    const totalValue = historicalInvestmentAssets.reduce(
       (sum, asset) => {
-        const account = investmentAccounts.find((item) => item.id === asset.id);
-        if (!account || snapshot.date < account.openingDate) return sum;
-        return sum + (snapshot.values[asset.id] ?? account.openingBalance);
+        const account = historicalInvestmentAccounts.find((item) => item.id === asset.id);
+        if (!account || !isAccountVisibleOn(account, snapshot.date)) return sum;
+        return sum + investmentValueAt(account, snapshot.date);
       },
       0
     );
-    const totals = investmentAccounts.reduce((acc, account) => {
+    const totals = historicalInvestmentAccounts.reduce((acc, account) => {
+      if (!isAccountVisibleOn(account, snapshot.date)) return acc;
       const flow = investmentFlows(account, snapshot.date);
       acc.deposits += flow.cumulativeDeposits;
       acc.withdrawals += flow.withdrawals;
@@ -601,7 +618,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   }, [investmentPeriodMonths, latestSnapshot]);
   const filteredInvestmentChartData = investmentChartData.filter((point) => !investmentPeriodStart || String(point.date) >= investmentPeriodStart);
   const filteredInvestmentProfitData = investmentProfitData.filter((point) => !investmentPeriodStart || point.date >= investmentPeriodStart);
-  const investmentPieData = investmentAssets.map((asset) => ({ name: asset.name, value: latestSnapshot?.values[asset.id] ?? 0 }));
+  const investmentPieData = investmentAssets.map((asset) => {
+    const account = investmentAccounts.find((item) => item.id === asset.id)!;
+    return { name: asset.name, value: latestSnapshot ? investmentValueAt(account, latestSnapshot.date) : account.openingBalance };
+  });
   const latestInvestmentTotal = investmentPieData.reduce((sum, asset) => sum + asset.value, 0);
 
   const regularAccountNames = React.useMemo(() => {
@@ -648,14 +668,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     [transactions, portfolioBalanceDate, calcRegularBalances]
   );
   const investmentValuesForPortfolio = React.useMemo(() => {
-    const latestAtOrBefore = [...investmentSnapshots]
-      .filter((snapshot) => snapshot.date <= portfolioBalanceDate)
-      .sort((a, b) => b.date.localeCompare(a.date))[0];
     return Object.fromEntries(portfolioInvestmentAccounts.map((account) => [
       account.name,
-      latestAtOrBefore?.values[account.id] ?? account.openingBalance,
+      investmentValueAt(account, portfolioBalanceDate),
     ]));
-  }, [portfolioInvestmentAccounts, investmentSnapshots, portfolioBalanceDate]);
+  }, [portfolioInvestmentAccounts, portfolioBalanceDate, investmentValueAt]);
   const displayedEstimatedBalances = React.useMemo(
     () => ({ ...estimatedBalances, ...investmentValuesForPortfolio }),
     [estimatedBalances, investmentValuesForPortfolio]
@@ -1437,7 +1454,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   <tbody>
                     {investmentAccounts.map((account) => {
                       const flow = investmentFlows(account, snapshotDateForTable);
-                      const current = latestSnapshot?.values[account.id] ?? account.openingBalance;
+                      const current = investmentValueAt(account, snapshotDateForTable);
                       const profit = current + flow.withdrawals - flow.cumulativeDeposits;
                       const rate = flow.cumulativeDeposits > 0 ? (profit / flow.cumulativeDeposits) * 100 : null;
                       return (
@@ -1488,7 +1505,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   <YAxis />
                   <Tooltip formatter={(value) => formatYen(value)} />
                   <Legend />
-                  {investmentAssets.map((asset, idx) => (
+                  {historicalInvestmentAssets.map((asset, idx) => (
                     <Area
                       key={asset.id}
                       type="monotone"
@@ -2444,12 +2461,11 @@ const SnapshotForm: React.FC<{
   const [values, setValues] = React.useState<Record<string, number>>({});
 
   React.useEffect(() => {
-    const nearest = [...snapshots]
-      .filter((snapshot) => snapshot.date <= date)
-      .sort((a, b) => b.date.localeCompare(a.date))[0];
     setValues(Object.fromEntries(assets.map((asset) => [
       asset.id,
-      nearest?.values[asset.id] ?? asset.openingValue ?? 0,
+      [...snapshots]
+        .filter((snapshot) => snapshot.date <= date && snapshot.values[asset.id] != null)
+        .sort((a, b) => b.date.localeCompare(a.date))[0]?.values[asset.id] ?? asset.openingValue ?? 0,
     ])));
   }, [assets, date, snapshots]);
 

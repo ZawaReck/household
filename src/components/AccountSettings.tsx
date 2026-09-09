@@ -9,6 +9,7 @@ import {
 } from "../utils/accountBalances";
 import "./AccountSettings.css";
 import { localDateISO } from "../utils/date";
+import { loadInvestmentState } from "../data/investmentStore";
 
 type Props = {
   accounts: Account[];
@@ -121,7 +122,11 @@ export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSav
           return;
         }
       } else {
-        const balance = accountBalanceAsOf(account, transactions, today);
+        const balance = account.kind === "investment"
+          ? [...loadInvestmentState().snapshots]
+              .filter((snapshot) => snapshot.date <= today && snapshot.values[account.id] != null)
+              .sort((a, b) => b.date.localeCompare(a.date))[0]?.values[account.id] ?? account.openingBalance
+          : accountBalanceAsOf(account, transactions, today);
         if (balance !== 0 || hasFutureAccountActivity(account, transactions, today)) {
           window.alert("無効化には、今日時点の残高が0円で未来の取引・Moveがないことが必要です。");
           return;
