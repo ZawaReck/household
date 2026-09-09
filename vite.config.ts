@@ -11,10 +11,14 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: { importScripts: ['push-sw.js'] },
       manifest: {
-        name: 'Household',
-        short_name: 'kakeibo',
-        description: 'My original household account book application',
-        theme_color: '#ffffff',
+        name: '家計簿',
+        short_name: '家計簿',
+        description: '個人用の家計・資産管理アプリ',
+        lang: 'ja',
+        start_url: '/',
+        display: 'standalone',
+        background_color: '#F9FFFB',
+        theme_color: '#245E2D',
         icons: [
           {
             src: 'pwa-192x192.png',

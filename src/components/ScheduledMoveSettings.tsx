@@ -25,7 +25,11 @@ export const ScheduledMoveSettings: React.FC<Props> = ({ accounts, schedules, on
     setRevision({ ...schedule.revisions[schedule.revisions.length - 1] });
   };
   const save = () => {
-    if (!revision.source || !revision.destination || revision.source === revision.destination || revision.amount <= 0 || !revision.name.trim()) return;
+    if (!revision.name.trim()) { window.alert("摘要を入力してください。"); return; }
+    if (!revision.source || !revision.destination) { window.alert("移動元と移動先を選択してください。"); return; }
+    if (revision.source === revision.destination) { window.alert("移動元と移動先には別の口座を選択してください。"); return; }
+    if (!Number.isInteger(revision.amount) || revision.amount <= 0) { window.alert("金額は1円以上の整数で入力してください。"); return; }
+    if (!startDate || (revision.endDate && revision.endDate < startDate)) { window.alert("終了日は開始日以降にしてください。"); return; }
     const now = new Date().toISOString();
     if (editingId === "new") {
       const id = crypto.randomUUID();
@@ -66,7 +70,7 @@ export const ScheduledMoveSettings: React.FC<Props> = ({ accounts, schedules, on
       <h3>{editingId === "new" ? "定期Moveを追加" : "次回以降の設定を変更"}</h3>
       {editingId === "new" && <label>開始日<input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>}
       <label>摘要<input value={revision.name} onChange={(event) => setRevision({ ...revision, name: event.target.value })} /></label>
-      <label>金額<input type="number" min="1" value={revision.amount} onChange={(event) => setRevision({ ...revision, amount: Number(event.target.value) })} /></label>
+      <label>金額<input type="number" min="1" step="1" value={revision.amount} onChange={(event) => setRevision({ ...revision, amount: Number(event.target.value) })} /></label>
       <label>移動元<select value={revision.source} onChange={(event) => setRevision({ ...revision, source: event.target.value })}>{choices.map((account) => <option key={account.id} value={account.name}>{account.name}</option>)}</select></label>
       <label>移動先<select value={revision.destination} onChange={(event) => setRevision({ ...revision, destination: event.target.value })}>{choices.map((account) => <option key={account.id} value={account.name}>{account.name}</option>)}</select></label>
       <label>頻度<select value={revision.frequency} onChange={(event) => setRevision({ ...revision, frequency: event.target.value as ScheduledMoveFrequency })}><option value="monthly">月次</option><option value="weekly">毎週</option><option value="daily">毎日</option></select></label>
