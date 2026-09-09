@@ -15,6 +15,7 @@ declare global {
 }
 
 export const getGoogleIdToken = () => sessionStorage.getItem(TOKEN_KEY);
+export const clearGoogleIdToken = () => sessionStorage.removeItem(TOKEN_KEY);
 
 export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;

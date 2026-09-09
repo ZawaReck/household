@@ -16,6 +16,11 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
   const [status, setStatus] = React.useState<"offline" | "syncing" | "synced" | "error">(disabled ? "offline" : "syncing");
 
   React.useEffect(() => {
+    document.documentElement.dataset.syncStatus = status;
+    window.dispatchEvent(new CustomEvent("household-sync-status", { detail: status }));
+  }, [status]);
+
+  React.useEffect(() => {
     if (disabled) return;
     let stopped = false;
     const sync = async () => {
@@ -25,6 +30,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
       try {
         const meta = loadMeta();
         const response = await fetch(`/api/sync?since=${encodeURIComponent(meta.lastPull)}`, { headers: { authorization: `Bearer ${token}` } });
+        if (response.status === 401) { sessionStorage.removeItem("googleIdToken"); window.location.reload(); return; }
         if (!response.ok) throw new Error("pull_failed");
         const payload = await response.json() as { records: RemoteRecord[] };
         let appliedRemote = false;

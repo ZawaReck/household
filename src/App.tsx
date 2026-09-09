@@ -9,6 +9,7 @@ import { AccountSettings } from "./components/AccountSettings";
 import { CategorySettings } from "./components/CategorySettings";
 import { CsvImportSettings } from "./components/CsvImportSettings";
 import { BackupSettings } from "./components/BackupSettings";
+import { LogoutSettings } from "./components/LogoutSettings";
 import type { Transaction } from "./types/Transaction";
 import { loadTransactions, saveTransactions } from "./data/transactionStore";
 import type { Account } from "./types/Account";
@@ -115,6 +116,7 @@ export const App: React.FC = () => {
             <CategorySettings categories={categories} onSave={handleSaveCategory} />
             <CsvImportSettings onImport={handleCsvImport} />
             <BackupSettings />
+            <LogoutSettings />
           </aside>
         </div>
       )}
