@@ -28,6 +28,7 @@ interface InputFormProps {
 }
 
 type DraftTx = Omit<Transaction, "id">;
+type EntryMode = "individual" | "receipt_inclusive" | "receipt_exclusive";
 
 const normalizeTaxRate = (v: unknown): TaxRate => (v === 0 || v === 8 ? v : 10);
 const normalizeTaxMode = (v: unknown): TaxMode => (v === "exclusive" ? "exclusive" : "inclusive");
@@ -112,6 +113,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   const [isExternalTax, setIsExternalTax] = React.useState(false);
   const [taxRate, setTaxRate] = React.useState<TaxRate>(10);
+  const [entryMode, setEntryMode] = React.useState<EntryMode>("individual");
 
   // レシート仮置き
   const [receiptItems, setReceiptItems] = React.useState<DraftTx[]>([]);
@@ -205,6 +207,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       visibleItems.some((t: any) => t.taxMode === "exclusive");
 
     setIsExternalTax(isExternalGroup);
+    setEntryMode(isExternalGroup ? "receipt_exclusive" : "receipt_inclusive");
   }, [activeGroupId, activeGroupDate, monthlyData, editingTransaction]);
 
   // グループ内の「外税」調整アイテム（あれば）
@@ -281,8 +284,10 @@ export const InputForm: React.FC<InputFormProps> = ({
       const group = monthlyData.filter((t: any) => t.groupId === gid);
       const hasAdj = group.some((t: any) => t.isTaxAdjustment === true);
       setIsExternalTax(hasAdj || normalizeTaxMode((editingTransaction as any).taxMode) === "exclusive");
+      setEntryMode(hasAdj || normalizeTaxMode((editingTransaction as any).taxMode) === "exclusive" ? "receipt_exclusive" : "receipt_inclusive");
     } else {
       setIsExternalTax(normalizeTaxMode((editingTransaction as any).taxMode) === "exclusive");
+      setEntryMode("individual");
     }
 
     setTaxRate(normalizeTaxRate((editingTransaction as any).taxRate));
@@ -348,7 +353,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     setMemo("");
     setClassification("normal");
     if (!options.keepTaxControls) {
-      setIsExternalTax(false);
+      setIsExternalTax(nextType === "expense" && entryMode === "receipt_exclusive");
       setTaxRate(10);
     }
     setCategory(nextCategory);
@@ -380,7 +385,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (type !== "expense" || editingTransaction) return;
+    if (type !== "expense" || editingTransaction || entryMode === "individual") return;
     if (!hasFormDraft()) return;
 
     const draft = buildDraft();
@@ -453,6 +458,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       setDate(copyDate);
       setSource(groupItems[0].source);
       setIsExternalTax(external);
+      setEntryMode(external ? "receipt_exclusive" : "receipt_inclusive");
       setReceiptItems(drafts);
       return;
     }
@@ -462,6 +468,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     setActiveGroupDate(null);
     setEditingReceiptIndex(null);
     setReceiptItems([]);
+    setEntryMode("individual");
     setType(editingTransaction.type);
     setAmount(String(editingTransaction.amount));
     setDate(copyDate);
@@ -591,7 +598,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
     if (itemsToCommit.length === 0) return;
 
-    const groupId = type === "expense" ? (activeGroupId ?? `g_${Date.now()}`) : undefined;
+    const groupId = type === "expense" && entryMode !== "individual" ? (activeGroupId ?? `g_${Date.now()}`) : undefined;
 
     const moveRelationId = type === "move" && Number(moveFee) > 0 ? crypto.randomUUID() : undefined;
     // ★ groupId を付与して「このまとまり」を後で引けるようにする
@@ -790,18 +797,26 @@ export const InputForm: React.FC<InputFormProps> = ({
         </div>
         <DateWheelPicker value={date} onChange={setDate} />
 
-        {/* 外税トグル + 税率（支出のみ） */}
+        {/* 入力単位 + 外税時の税率（支出のみ） */}
         {type === "expense" && (
           <div className="tax-controls" aria-label="消費税設定">
-            <label className="tax-switch">
-              <input
-                type="checkbox"
-                checked={isExternalTax}
-                onChange={(e) => setIsExternalTax(e.target.checked)}
-              />
-              <span className="tax-switch-ui" aria-hidden="true" />
-              <span className="tax-switch-text">外税</span>
-            </label>
+            <div className="receipt-mode-control" role="radiogroup" aria-label="入力モード">
+              {([
+                ["receipt_exclusive", "一括外税"],
+                ["receipt_inclusive", "一括内税"],
+                ["individual", "個別"],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={entryMode === value}
+                  className={entryMode === value ? "active" : ""}
+                  disabled={Boolean(activeGroupId || editingTransaction?.groupId || receiptItems.length > 0)}
+                  onClick={() => { setEntryMode(value); setIsExternalTax(value === "receipt_exclusive"); }}
+                >{label}</button>
+              ))}
+            </div>
 
             {isExternalTax && (
               <div className="tax-rate-group" role="radiogroup" aria-label="税率">
@@ -933,7 +948,7 @@ export const InputForm: React.FC<InputFormProps> = ({
             {editingTransaction ? "更新" : "登録"}
           </button>
 
-          {!editingTransaction && type === "expense" && (
+          {!editingTransaction && type === "expense" && entryMode !== "individual" && (
             <button type="submit">{editingReceiptIndex != null ? "更新" : "追加"}</button>
           )}
 

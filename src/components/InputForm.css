@@ -582,7 +582,31 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;
 }
+
+.receipt-mode-control {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #9db7a6;
+  border-radius: 10px;
+}
+.receipt-mode-control button {
+  min-height: 36px;
+  padding: 6px 4px;
+  border: 0;
+  border-right: 1px solid #9db7a6;
+  border-radius: 0;
+  background: #f9fffb;
+  color: #245e2d;
+  font-size: .78rem;
+  font-weight: 700;
+}
+.receipt-mode-control button:last-child { border-right: 0; }
+.receipt-mode-control button.active { background: #245e2d; color: white; }
+.receipt-mode-control button:disabled { cursor: not-allowed; opacity: .72; }
 
 /* NOTE: .input-form input の汎用スタイルを打ち消す */
 .tax-switch input[type="checkbox"]{
