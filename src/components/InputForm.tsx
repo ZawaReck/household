@@ -583,7 +583,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       ? monthlyData.filter((transaction) => transaction.groupId === groupId && !transaction.isTaxAdjustment)
       : [];
 
-    if (groupItems.length >= 2) {
+    if (groupId && groupItems.length > 0) {
       const drafts = groupItems.map((transaction): DraftTx => {
         const { id: _id, system: _system, groupId: _groupId, relationId: _relationId, ...draft } = transaction;
         return { ...draft, date: copyDate };
@@ -682,55 +682,6 @@ export const InputForm: React.FC<InputFormProps> = ({
             isSpecial: updated.classification === "special",
           }));
 
-        const adj = groupAll.find((t: any) => t.isTaxAdjustment === true) ?? null;
-        const groupBase = groupAll
-          .filter((t: any) => t.isTaxAdjustment !== true)
-          .map((t: any) => (t.id === updated.id ? updated : t));
-
-        // 「外税グループ」判定：調整アイテムがある、または taxMode exclusive が含まれる
-        const isExternalGroup =
-          (adj != null) || groupBase.some((t: any) => t.taxMode === "exclusive");
-
-        if (isExternalGroup) {
-          const { tax } = calcExternalGross(groupBase as any);
-
-          if (tax > 0) {
-            if (adj) {
-              onUpdateTransaction({
-                ...adj,
-                amount: tax,
-                name: "外税",
-                category: "外税",
-                date: updated.date,
-                source: updated.source,
-                classification: updated.classification,
-                isSpecial: updated.classification === "special",
-                isTaxAdjustment: true,
-              } as any);
-            } else {
-              // 無い場合は追加
-              const firstExpense = groupBase.find((x: any) => x.type === "expense");
-              onAddTransaction({
-                type: "expense",
-                amount: tax,
-                date: updated.date,
-                name: "外税",
-                category: "外税",
-                source: firstExpense?.source ?? updated.source,
-                destination: "",
-                memo: "",
-                isSpecial: false,
-                groupId: gid,
-                isTaxAdjustment: true,
-              } as any);
-            }
-          } else {
-            // tax=0 なら調整アイテムは不要 → あれば削除
-            if (adj) {
-              onDeleteTransaction(adj.id);
-            }
-          }
-        }
       }
 
       setEditingTransaction(null);
@@ -792,51 +743,6 @@ export const InputForm: React.FC<InputFormProps> = ({
       const fee = Number(moveFee);
       if (Number.isFinite(fee) && fee > 0) {
         onAddTransaction({ type: "expense", amount: Math.floor(fee), date, name: "振込手数料", category: "その他", source: sourceMove, destination: "", memo: "", isSpecial: false, classification: "normal", relationId: moveRelationId });
-      }
-    }
-
-    if (type === "expense" && isExternalTax) {
-      const baseExpenses = baseItems.filter((x: any) => x.type === "expense");
-      const existingGroup = activeGroupId
-        ? monthlyData.filter((t: any) => t.groupId === groupId)
-        : [];
-      const existingBase = existingGroup.filter((t: any) => t.isTaxAdjustment !== true);
-      const adj = existingGroup.find((t: any) => t.isTaxAdjustment === true) ?? null;
-      const groupBase = [...existingBase, ...baseExpenses];
-      const { tax } = calcExternalGross(groupBase as any);
-      const groupDate = date;
-
-      if (tax > 0) {
-        if (adj) {
-          onUpdateTransaction({
-            ...adj,
-            amount: tax,
-            name: "外税",
-            category: "外税",
-            date: groupDate,
-            source,
-            classification,
-            isSpecial: classification === "special",
-            isTaxAdjustment: true,
-          } as any);
-        } else if (groupId) {
-          onAddTransaction({
-            type: "expense",
-            amount: tax,
-            date: groupDate,
-            name: "外税",
-            category: "外税",
-            source,
-            destination: "",
-            memo: "",
-            isSpecial: classification === "special",
-            classification,
-            groupId,
-            isTaxAdjustment: true,
-          } as any);
-        }
-      } else if (adj) {
-        onDeleteTransaction(adj.id);
       }
     }
 
@@ -1244,6 +1150,18 @@ export const InputForm: React.FC<InputFormProps> = ({
               }}
             >
               削除
+            </button>
+          )}
+
+          {editingTransaction?.groupId && (
+            <button type="button" onClick={() => {
+              if (!onDeleteReceipt(editingTransaction.groupId!)) return;
+              setEditingTransaction(null);
+              setActiveGroupId(null);
+              setActiveGroupDate(null);
+              resetForm(type, { keepDate: true });
+            }}>
+              レシート全体を削除
             </button>
           )}
 

@@ -12,6 +12,7 @@ import { BackupSettings } from "./components/BackupSettings";
 import { LogoutSettings } from "./components/LogoutSettings";
 import { NotificationSettings } from "./components/NotificationSettings";
 import { localDateISO } from "./utils/date";
+import { reconcileReceiptTaxAdjustments } from "./utils/receiptTaxes";
 import { ScheduledMoveSettings } from "./components/ScheduledMoveSettings";
 import { recordDeletedIds, restoreDeletedId } from "./data/deletionStore";
 import type { Transaction } from "./types/Transaction";
@@ -65,7 +66,8 @@ export const App: React.FC = () => {
 
     useEffect(() => {
       setTransactions((current) => {
-        const next = reconcileMonthlyAdjustments(current, accounts, loadAccountActualState());
+        const receiptReconciled = reconcileReceiptTaxAdjustments(current);
+        const next = reconcileMonthlyAdjustments(receiptReconciled, accounts, loadAccountActualState());
         return JSON.stringify(next) === JSON.stringify(current) ? current : next;
       });
     }, [accounts, transactions]);

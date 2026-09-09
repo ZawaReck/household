@@ -6,6 +6,7 @@ import { sumExpenseByCategoryAllocatedTax, sumIncomeExpenseByMonth } from "../sr
 import { reconcileCardPayments } from "../src/utils/cardPayments";
 import { reconcileMonthlyAdjustments } from "../src/utils/monthlyAdjustments";
 import { reconcileScheduledMoves } from "../src/utils/scheduledMoves";
+import { reconcileReceiptTaxAdjustments } from "../src/utils/receiptTaxes";
 
 const transaction = (partial: Partial<Transaction> & Pick<Transaction, "id" | "type" | "amount" | "date">): Transaction => ({
   name: "test",
@@ -44,6 +45,21 @@ describe("analytics", () => {
     ];
     expect(sumIncomeExpenseByMonth(items, ["2026-09"])[0].expense).toBe(100);
     expect(sumIncomeExpenseByMonth(items, ["2026-09"], true)[0].expense).toBe(600);
+  });
+});
+
+describe("receipt tax reconciliation", () => {
+  it("rebuilds tax from the remaining receipt items and is idempotent", () => {
+    const items = [
+      transaction({ id: "a", type: "expense", amount: 100, date: "2026-09-01", groupId: "g", taxMode: "exclusive", taxRate: 8, taxBaseAmount: 100 }),
+      transaction({ id: "b", type: "expense", amount: 100, date: "2026-09-01", groupId: "g", taxMode: "exclusive", taxRate: 10, taxBaseAmount: 100 }),
+    ];
+    const reconciled = reconcileReceiptTaxAdjustments(items);
+    expect(reconciled.find((item) => item.isTaxAdjustment)).toMatchObject({ id: "tax-adjustment:g", amount: 18 });
+    expect(reconcileReceiptTaxAdjustments(reconciled)).toEqual(reconciled);
+
+    const afterDelete = reconcileReceiptTaxAdjustments(reconciled.filter((item) => item.id !== "b"));
+    expect(afterDelete.find((item) => item.isTaxAdjustment)?.amount).toBe(8);
   });
 });
 
