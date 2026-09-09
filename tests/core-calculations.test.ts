@@ -88,6 +88,29 @@ describe("automatic moves", () => {
     expect(reconcileCardPayments(first, [bank, card])).toEqual(first);
   });
 
+  it("keeps historical card payments after the card is disabled", () => {
+    const bank = account({ id: "bank", name: "銀行", kind: "bank" });
+    const card = account({
+      id: "card",
+      name: "カード",
+      kind: "credit_card",
+      isActive: false,
+      disabledAt: "2026-03-01",
+      creditCard: { limit: 100_000, closingDay: 31, paymentDay: 27, paymentDelayMonths: 1, defaultPaymentAccountId: "bank" },
+    });
+    const historicalPayment = transaction({
+      id: "card-payment:card:31-27-1:2026-01",
+      type: "move",
+      amount: 1_000,
+      date: "2026-02-27",
+      source: "銀行",
+      destination: "カード",
+      system: { kind: "card_payment", key: "card:31-27-1:2026-01", cardAccountId: "card" },
+    });
+
+    expect(reconcileCardPayments([historicalPayment], [bank, card])).toEqual([historicalPayment]);
+  });
+
   it("generates each scheduled occurrence once and clamps a monthly day to month end", () => {
     const schedule: ScheduledMove = {
       id: "saving",

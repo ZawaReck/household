@@ -28,6 +28,7 @@ const statementMonthFor = (date: string, closingDay: number) => {
 
 export const reconcileCardPayments = (transactions: Transaction[], accounts: Account[]) => {
   const cards = accounts.filter((account) => account.isActive && account.kind === "credit_card" && account.creditCard);
+  const managedCardIds = new Set(cards.map((account) => account.id));
   const desired = new Map<string, Transaction>();
 
   for (const card of cards) {
@@ -72,7 +73,11 @@ export const reconcileCardPayments = (transactions: Transaction[], accounts: Acc
     }
   }
 
-  const manual = transactions.filter((transaction) => transaction.system?.kind !== "card_payment");
+  const manualAndHistorical = transactions.filter((transaction) =>
+    transaction.system?.kind !== "card_payment" ||
+    !transaction.system.cardAccountId ||
+    !managedCardIds.has(transaction.system.cardAccountId)
+  );
   const existing = new Map(
     transactions
       .filter((transaction) => transaction.system?.kind === "card_payment")
@@ -90,5 +95,5 @@ export const reconcileCardPayments = (transactions: Transaction[], accounts: Acc
       system: { ...next.system!, manualDate: current.system?.manualDate, manualSource: current.system?.manualSource },
     };
   });
-  return [...manual, ...generated];
+  return [...manualAndHistorical, ...generated];
 };
