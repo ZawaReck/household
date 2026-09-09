@@ -31,11 +31,16 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
   React.useEffect(() => {
     if (disabled) return;
     let stopped = false;
+    let running = false;
+    let rerun = false;
     const sync = async () => {
-      const token = getGoogleIdToken();
-      if (!token || !navigator.onLine || stopped) { setStatus("offline"); setReady(true); return; }
-      setStatus("syncing");
+      if (running) { rerun = true; return; }
+      running = true;
       try {
+        const token = getGoogleIdToken();
+        if (!token || !navigator.onLine || stopped) { setStatus("offline"); setReady(true); return; }
+        setStatus("syncing");
+        try {
         const meta = loadMeta();
         const dataEpoch = getOrCreateDataEpoch();
         if (isEpochReplacementPending()) {
@@ -82,7 +87,8 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
         const payload = await response.json() as { records: RemoteRecord[]; serverTime?: string };
         let appliedRemote = false;
         for (const record of payload.records) {
-          if (!backupKeys.includes(record.key) || record.updatedAt < (meta.updatedAt[record.key] ?? "")) continue;
+          if (!backupKeys.includes(record.key) || record.updatedAt <= (meta.updatedAt[record.key] ?? "")) continue;
+          const previousRaw = localStorage.getItem(record.key);
           if (record.deletedAt) {
             localStorage.removeItem(record.key);
             void writeOfflineValue(record.key, null);
@@ -92,7 +98,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
           }
           meta.updatedAt[record.key] = record.updatedAt;
           meta.observed[record.key] = localStorage.getItem(record.key);
-          appliedRemote = true;
+          if (previousRaw !== meta.observed[record.key]) appliedRemote = true;
         }
         meta.lastPull = payload.serverTime ?? new Date().toISOString();
         const now = new Date().toISOString();
@@ -112,12 +118,32 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
         setStatus("synced");
         if (appliedRemote) window.location.reload();
         else setReady(true);
-      } catch { setStatus("error"); setReady(true); }
+        } catch { setStatus("error"); setReady(true); }
+      } finally {
+        running = false;
+        if (rerun && !stopped) {
+          rerun = false;
+          void sync();
+        }
+      }
     };
     void sync();
     const timer = window.setInterval(sync, 5000);
+    let localChangeTimer: number | undefined;
+    const handleLocalChange = () => {
+      setStatus("syncing");
+      if (localChangeTimer) window.clearTimeout(localChangeTimer);
+      localChangeTimer = window.setTimeout(sync, 150);
+    };
     window.addEventListener("online", sync);
-    return () => { stopped = true; window.clearInterval(timer); window.removeEventListener("online", sync); };
+    window.addEventListener("household-local-change", handleLocalChange);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      if (localChangeTimer) window.clearTimeout(localChangeTimer);
+      window.removeEventListener("online", sync);
+      window.removeEventListener("household-local-change", handleLocalChange);
+    };
   }, [disabled]);
 
   const label = { offline: "オフライン", syncing: "同期中", synced: "同期済み", error: "同期失敗" }[status];
