@@ -78,6 +78,7 @@ const formatYen = (value: unknown) => {
   return `${Math.round(Number(resolved ?? 0)).toLocaleString()}円`;
 };
 const formatYenNumber = (value: number) => `${Math.round(value).toLocaleString()}円`;
+const localDateISO = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const sortByDefaultCategoryOrder = (
   items: Array<{ name: string; value: number }>,
@@ -403,6 +404,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
   const [investmentState, setInvestmentState] = React.useState<InvestmentState>(() =>
     loadInvestmentState()
   );
+  const [investmentChartMode, setInvestmentChartMode] = React.useState<"area" | "profit" | "pie">("area");
+  const [investmentPeriodMonths, setInvestmentPeriodMonths] = React.useState<"3" | "6" | "12" | "all">("12");
 
   const [portfolioMonthKey, setPortfolioMonthKey] = React.useState(currentMonthKey);
   const [portfolioBalanceDate, setPortfolioBalanceDate] = React.useState(todayISO);
@@ -564,6 +567,16 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
     const profitRate = totals.deposits > 0 ? (profit / totals.deposits) * 100 : 0;
     return { date: snapshot.date, profit, profitRate };
   });
+  const investmentPeriodStart = React.useMemo(() => {
+    if (investmentPeriodMonths === "all" || !latestSnapshot) return "";
+    const date = new Date(`${latestSnapshot.date}T00:00:00`);
+    date.setMonth(date.getMonth() - Number(investmentPeriodMonths));
+    return localDateISO(date);
+  }, [investmentPeriodMonths, latestSnapshot]);
+  const filteredInvestmentChartData = investmentChartData.filter((point) => !investmentPeriodStart || String(point.date) >= investmentPeriodStart);
+  const filteredInvestmentProfitData = investmentProfitData.filter((point) => !investmentPeriodStart || point.date >= investmentPeriodStart);
+  const investmentPieData = investmentAssets.map((asset) => ({ name: asset.name, value: latestSnapshot?.values[asset.id] ?? 0 }));
+  const latestInvestmentTotal = investmentPieData.reduce((sum, asset) => sum + asset.value, 0);
 
   const regularAccountNames = React.useMemo(() => {
     const accs = new Set<string>();
@@ -1308,6 +1321,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                       <th>現在額</th>
                       <th>損益</th>
                       <th>損益率</th>
+                      <th>構成比</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -1329,6 +1343,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                           <td className={profit >= 0 ? "positive" : "negative"}>
                             {rate == null ? "—" : `${rate.toFixed(1)}%`}
                           </td>
+                          <td>{latestInvestmentTotal !== 0 ? `${((current / latestInvestmentTotal) * 100).toFixed(1)}%` : "—"}</td>
                           <td />
                         </tr>
                       );
@@ -1350,14 +1365,15 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
           </div>
         </div>
 
-        <div className="section-grid">
-          <div className="card chart-card">
-            <h3>積み上げ面</h3>
-            {investmentChartData.length === 0 ? (
+        <div className="card chart-card">
+          <div className="chart-header-actions"><h3>{investmentChartMode === "area" ? "評価額推移" : investmentChartMode === "profit" ? "損益額 / 損益率" : "現在構成"}</h3><div className="toggle-group"><button type="button" className={investmentChartMode === "area" ? "active" : ""} onClick={() => setInvestmentChartMode("area")}>積上</button><button type="button" className={investmentChartMode === "profit" ? "active" : ""} onClick={() => setInvestmentChartMode("profit")}>損益</button><button type="button" className={investmentChartMode === "pie" ? "active" : ""} onClick={() => setInvestmentChartMode("pie")}>円</button></div></div>
+          {investmentChartMode !== "pie" && <div className="toggle-group investment-period-control">{([['3','3か月'],['6','6か月'],['12','1年'],['all','全期間']] as const).map(([value, label]) => <button key={value} type="button" className={investmentPeriodMonths === value ? "active" : ""} onClick={() => setInvestmentPeriodMonths(value)}>{label}</button>)}</div>}
+          {investmentChartMode === "area" ? (
+            filteredInvestmentChartData.length === 0 ? (
               <p className="muted">スナップショットがありません。</p>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={investmentChartData}>
+                <AreaChart data={filteredInvestmentChartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
@@ -1376,15 +1392,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                   ))}
                 </AreaChart>
               </ResponsiveContainer>
-            )}
-          </div>
-          <div className="card chart-card">
-            <h3>損益額 / 損益率</h3>
-            {investmentProfitData.length === 0 ? (
+            )
+          ) : investmentChartMode === "profit" ? (
+            filteredInvestmentProfitData.length === 0 ? (
               <p className="muted">スナップショットがありません。</p>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={investmentProfitData}>
+                <LineChart data={filteredInvestmentProfitData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis yAxisId="left" />
@@ -1406,8 +1420,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
                   />
                 </LineChart>
               </ResponsiveContainer>
-            )}
-          </div>
+            )
+          ) : !latestSnapshot ? <p className="muted">スナップショットがありません。</p> : (
+            <ResponsiveContainer width="100%" height={280}><PieChart><Pie data={investmentPieData} dataKey="value" nameKey="name" outerRadius={95}>{investmentPieData.map((_, index) => <Cell key={index} fill={chartColors[index % chartColors.length]} />)}</Pie><Tooltip formatter={(value) => formatYen(value)} /><Legend /></PieChart></ResponsiveContainer>
+          )}
         </div>
       </TabPanel>
       )}
