@@ -120,10 +120,34 @@ export const App: React.FC = () => {
         : [...current, updatedAccount];
     });
   };
-  const handleSaveCategory = (updatedCategory: Category) => setCategories((current) => {
-    const exists = current.some((category) => category.id === updatedCategory.id);
-    return exists ? current.map((category) => category.id === updatedCategory.id ? updatedCategory : category) : [...current, updatedCategory];
-  });
+  const handleSaveCategory = (updatedCategory: Category) => {
+    const previous = categories.find((category) => category.id === updatedCategory.id);
+    if (previous && previous.name !== updatedCategory.name) {
+      setTransactions((current) => current.map((transaction) =>
+        transaction.type === previous.type && transaction.category === previous.name
+          ? { ...transaction, category: updatedCategory.name }
+          : transaction
+      ));
+    }
+    setCategories((current) => {
+      const exists = current.some((category) => category.id === updatedCategory.id);
+      return exists ? current.map((category) => category.id === updatedCategory.id ? updatedCategory : category) : [...current, updatedCategory];
+    });
+  };
+  const handleMergeCategory = (sourceId: string, targetId: string) => {
+    const source = categories.find((category) => category.id === sourceId);
+    const target = categories.find((category) => category.id === targetId);
+    if (!source || !target || source.type !== target.type) return;
+    setTransactions((current) => current.map((transaction) =>
+      transaction.type === source.type && transaction.category === source.name
+        ? { ...transaction, category: target.name }
+        : transaction
+    ));
+    setCategories((current) => current.map((category) => category.id === sourceId
+      ? { ...category, isActive: false, mergedIntoId: targetId, updatedAt: new Date().toISOString() }
+      : category
+    ));
+  };
   const handleCsvImport = (imported: Transaction[]) => {
     setTransactions((current) => [...current, ...imported]);
   };
@@ -149,7 +173,7 @@ export const App: React.FC = () => {
           <aside className="settings-drawer" onClick={(event) => event.stopPropagation()}>
             <div className="settings-drawer-top"><strong>設定</strong><button type="button" onClick={() => setIsSettingsOpen(false)}>×</button></div>
             <AccountSettings accounts={accounts} transactions={transactions} onSave={handleSaveAccount} />
-            <CategorySettings categories={categories} onSave={handleSaveCategory} />
+            <CategorySettings categories={categories} onSave={handleSaveCategory} onMerge={handleMergeCategory} />
             <section className="view-settings">
               <h2>表示</h2>
               <label>

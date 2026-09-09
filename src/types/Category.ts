@@ -5,6 +5,7 @@ export type Category = {
   name: string;
   type: CategoryType;
   isActive: boolean;
+  mergedIntoId?: string;
   createdAt: string;
   updatedAt: string;
 };
