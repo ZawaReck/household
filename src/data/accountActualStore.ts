@@ -6,11 +6,12 @@ export type AccountActualState = {
   byMonth: Record<string, Record<string, number>>;
   confirmedByMonth: Record<string, string[]>;
   basisDateByMonth: Record<string, string>;
+  cardLimitByMonth: Record<string, Record<string, number>>;
 };
 
 const STORAGE_KEY = "accountActualBalances";
 
-const defaultState: AccountActualState = { byMonth: {}, confirmedByMonth: {}, basisDateByMonth: {} };
+const defaultState: AccountActualState = { byMonth: {}, confirmedByMonth: {}, basisDateByMonth: {}, cardLimitByMonth: {} };
 
 export const loadAccountActualState = (): AccountActualState => {
   const data = safeLoadJSON<AccountActualState>(STORAGE_KEY, defaultState);
@@ -24,6 +25,10 @@ export const loadAccountActualState = (): AccountActualState => {
     basisDateByMonth:
       data.basisDateByMonth && typeof data.basisDateByMonth === "object"
         ? data.basisDateByMonth
+        : {},
+    cardLimitByMonth:
+      data.cardLimitByMonth && typeof data.cardLimitByMonth === "object"
+        ? data.cardLimitByMonth
         : {},
   };
 };

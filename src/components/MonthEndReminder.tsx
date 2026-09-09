@@ -40,7 +40,8 @@ export const MonthEndReminder: React.FC<Props> = ({ accounts, transactions }) =>
         if (account.kind === "investment") return snapshot?.values[account.id] == null;
         if (account.kind !== "credit_card") return !confirmed.has(account.name);
         const used = creditCardOutstandingAsOf(account, transactions, targetMonthEnd);
-        const available = (account.creditCard?.limit ?? 0) - used;
+        const limit = actuals.cardLimitByMonth[targetMonth]?.[account.name] ?? account.creditCard?.limit ?? 0;
+        const available = limit - used;
         return !confirmed.has(account.name) || actuals.byMonth[targetMonth]?.[account.name] !== available;
       });
     if (missing.length > 0) break;

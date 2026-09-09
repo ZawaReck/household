@@ -27,6 +27,7 @@ import { reconcileScheduledMoves } from "./utils/scheduledMoves";
 import type { ScheduledMove } from "./types/ScheduledMove";
 import { loadAccountActualState, saveAccountActualState } from "./data/accountActualStore";
 import { reconcileMonthlyAdjustments } from "./utils/monthlyAdjustments";
+import { invalidateChangedCardConfirmations } from "./utils/cardConfirmations";
 import './App.css';
 
 const GraphsPage = React.lazy(() => import("./components/GraphsPage").then((module) => ({ default: module.GraphsPage })));
@@ -56,6 +57,12 @@ export const App: React.FC = () => {
         if (JSON.stringify(next) === JSON.stringify(current)) return current;
         return next;
       });
+    }, [accounts, transactions]);
+
+    useEffect(() => {
+      const current = loadAccountActualState();
+      const next = invalidateChangedCardConfirmations(current, accounts, transactions);
+      if (next !== current) saveAccountActualState(next);
     }, [accounts, transactions]);
 
     useEffect(() => {
@@ -240,7 +247,13 @@ export const App: React.FC = () => {
         month,
         names.map((name) => name === previous.name ? updatedAccount.name : name),
       ]));
-      saveAccountActualState({ ...actualState, byMonth, confirmedByMonth });
+      const cardLimitByMonth = Object.fromEntries(Object.entries(actualState.cardLimitByMonth).map(([month, values]) => {
+        if (!(previous.name in values)) return [month, values];
+        const renamed = { ...values, [updatedAccount.name]: values[previous.name] };
+        delete renamed[previous.name];
+        return [month, renamed];
+      }));
+      saveAccountActualState({ ...actualState, byMonth, confirmedByMonth, cardLimitByMonth });
     }
     setAccounts((current) => {
       const exists = current.some((account) => account.id === updatedAccount.id);

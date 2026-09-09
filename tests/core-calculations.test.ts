@@ -9,6 +9,7 @@ import { reconcileScheduledMoves } from "../src/utils/scheduledMoves";
 import { reconcileReceiptTaxAdjustments } from "../src/utils/receiptTaxes";
 import { mergeValues } from "../src/utils/backup";
 import { applyDeletionTombstones } from "../src/data/deletionStore";
+import { invalidateChangedCardConfirmations } from "../src/utils/cardConfirmations";
 
 const transaction = (partial: Partial<Transaction> & Pick<Transaction, "id" | "type" | "amount" | "date">): Transaction => ({
   name: "test",
@@ -109,6 +110,42 @@ describe("automatic moves", () => {
     });
 
     expect(reconcileCardPayments([historicalPayment], [bank, card])).toEqual([historicalPayment]);
+  });
+
+  it("invalidates a card confirmation when the calculated available amount changes", () => {
+    const card = account({
+      id: "card",
+      name: "カード",
+      kind: "credit_card",
+      creditCard: { limit: 100_000, closingDay: 31, paymentDay: 27, paymentDelayMonths: 1, defaultPaymentAccountId: "bank" },
+    });
+    const state = {
+      byMonth: { "2026-01": { カード: 99_000 } },
+      confirmedByMonth: { "2026-01": ["カード"] },
+      basisDateByMonth: {},
+      cardLimitByMonth: { "2026-01": { カード: 100_000 } },
+    };
+    const changedUse = transaction({ id: "use", type: "expense", amount: 2_000, date: "2026-01-20", source: "カード" });
+
+    expect(invalidateChangedCardConfirmations(state, [card], [changedUse]).confirmedByMonth["2026-01"]).toEqual([]);
+  });
+
+  it("uses the limit captured at confirmation instead of rewriting history after a limit change", () => {
+    const card = account({
+      id: "card",
+      name: "カード",
+      kind: "credit_card",
+      creditCard: { limit: 200_000, closingDay: 31, paymentDay: 27, paymentDelayMonths: 1, defaultPaymentAccountId: "bank" },
+    });
+    const state = {
+      byMonth: { "2026-01": { カード: 99_000 } },
+      confirmedByMonth: { "2026-01": ["カード"] },
+      basisDateByMonth: {},
+      cardLimitByMonth: { "2026-01": { カード: 100_000 } },
+    };
+    const originalUse = transaction({ id: "use", type: "expense", amount: 1_000, date: "2026-01-20", source: "カード" });
+
+    expect(invalidateChangedCardConfirmations(state, [card], [originalUse])).toBe(state);
   });
 
   it("generates each scheduled occurrence once and clamps a monthly day to month end", () => {

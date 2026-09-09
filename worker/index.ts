@@ -138,7 +138,7 @@ const nextMonth = (month: string) => {
 const needsMonthEndUpdate = (records: Record<string, unknown>, month: string) => {
   const monthEnd = `${month}-${pad(lastDay(Number(month.slice(0, 4)), Number(month.slice(5, 7))))}`;
   const accounts = Array.isArray(records["accounts.v1"]) ? records["accounts.v1"] as Array<Record<string, unknown>> : [];
-  const actualState = records.accountActualBalances as { byMonth?: Record<string, Record<string, number>>; confirmedByMonth?: Record<string, string[]> } | undefined;
+  const actualState = records.accountActualBalances as { byMonth?: Record<string, Record<string, number>>; confirmedByMonth?: Record<string, string[]>; cardLimitByMonth?: Record<string, Record<string, number>> } | undefined;
   const investmentState = records.investments as { snapshots?: Array<{ date: string; values: Record<string, number> }> } | undefined;
   const transactions = Array.isArray(records.transactions) ? records.transactions as Array<Record<string, unknown>> : [];
   const snapshot = investmentState?.snapshots?.find((item) => item.date === monthEnd);
@@ -160,7 +160,8 @@ const needsMonthEndUpdate = (records: Record<string, unknown>, month: string) =>
       return sum;
     }, 0);
     const creditCard = account.creditCard as { limit?: number } | undefined;
-    const available = Number(creditCard?.limit ?? 0) - used;
+    const limit = actualState?.cardLimitByMonth?.[month]?.[accountName] ?? Number(creditCard?.limit ?? 0);
+    const available = limit - used;
     return !confirmed || actualState?.byMonth?.[month]?.[accountName] !== available;
   });
 };

@@ -661,12 +661,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     [estimatedBalances, investmentValuesForPortfolio]
   );
   const activeCardAccounts = React.useMemo(() => accountMaster.filter(
-    (account) => account.isActive && account.kind === "credit_card" && account.creditCard
-  ), [accountMaster]);
+    (account) => account.kind === "credit_card" && account.creditCard && isAccountVisibleOn(account, portfolioBalanceDate)
+  ), [accountMaster, portfolioBalanceDate]);
   const cardStatuses = React.useMemo(() => activeCardAccounts.map((account) => {
     const used = creditCardOutstandingAsOf(account, transactions, portfolioBalanceDate);
-    return { account, used, available: (account.creditCard?.limit ?? 0) - used };
-  }), [activeCardAccounts, portfolioBalanceDate, transactions]);
+    const limit = accountActualState.cardLimitByMonth[portfolioMonthKey]?.[account.name] ?? account.creditCard?.limit ?? 0;
+    return { account, limit, used, available: limit - used };
+  }), [accountActualState.cardLimitByMonth, activeCardAccounts, portfolioBalanceDate, portfolioMonthKey, transactions]);
   const cardMonthConfirmed = cardStatuses.length > 0 && cardStatuses.every(({ account, available }) =>
     (accountActualState.confirmedByMonth[portfolioMonthKey] ?? []).includes(account.name) &&
     accountActualState.byMonth[portfolioMonthKey]?.[account.name] === available
@@ -778,6 +779,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
         [portfolioMonthKey]: isMonthEndUpdate ? Array.from(new Set([...previousConfirmed, ...confirmedNames])) : previousConfirmed,
       },
       basisDateByMonth: { ...accountActualState.basisDateByMonth, [portfolioMonthKey]: portfolioBalanceDate },
+      cardLimitByMonth: {
+        ...accountActualState.cardLimitByMonth,
+        [portfolioMonthKey]: Object.fromEntries(cardStatuses.map(({ account, limit }) => [account.name, limit])),
+      },
     };
     setAccountActualState(nextState);
     saveAccountActualState(nextState);
@@ -808,6 +813,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       confirmedByMonth: {
         ...accountActualState.confirmedByMonth,
         [portfolioMonthKey]: Array.from(confirmed),
+      },
+      cardLimitByMonth: {
+        ...accountActualState.cardLimitByMonth,
+        [portfolioMonthKey]: Object.fromEntries(cardStatuses.map(({ account, limit }) => [account.name, limit])),
       },
     };
     setAccountActualState(nextState);
@@ -1607,9 +1616,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 <div className="table-wrap">
                   <table>
                     <thead><tr><th>カード</th><th>利用額</th><th>計算利用可能額</th><th>実利用可能額</th></tr></thead>
-                    <tbody>{cardStatuses.map(({ account, used, available }) => (
+                    <tbody>{cardStatuses.map(({ account, limit, used, available }) => (
                       <tr key={account.id}>
-                        <td>{account.name}</td><td>{formatYen(used)}</td><td>{formatYen(available)}</td>
+                        <td>{account.name}<span className="muted"> / 上限 {formatYen(limit)}</span></td><td>{formatYen(used)}</td><td>{formatYen(available)}</td>
                         <td><input type="number" value={cardAvailableInputs[account.name] ?? available} onChange={(event) => setCardAvailableInputs((current) => ({ ...current, [account.name]: Number(event.target.value) }))} /></td>
                       </tr>
                     ))}</tbody>
