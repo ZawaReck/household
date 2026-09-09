@@ -749,16 +749,30 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       regularAccountNames.map((account) => [account, portfolioActualInputs[account] ?? 0])
     );
     const isMonthEndUpdate = portfolioBalanceDate === portfolioAsOf;
+    if (isMonthEndUpdate) {
+      const mismatched = cardStatuses.find(({ account, available }) => cardAvailableInputs[account.name] !== available);
+      if (mismatched) {
+        window.alert(`${mismatched.account.name}の実利用可能額と計算値が一致していません。利用記録を修正してください。`);
+        return;
+      }
+    }
     const previousConfirmed = accountActualState.confirmedByMonth[portfolioMonthKey] ?? [];
+    const confirmedNames = isMonthEndUpdate
+      ? [...regularAccountNames, ...cardStatuses.map(({ account }) => account.name)]
+      : [];
     const nextState = {
       ...accountActualState,
       byMonth: {
         ...accountActualState.byMonth,
-        [portfolioMonthKey]: regularActuals,
+        [portfolioMonthKey]: {
+          ...(accountActualState.byMonth[portfolioMonthKey] ?? {}),
+          ...regularActuals,
+          ...(isMonthEndUpdate ? cardAvailableInputs : {}),
+        },
       },
       confirmedByMonth: {
         ...accountActualState.confirmedByMonth,
-        [portfolioMonthKey]: isMonthEndUpdate ? Array.from(new Set([...previousConfirmed, ...regularAccountNames])) : previousConfirmed,
+        [portfolioMonthKey]: isMonthEndUpdate ? Array.from(new Set([...previousConfirmed, ...confirmedNames])) : previousConfirmed,
       },
       basisDateByMonth: { ...accountActualState.basisDateByMonth, [portfolioMonthKey]: portfolioBalanceDate },
     };
