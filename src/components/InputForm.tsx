@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import type { Transaction } from "../types/Transaction";
 import type { TaxMode, TaxRate, TransactionClassification } from "../types/Transaction";
 import type { Account } from "../types/Account";
+import type { Category } from "../types/Category";
 import { expenseCategoryOptions, incomeCategoryOptions } from "../data/categoryOptions";
 import { WheelPickerInline } from "./WheelPickerInline";
 import { DateWheelPicker } from "./DateWheelPicker";
@@ -19,6 +20,7 @@ interface InputFormProps {
   selectedDate: string;
   monthlyData: Transaction[];
   accounts: Account[];
+  categories: Category[];
   activeGroupId?: string | null;
   setActiveGroupId?: (groupId: string | null) => void;
   activeGroupDate?: string | null;
@@ -39,6 +41,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   selectedDate,
   monthlyData,
   accounts,
+  categories,
   activeGroupId: activeGroupIdProp,
   setActiveGroupId: setActiveGroupIdProp,
   activeGroupDate: activeGroupDateProp,
@@ -77,10 +80,12 @@ export const InputForm: React.FC<InputFormProps> = ({
     [accounts]
   );
   const sourceOptions = type === "expense" ? activeAccountNames : paymentAccountNames;
-  const categoryOptions = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
+  const categoryOptions = React.useMemo(() => categories
+    .filter((item) => item.isActive && item.type === (type === "income" ? "income" : "expense"))
+    .map((item) => item.name), [categories, type]);
 
-  const defaultExpenseCategory = expenseCategoryOptions[0];
-  const defaultIncomeCategory = incomeCategoryOptions[0];
+  const defaultExpenseCategory = categoryOptions[0] ?? expenseCategoryOptions[0];
+  const defaultIncomeCategory = categoryOptions[0] ?? incomeCategoryOptions[0];
   const defaultSource = activeAccountNames[0] ?? "";
   const defaultMoveSource = paymentAccountNames[0] ?? "";
   const defaultMoveDestination = paymentAccountNames[1] ?? paymentAccountNames[0] ?? "";
@@ -298,7 +303,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     }
 
     setCategory((prev) => {
-      const opts = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
+      const opts = categoryOptions;
       return opts.includes(prev) ? prev : opts[0];
     });
   }, [type]);

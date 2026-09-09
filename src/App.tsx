@@ -6,11 +6,14 @@ import { InputForm } from "./components/InputForm";
 import { DashboardPage } from "./components/DashboardPage";
 import { GraphsPage } from "./components/GraphsPage";
 import { AccountSettings } from "./components/AccountSettings";
+import { CategorySettings } from "./components/CategorySettings";
 import type { Transaction } from "./types/Transaction";
 import { loadTransactions, saveTransactions } from "./data/transactionStore";
 import type { Account } from "./types/Account";
 import { loadAccounts, saveAccounts } from "./data/accountStore";
 import { reconcileCardPayments } from "./utils/cardPayments";
+import type { Category } from "./types/Category";
+import { loadCategories, saveCategories } from "./data/categoryStore";
 import './App.css';
 
 export const App: React.FC = () => {
@@ -19,6 +22,7 @@ export const App: React.FC = () => {
 		return loadTransactions();
 	});
 	const [accounts, setAccounts] = useState<Account[]>(() => loadAccounts());
+  const [categories, setCategories] = useState<Category[]>(() => loadCategories());
 
 		useEffect(() => {
 			saveTransactions(transactions);
@@ -27,6 +31,7 @@ export const App: React.FC = () => {
     useEffect(() => {
       saveAccounts(accounts);
     }, [accounts]);
+    useEffect(() => { saveCategories(categories); }, [categories]);
 
     useEffect(() => {
       setTransactions((current) => {
@@ -75,6 +80,10 @@ export const App: React.FC = () => {
         : [...current, updatedAccount];
     });
   };
+  const handleSaveCategory = (updatedCategory: Category) => setCategories((current) => {
+    const exists = current.some((category) => category.id === updatedCategory.id);
+    return exists ? current.map((category) => category.id === updatedCategory.id ? updatedCategory : category) : [...current, updatedCategory];
+  });
 
   const [selectedDate] = React.useState(
     new Date().toISOString().slice(0, 10)
@@ -98,6 +107,7 @@ export const App: React.FC = () => {
           <aside className="settings-drawer" onClick={(event) => event.stopPropagation()}>
             <div className="settings-drawer-top"><strong>設定</strong><button type="button" onClick={() => setIsSettingsOpen(false)}>×</button></div>
             <AccountSettings accounts={accounts} transactions={transactions} onSave={handleSaveAccount} />
+            <CategorySettings categories={categories} onSave={handleSaveCategory} />
           </aside>
         </div>
       )}
@@ -108,6 +118,7 @@ export const App: React.FC = () => {
             <DashboardPage
               transactions={transactions}
               accounts={accounts}
+              categories={categories}
               onDeleteTransaction={handleDeleteTransaction}
               onEditTransaction={(transaction) => {
                 setEditingTransaction(transaction);
@@ -129,6 +140,7 @@ export const App: React.FC = () => {
               selectedDate={selectedDate}
               monthlyData={transactions}
               accounts={accounts}
+              categories={categories}
           />
         } />
 

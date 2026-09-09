@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import  type { Transaction } from "../types/Transaction";
 import type { Account } from "../types/Account";
+import type { Category } from "../types/Category";
 import { CalendarView } from "./CalendarView";
 import { SummaryView} from "./SummaryView";
 import { InputForm } from "./InputForm";
@@ -12,6 +13,7 @@ import './DashboardPage.css';
 interface Props {
 	transactions: Transaction[];
 	accounts: Account[];
+	categories: Category[];
 	onDeleteTransaction: (id: string) => void;
 	onEditTransaction: (transaction: Transaction) => void;
 	onAddTransaction: (transaction: Omit<Transaction, "id">) => void;
@@ -92,6 +94,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 					selectedDate={selectedDate}
 					monthlyData={monthlyData}
 					accounts={props.accounts}
+					categories={props.categories}
 					activeGroupId={activeGroupId}
 					setActiveGroupId={setActiveGroupId}
 					activeGroupDate={activeGroupDate}
