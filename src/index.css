@@ -39,6 +39,17 @@ body {
   /* overflow-y: hidden;   縦スクロール設定 */
 }
 
+.auth-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px;
+  color: #245e2d;
+  background: #f9fffb;
+}
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
@@ -89,4 +100,3 @@ select:focus:not(:focus-visible) {
   outline: none;
   box-shadow: none;
 }
-
