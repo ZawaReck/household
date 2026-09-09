@@ -306,6 +306,10 @@ export const InputForm: React.FC<InputFormProps> = ({
     setEditingReceiptIndex(null);
     setReceiptItems([]);
     resetForm(first?.type ?? type, { dateValue: first?.date ?? activeGroupDate ?? date });
+    if (first) {
+      setSource(first.source);
+      setClassification(first.classification ?? (first.isSpecial ? "special" : "normal"));
+    }
 
     const isExternalGroup =
       groupItems.some((t: any) => t.isTaxAdjustment === true) ||
@@ -625,6 +629,15 @@ export const InputForm: React.FC<InputFormProps> = ({
   // 登録: (1) 本編集なら更新, (2) 仮編集ならその内容含めて反映, (3) フォーム入力中があればそれも反映, (4) 仮置き全件反映
   const commitAll = () => {
     if (!editingTransaction && !hasFormDraft() && receiptItems.length === 0 && showCommittedGroup) {
+      if (activeGroupId) {
+        committedGroupItems.forEach((transaction) => onUpdateTransaction({
+          ...transaction,
+          date,
+          source,
+          classification,
+          isSpecial: classification === "special",
+        }));
+      }
       setEditingTransaction(null);
       setActiveGroupId(null);
       setActiveGroupDate(null);
@@ -655,9 +668,18 @@ export const InputForm: React.FC<InputFormProps> = ({
       // まず対象アイテムを更新
       onUpdateTransaction(updated);
 
-      // グループ編集なら「外税」調整アイテムを追従させる
+      // レシート共通項目（日付・拠出元・集計区分）は全明細へ一括反映する
       if (gid) {
         const groupAll = monthlyData.filter((t: any) => t.groupId === gid);
+        groupAll
+          .filter((transaction) => transaction.id !== updated.id)
+          .forEach((transaction) => onUpdateTransaction({
+            ...transaction,
+            date: updated.date,
+            source: updated.source,
+            classification: updated.classification,
+            isSpecial: updated.classification === "special",
+          }));
 
         const adj = groupAll.find((t: any) => t.isTaxAdjustment === true) ?? null;
         const groupBase = groupAll
@@ -678,6 +700,10 @@ export const InputForm: React.FC<InputFormProps> = ({
                 amount: tax,
                 name: "外税",
                 category: "外税",
+                date: updated.date,
+                source: updated.source,
+                classification: updated.classification,
+                isSpecial: updated.classification === "special",
                 isTaxAdjustment: true,
               } as any);
             } else {
@@ -738,6 +764,16 @@ export const InputForm: React.FC<InputFormProps> = ({
 
     const groupId = type === "expense" && entryMode !== "individual" ? (activeGroupId ?? `g_${Date.now()}`) : undefined;
 
+    if (activeGroupId) {
+      committedGroupItems.forEach((transaction) => onUpdateTransaction({
+        ...transaction,
+        date,
+        source,
+        classification,
+        isSpecial: classification === "special",
+      }));
+    }
+
     const moveRelationId = type === "move" && Number(moveFee) > 0 ? crypto.randomUUID() : undefined;
     // ★ groupId を付与して「このまとまり」を後で引けるようにする
     const baseItems = itemsToCommit.map((t) => {
@@ -767,8 +803,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       const adj = existingGroup.find((t: any) => t.isTaxAdjustment === true) ?? null;
       const groupBase = [...existingBase, ...baseExpenses];
       const { tax } = calcExternalGross(groupBase as any);
-      const firstExpense = groupBase.find((x: any) => x.type === "expense");
-      const groupDate = firstExpense?.date ?? date;
+      const groupDate = date;
 
       if (tax > 0) {
         if (adj) {
@@ -778,6 +813,9 @@ export const InputForm: React.FC<InputFormProps> = ({
             name: "外税",
             category: "外税",
             date: groupDate,
+            source,
+            classification,
+            isSpecial: classification === "special",
             isTaxAdjustment: true,
           } as any);
         } else if (groupId) {
@@ -787,10 +825,11 @@ export const InputForm: React.FC<InputFormProps> = ({
             date: groupDate,
             name: "外税",
             category: "外税",
-            source: firstExpense?.source ?? source,
+            source,
             destination: "",
             memo: "",
-            isSpecial: false,
+            isSpecial: classification === "special",
+            classification,
             groupId,
             isTaxAdjustment: true,
           } as any);
