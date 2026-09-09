@@ -12,6 +12,7 @@ import { BackupSettings } from "./components/BackupSettings";
 import { LogoutSettings } from "./components/LogoutSettings";
 import { NotificationSettings } from "./components/NotificationSettings";
 import { ScheduledMoveSettings } from "./components/ScheduledMoveSettings";
+import { recordDeletedIds, restoreDeletedId } from "./data/deletionStore";
 import type { Transaction } from "./types/Transaction";
 import { loadTransactions, saveTransactions } from "./data/transactionStore";
 import type { Account } from "./types/Account";
@@ -106,6 +107,7 @@ export const App: React.FC = () => {
     const newTransaction: Transaction = {
       ...transaction,
       id: crypto.randomUUID(),
+      updatedAt: new Date().toISOString(),
       cardCycle: card?.creditCard ? {
         cardAccountId: card.id,
         closingDay: card.creditCard.closingDay,
@@ -131,6 +133,7 @@ export const App: React.FC = () => {
         : schedule));
     }
     if (!target.isTaxAdjustment) setRecentlyDeleted(target);
+		recordDeletedIds("transactions", [target.id]);
 		setTransactions((prev) => prev.filter((transaction) => transaction.id !== id));
 	};
 
@@ -144,6 +147,7 @@ export const App: React.FC = () => {
       ? "\nカード利用を含むため、対応する自動引落Moveの金額も再計算されます。"
       : "";
     if (!window.confirm(`${grouped.filter((transaction) => !transaction.isTaxAdjustment).length}件の明細を含むレシート全体を削除しますか？${warning}`)) return false;
+    recordDeletedIds("transactions", grouped.map((transaction) => transaction.id));
     setTransactions((current) => current.filter((transaction) => transaction.groupId !== groupId));
     return true;
   };
@@ -156,6 +160,7 @@ export const App: React.FC = () => {
 
   const undoDelete = () => {
     if (!recentlyDeleted) return;
+    restoreDeletedId("transactions", recentlyDeleted.id);
     setTransactions((current) => current.some(({ id }) => id === recentlyDeleted.id)
       ? current
       : [...current, recentlyDeleted]);
@@ -186,7 +191,7 @@ export const App: React.FC = () => {
     };
     setTransactions((prev) =>
       prev.map((t) =>
-        t.id === updatedTransaction.id ? { ...t, ...withCardCycle } : t
+        t.id === updatedTransaction.id ? { ...t, ...withCardCycle, updatedAt: new Date().toISOString() } : t
       )
     );
   };

@@ -35,6 +35,7 @@ export interface Transaction {
   groupId?: string;
   relationId?: string;
   cardCycle?: CardCycleSnapshot;
+  updatedAt?: string;
 
 taxMode?: TaxMode;
 taxRate?: TaxRate;

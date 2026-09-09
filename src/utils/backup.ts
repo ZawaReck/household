@@ -1,10 +1,19 @@
+import { applyDeletionTombstones, DELETION_TOMBSTONE_KEY, type DeletionTombstones } from "../data/deletionStore";
+
 export type BackupPayload = { version: 1; exportedAt: string; dataEpoch: string; data: Record<string, unknown> };
 export type RestoreMode = "replace" | "merge";
-export const backupKeys = ["transactions", "accounts.v1", "categories.v1", "budgets", "investments", "accountActualBalances", "sontokuEntries", "scheduledMoves.v1", "drafts.v1"];
+export const backupKeys = ["transactions", "accounts.v1", "categories.v1", "budgets", "investments", "accountActualBalances", "sontokuEntries", "scheduledMoves.v1", "drafts.v1", DELETION_TOMBSTONE_KEY];
 const keys = backupKeys;
 const epochKey = "dataEpoch";
 const read = (key: string) => JSON.parse(localStorage.getItem(key) ?? "null") as unknown;
-export const buildBackup = (): BackupPayload => ({ version: 1, exportedAt: new Date().toISOString(), dataEpoch: localStorage.getItem(epochKey) ?? crypto.randomUUID(), data: Object.fromEntries(keys.map((key) => [key, read(key)])) });
+const getOrCreateDataEpoch = () => {
+  const current = localStorage.getItem(epochKey);
+  if (current) return current;
+  const created = crypto.randomUUID();
+  localStorage.setItem(epochKey, created);
+  return created;
+};
+export const buildBackup = (): BackupPayload => ({ version: 1, exportedAt: new Date().toISOString(), dataEpoch: getOrCreateDataEpoch(), data: Object.fromEntries(keys.map((key) => [key, read(key)])) });
 export const downloadBackup = () => {
   const blob = new Blob([JSON.stringify(buildBackup(), null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob); const link = document.createElement("a");
@@ -17,7 +26,7 @@ const timestamp = (value: unknown) => {
   return String(item.updatedAt ?? item.updatedAtISO ?? item.deletedAt ?? "");
 };
 
-const mergeValues = (current: unknown, incoming: unknown): unknown => {
+export const mergeValues = (current: unknown, incoming: unknown): unknown => {
   if (Array.isArray(current) && Array.isArray(incoming)) {
     if (incoming.every((item) => item && typeof item === "object" && "id" in item)) {
       const merged = new Map<string, unknown>();
@@ -47,18 +56,37 @@ export const parseBackup = (raw: string): BackupPayload => {
 
 export const restoreBackup = (payload: BackupPayload, mode: RestoreMode) => {
   downloadBackup();
+  const incomingTombstones = payload.data[DELETION_TOMBSTONE_KEY] as DeletionTombstones | undefined;
+  const currentTombstones = (read(DELETION_TOMBSTONE_KEY) ?? {}) as DeletionTombstones;
+  const mergedTombstones: DeletionTombstones = structuredClone(currentTombstones);
+  for (const [collection, entries] of Object.entries(incomingTombstones ?? {})) {
+    const mergedEntries = { ...(mergedTombstones[collection] ?? {}) };
+    for (const [id, deletedAt] of Object.entries(entries)) {
+      if (!mergedEntries[id] || deletedAt > mergedEntries[id]) mergedEntries[id] = deletedAt;
+    }
+    mergedTombstones[collection] = mergedEntries;
+  }
+  const tombstones = (mode === "replace"
+    ? incomingTombstones ?? {}
+    : mergedTombstones) as DeletionTombstones;
   for (const key of keys) {
+    if (key === DELETION_TOMBSTONE_KEY) {
+      localStorage.setItem(key, JSON.stringify(tombstones));
+      void writeOfflineValue(key, tombstones);
+      continue;
+    }
     const incoming = payload.data[key];
     if (mode === "replace") {
       if (incoming == null) {
         localStorage.removeItem(key);
         void writeOfflineValue(key, null);
       } else {
-        localStorage.setItem(key, JSON.stringify(incoming));
-        void writeOfflineValue(key, incoming);
+        const restored = applyDeletionTombstones(key, incoming, tombstones);
+        localStorage.setItem(key, JSON.stringify(restored));
+        void writeOfflineValue(key, restored);
       }
     } else if (incoming != null) {
-      const merged = mergeValues(read(key), incoming);
+      const merged = applyDeletionTombstones(key, mergeValues(read(key), incoming), tombstones);
       localStorage.setItem(key, JSON.stringify(merged));
       void writeOfflineValue(key, merged);
     }
