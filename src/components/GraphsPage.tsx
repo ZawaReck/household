@@ -418,7 +418,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const [investmentChartMode, setInvestmentChartMode] = React.useState<"area" | "profit" | "pie">("area");
   const [investmentPeriodMonths, setInvestmentPeriodMonths] = React.useState<"3" | "6" | "12" | "all">("12");
 
-  const [portfolioMonthKey, setPortfolioMonthKey] = React.useState(currentMonthKey);
+  const [portfolioMonthKey, setPortfolioMonthKey] = React.useState(() => {
+    const requested = new URLSearchParams(window.location.search).get("month") ?? "";
+    return /^\d{4}-\d{2}$/.test(requested) ? requested : currentMonthKey;
+  });
   const [portfolioBalanceDate, setPortfolioBalanceDate] = React.useState(todayISO);
   const [accountActualState, setAccountActualState] = React.useState(() =>
     loadAccountActualState()

@@ -123,11 +123,16 @@ const getJstParts = (timestamp: number) => {
 };
 const lastDay = (year: number, month: number) => new Date(Date.UTC(year, month, 0)).getUTCDate();
 const pad = (value: number) => String(value).padStart(2, "0");
-const reminderMonth = (timestamp: number) => {
+const latestReminderMonth = (timestamp: number) => {
   const current = getJstParts(timestamp);
   if (current.day === lastDay(current.year, current.month)) return `${current.year}-${pad(current.month)}`;
   const previous = current.month === 1 ? { year: current.year - 1, month: 12 } : { year: current.year, month: current.month - 1 };
   return `${previous.year}-${pad(previous.month)}`;
+};
+const nextMonth = (month: string) => {
+  const year = Number(month.slice(0, 4));
+  const value = Number(month.slice(5, 7));
+  return value === 12 ? `${year + 1}-01` : `${year}-${pad(value + 1)}`;
 };
 
 const needsMonthEndUpdate = (records: Record<string, unknown>, month: string) => {
@@ -138,7 +143,9 @@ const needsMonthEndUpdate = (records: Record<string, unknown>, month: string) =>
   const transactions = Array.isArray(records.transactions) ? records.transactions as Array<Record<string, unknown>> : [];
   const snapshot = investmentState?.snapshots?.find((item) => item.date === monthEnd);
   return accounts.some((account) => {
-    if (!account.isActive || String(account.openingDate ?? "") > monthEnd) return false;
+    const disabledAt = String(account.disabledAt ?? "");
+    const activeAtMonthEnd = Boolean(account.isActive) || Boolean(disabledAt && disabledAt > monthEnd);
+    if (!activeAtMonthEnd || String(account.openingDate ?? "") > monthEnd) return false;
     if (account.kind === "investment") return snapshot?.values?.[String(account.id)] == null;
     const accountName = String(account.name);
     const confirmed = (actualState?.confirmedByMonth?.[month] ?? []).includes(accountName);
@@ -158,15 +165,27 @@ const needsMonthEndUpdate = (records: Record<string, unknown>, month: string) =>
   });
 };
 
+const oldestIncompleteMonth = (records: Record<string, unknown>, latestMonth: string) => {
+  const accounts = Array.isArray(records["accounts.v1"]) ? records["accounts.v1"] as Array<Record<string, unknown>> : [];
+  const openingMonths = accounts.map((account) => String(account.openingDate ?? "").slice(0, 7)).filter((month) => /^\d{4}-\d{2}$/.test(month)).sort();
+  let month = openingMonths[0] ?? latestMonth;
+  while (month <= latestMonth) {
+    if (needsMonthEndUpdate(records, month)) return month;
+    month = nextMonth(month);
+  }
+  return null;
+};
+
 const sendMonthEndReminders = async (controller: ScheduledController, env: Env) => {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return;
   const subscriptions = await env.DB.prepare("SELECT user_id, endpoint, subscription_json FROM push_subscriptions").all();
-  const month = reminderMonth(controller.scheduledTime);
+  const latestMonth = latestReminderMonth(controller.scheduledTime);
   webpush.setVapidDetails(env.VAPID_SUBJECT, env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY);
   for (const row of subscriptions.results) {
     const recordRows = await env.DB.prepare("SELECT record_key, value_json FROM sync_records WHERE user_id = ? AND deleted_at IS NULL").bind(row.user_id).all();
     const records = Object.fromEntries(recordRows.results.map((record) => [String(record.record_key), record.value_json == null ? null : JSON.parse(String(record.value_json))]));
-    if (!needsMonthEndUpdate(records, month)) continue;
+    const month = oldestIncompleteMonth(records, latestMonth);
+    if (!month) continue;
     try {
       await webpush.sendNotification(JSON.parse(String(row.subscription_json)), JSON.stringify({ title: "家計簿 月末更新", body: `${month}の残高更新が未完了です。`, url: "/graphs?tab=portfolio" }));
     } catch (error) {
