@@ -856,27 +856,47 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     return { name: acc, value: portfolioDisplayValues[acc] ?? 0 };
   });
 
+  const portfolioChartRegularAccountNames = React.useMemo(() => {
+    const masterNames = new Set(accountMaster.map((account) => account.name));
+    const names = new Set(accountMaster
+      .filter((account) => account.kind !== "credit_card" && account.kind !== "investment")
+      .map((account) => account.name));
+    transactions.forEach((transaction) => {
+      if (transaction.source && !masterNames.has(transaction.source)) names.add(transaction.source);
+      if (transaction.destination && !masterNames.has(transaction.destination)) names.add(transaction.destination);
+    });
+    return Array.from(names).sort();
+  }, [accountMaster, transactions]);
+  const portfolioChartInvestmentAccounts = React.useMemo(
+    () => accountMaster.filter((account) => account.kind === "investment"),
+    [accountMaster],
+  );
+  const portfolioChartAccountNames = React.useMemo(
+    () => [...portfolioChartRegularAccountNames, ...portfolioChartInvestmentAccounts.map((account) => account.name)],
+    [portfolioChartInvestmentAccounts, portfolioChartRegularAccountNames],
+  );
+
   const portfolioMonths = Array.from(new Set([
     ...allMonthKeys,
     ...investmentSnapshots.map((snapshot) => getMonthKey(snapshot.date)),
+    ...accountMaster.map((account) => getMonthKey(account.openingDate)),
+    ...accountMaster.flatMap((account) => account.disabledAt ? [getMonthKey(account.disabledAt)] : []),
   ])).sort();
   const portfolioRange = listMonthKeysBetween(portfolioMonths[0], portfolioMonths[portfolioMonths.length - 1]);
   const portfolioAreaData = portfolioRange.map((month) => {
     const asOf = monthEndISO(month);
-    const balances = calcRegularBalances(transactions, asOf);
-    const snapshot = [...investmentSnapshots]
-      .filter((item) => item.date <= asOf)
-      .sort((a, b) => b.date.localeCompare(a.date))[0];
-    portfolioInvestmentAccounts.forEach((account) => {
-      balances[account.name] = isAccountVisibleOn(account, asOf)
-        ? snapshot?.values[account.id] ?? account.openingBalance
-        : 0;
+    const fallback = calcAccountBalancesAsOf(transactions, asOf, portfolioChartRegularAccountNames);
+    const balances = Object.fromEntries(portfolioChartRegularAccountNames.map((name) => {
+      const account = accountMaster.find((item) => item.name === name && item.kind !== "credit_card" && item.kind !== "investment");
+      return [name, account
+        ? isAccountVisibleOn(account, asOf) ? accountBalanceAsOf(account, transactions, asOf) : 0
+        : fallback[name] ?? 0];
+    }));
+    portfolioChartInvestmentAccounts.forEach((account) => {
+      balances[account.name] = isAccountVisibleOn(account, asOf) ? investmentValueAt(account, asOf) : 0;
     });
     const point: Record<string, number | string> = { month };
-    accountNames.forEach((acc) => {
-      const master = accountMaster.find((account) => account.name === acc);
-      point[acc] = master && !isAccountVisibleOn(master, asOf) ? 0 : balances[acc] ?? 0;
-    });
+    portfolioChartAccountNames.forEach((account) => { point[account] = balances[account] ?? 0; });
     return point;
   });
   const selectedInvestmentSnapshotIsExact = portfolioInvestmentAccounts.length === 0 || investmentSnapshots.some((snapshot) => snapshot.date === portfolioAsOf);
@@ -1647,9 +1667,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
           </div>
           <div className="card chart-card">
             <div className="chart-header-actions"><h3>{portfolioChartMode === "pie" ? "口座別構成" : "口座別残高推移"}</h3><div className="toggle-group"><button type="button" className={portfolioChartMode === "pie" ? "active" : ""} onClick={() => setPortfolioChartMode("pie")}>円</button><button type="button" className={portfolioChartMode === "stacked" ? "active" : ""} onClick={() => setPortfolioChartMode("stacked")}>積上</button></div></div>
-            {portfolioPieData.length === 0 ? (
+            {portfolioChartMode === "pie" ? (portfolioPieData.length === 0 ? (
               <p className="muted">データがありません。</p>
-            ) : portfolioChartMode === "pie" ? (
+            ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
                   <Pie
@@ -1668,6 +1688,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
+            )) : portfolioChartAccountNames.length === 0 ? (
+              <p className="muted">データがありません。</p>
             ) : (
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={portfolioAreaData}>
@@ -1676,7 +1698,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   <YAxis />
                   <Tooltip formatter={(value) => formatYen(value)} />
                   <Legend />
-                  {accountNames.map((account, idx) => (
+                  {portfolioChartAccountNames.map((account, idx) => (
                     <Bar
                       key={account}
                       dataKey={account}
