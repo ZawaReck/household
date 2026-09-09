@@ -6,10 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "cf:typegen": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply household --local",
+    "db:migrate:remote": "wrangler d1 migrations apply household --remote",
+    "deploy": "npm run build && wrangler deploy",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "jose": "^6.2.12",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.11.0",
@@ -27,6 +32,7 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.34.1",
     "vite": "^6.3.5",
-    "vite-plugin-pwa": "^1.0.0"
+    "vite-plugin-pwa": "^1.0.0",
+    "wrangler": "^4.130.0"
   }
 }
