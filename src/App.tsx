@@ -1,7 +1,7 @@
 /* src/App.tsx */
 
 import React, {useState, useEffect} from "react";
-import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, NavLink } from "react-router-dom";
 import { InputForm } from "./components/InputForm";
 import { DashboardPage } from "./components/DashboardPage";
 import { GraphsPage } from "./components/GraphsPage";
@@ -101,10 +101,9 @@ export const App: React.FC = () => {
 			<div className="app-container">
       <header>
         <nav className="nav-menu">
-          <button type="button" onClick={() => setIsSettingsOpen(true)}>☰</button>
-          <Link to="/">ダッシュボード</Link>
-          {/* <Link to="/add">記入</Link> */}
-          <Link to="/graphs">グラフ</Link>
+          <button className="settings-trigger" type="button" aria-label="設定" onClick={() => setIsSettingsOpen(true)}>☰</button>
+          <NavLink to="/">入力・ダッシュボード</NavLink>
+          <NavLink to="/graphs">グラフ</NavLink>
         </nav>
       </header>
 
@@ -162,6 +161,12 @@ export const App: React.FC = () => {
         } />
         </Routes>
       </main>
+      <nav className="mobile-bottom-nav" aria-label="メインナビゲーション">
+        <NavLink to="/add">入力</NavLink>
+        <NavLink to="/">カレンダー</NavLink>
+        <NavLink to="/graphs">グラフ</NavLink>
+      </nav>
+      <button className="mobile-settings-trigger" type="button" aria-label="設定" onClick={() => setIsSettingsOpen(true)}>☰</button>
     </div>
   </Router>
   );
