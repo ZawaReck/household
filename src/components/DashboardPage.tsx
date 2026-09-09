@@ -11,6 +11,7 @@ import { TransactionHistory } from "./TransactionHistory";
 import { HistorySearch } from "./HistorySearch";
 import { MonthEndReminder } from "./MonthEndReminder";
 import { isIncludedInRegularAnalytics } from "../utils/analytics";
+import { localDateISO } from "../utils/date";
 import './DashboardPage.css';
 
 interface Props {
@@ -58,7 +59,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 		}, 0);
 
 		const [selectedDate, setSelectedDate] = React.useState(
-			new Date().toISOString().slice(0, 10)
+			localDateISO()
 		);
 
 	const confirmDiscardEdit = () => !isEditingDirty || window.confirm("保存していない編集内容を破棄しますか？");

@@ -1,8 +1,9 @@
 import type { Account, AccountKind } from "../types/Account";
 import { safeLoadJSON, safeSaveJSON } from "./storage";
+import { localDateISO } from "../utils/date";
 
 const STORAGE_KEY = "accounts.v1";
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => localDateISO();
 
 type Seed = { id: string; name: string; kind: AccountKind; creditCard?: boolean };
 

@@ -1,11 +1,12 @@
 import React from "react";
 import type { Account } from "../types/Account";
 import type { ScheduledMove, ScheduledMoveFrequency, ScheduledMoveRevision } from "../types/ScheduledMove";
+import { localDateISO } from "../utils/date";
 import "./AccountSettings.css";
 
 type Props = { accounts: Account[]; schedules: ScheduledMove[]; onChange: (schedules: ScheduledMove[]) => void };
-const today = () => new Date().toISOString().slice(0, 10);
-const tomorrow = () => { const date = new Date(); date.setDate(date.getDate() + 1); return date.toISOString().slice(0, 10); };
+const today = () => localDateISO();
+const tomorrow = () => { const date = new Date(); date.setDate(date.getDate() + 1); return localDateISO(date); };
 const emptyRevision = (accounts: Account[]): ScheduledMoveRevision => ({
   effectiveFrom: today(), source: accounts[0]?.name ?? "", destination: accounts[1]?.name ?? "",
   amount: 0, name: "積立", frequency: "monthly", executionDay: 1,
@@ -44,7 +45,7 @@ export const ScheduledMoveSettings: React.FC<Props> = ({ accounts, schedules, on
       if (item.id !== schedule.id) return item;
       if (item.isActive) {
         const periods = item.activePeriods.map((period, index) => index === item.activePeriods.length - 1 && !period.end
-          ? { ...period, end: (() => { const date = new Date(`${day}T00:00:00`); date.setDate(date.getDate() - 1); return date.toISOString().slice(0, 10); })() }
+          ? { ...period, end: (() => { const date = new Date(`${day}T00:00:00`); date.setDate(date.getDate() - 1); return localDateISO(date); })() }
           : period);
         return { ...item, isActive: false, activePeriods: periods, updatedAt: new Date().toISOString() };
       }

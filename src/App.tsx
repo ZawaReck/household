@@ -11,6 +11,7 @@ import { CsvImportSettings } from "./components/CsvImportSettings";
 import { BackupSettings } from "./components/BackupSettings";
 import { LogoutSettings } from "./components/LogoutSettings";
 import { NotificationSettings } from "./components/NotificationSettings";
+import { localDateISO } from "./utils/date";
 import { ScheduledMoveSettings } from "./components/ScheduledMoveSettings";
 import { recordDeletedIds, restoreDeletedId } from "./data/deletionStore";
 import type { Transaction } from "./types/Transaction";
@@ -284,7 +285,7 @@ export const App: React.FC = () => {
   };
 
   const [selectedDate] = React.useState(
-    new Date().toISOString().slice(0, 10)
+    localDateISO()
   );
 
 

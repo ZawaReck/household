@@ -8,6 +8,7 @@ import type { Category } from "../types/Category";
 import type { InputDraft } from "../types/InputDraft";
 import { expenseCategoryOptions, incomeCategoryOptions } from "../data/categoryOptions";
 import { hydrateInputDraftsFromIndexedDB, loadInputDrafts, saveInputDrafts } from "../data/inputDraftStore";
+import { localDateISO } from "../utils/date";
 import { loadBudgets } from "../data/budgetStore";
 import { getMonthKey, isIncludedInRegularAnalytics, sumExpenseByCategoryAllocatedTax } from "../utils/analytics";
 import { WheelPickerInline } from "./WheelPickerInline";
@@ -68,7 +69,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   const activeGroupDate = activeGroupDateProp ?? localActiveGroupDate;
   const setActiveGroupDate = setActiveGroupDateProp ?? setLocalActiveGroupDate;
 
-  const todayISO = () => new Date().toISOString().slice(0, 10);
+  const todayISO = () => localDateISO();
 
   const handleTabClick = (nextType: "expense" | "income" | "move") => {
     setEditingTransaction(null);

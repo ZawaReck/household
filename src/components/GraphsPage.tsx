@@ -51,6 +51,7 @@ import {
 import { PeriodFilter } from "./PeriodFilter";
 import type { PeriodValue } from "./PeriodFilter";
 import { accountBalanceAsOf, creditCardOutstandingAsOf } from "../utils/accountBalances";
+import { localDateISO } from "../utils/date";
 import "./GraphsPage.css";
 
 interface Props {
@@ -89,7 +90,6 @@ const transactionDisplayAmount = (transaction: Transaction) => {
 };
 const isAccountVisibleOn = (account: Account, date: string) =>
   account.openingDate <= date && (account.isActive || Boolean(account.disabledAt && date < account.disabledAt));
-const localDateISO = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const sortByDefaultCategoryOrder = (
   items: Array<{ name: string; value: number }>,
@@ -406,7 +406,7 @@ const CategoryMonthlyTrendChart: React.FC<{
 };
 
 export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactions, onShowFutureTransactionsChange, includeExcludedAnalytics, onIncludeExcludedAnalyticsChange, setTransactions, accounts: accountMaster, categories }) => {
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = localDateISO();
   const currentMonthKey = getMonthKey(todayISO);
   const allMonthKeys = getMonthKeysFromTransactions(transactions, currentMonthKey);
   const currentYear = currentMonthKey.slice(0, 4);

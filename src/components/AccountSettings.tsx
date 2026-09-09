@@ -8,6 +8,7 @@ import {
   hasFutureAutomaticCardPayment,
 } from "../utils/accountBalances";
 import "./AccountSettings.css";
+import { localDateISO } from "../utils/date";
 
 type Props = {
   accounts: Account[];
@@ -23,7 +24,7 @@ const kindLabels: Record<AccountKind, string> = {
   credit_card: "クレジットカード",
 };
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => localDateISO();
 
 const newAccount = (): Account => {
   const now = new Date().toISOString();

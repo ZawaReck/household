@@ -24,6 +24,12 @@ export const formatISODate = ({ year, month, day }: DateParts) => {
   return `${y}-${m}-${d}`;
 };
 
+export const localDateISO = (date = new Date()) => formatISODate({
+  year: date.getFullYear(),
+  month: date.getMonth() + 1,
+  day: date.getDate(),
+});
+
 export const parseISODate = (value: string): DateParts | null => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const [y, m, d] = value.split("-").map((v) => Number(v));

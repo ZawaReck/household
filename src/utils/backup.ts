@@ -1,5 +1,6 @@
 import { applyDeletionTombstones, DELETION_TOMBSTONE_KEY, type DeletionTombstones } from "../data/deletionStore";
 import { getOrCreateDataEpoch, rotateDataEpoch } from "../data/dataEpoch";
+import { localDateISO } from "./date";
 
 export type BackupPayload = { version: 1; exportedAt: string; dataEpoch: string; data: Record<string, unknown> };
 export type RestoreMode = "replace" | "merge";
@@ -10,7 +11,7 @@ export const buildBackup = (): BackupPayload => ({ version: 1, exportedAt: new D
 export const downloadBackup = () => {
   const blob = new Blob([JSON.stringify(buildBackup(), null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob); const link = document.createElement("a");
-  link.href = url; link.download = `household-backup-${new Date().toISOString().slice(0, 10)}.json`; link.click(); URL.revokeObjectURL(url);
+  link.href = url; link.download = `household-backup-${localDateISO()}.json`; link.click(); URL.revokeObjectURL(url);
 };
 
 const timestamp = (value: unknown) => {
