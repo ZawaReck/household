@@ -280,6 +280,7 @@ export const App: React.FC = () => {
               monthlyData={visibleTransactions}
               accounts={accounts}
               categories={categories}
+              draftScope="input"
           />
         } />
 

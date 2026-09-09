@@ -54,14 +54,7 @@ export const sumIncomeExpenseByMonth = (
   });
 };
 
-const calcItemTaxWeight = (t: Transaction) => {
-  const base = Number(t.taxBaseAmount ?? t.amount ?? 0);
-  const rate = Number(t.taxRate ?? 0);
-  if (!Number.isFinite(base) || !Number.isFinite(rate)) return 0;
-  const gross = Math.floor(base * (1 + rate / 100));
-  const tax = gross - base;
-  return tax > 0 ? tax : 0;
-};
+const normalizeAnalyticsTaxRate = (rate: unknown) => rate === 8 || rate === 10 ? rate : 0;
 
 export const sumExpenseByCategoryAllocatedTax = (
   transactions: Transaction[],
@@ -72,43 +65,35 @@ export const sumExpenseByCategoryAllocatedTax = (
   );
   const expenses = monthTx.filter((t) => t.type === "expense");
   const baseItems = expenses.filter((t) => t.isTaxAdjustment !== true);
-  const taxItems = expenses.filter((t) => t.isTaxAdjustment === true);
-
   const categoryMap = new Map<string, number>();
-
+  const grouped = new Map<string, Transaction[]>();
   for (const item of baseItems) {
     if (item.category === "外税") continue;
-    const key = item.category || "未分類";
-    categoryMap.set(key, (categoryMap.get(key) ?? 0) + item.amount);
+    const key = item.groupId ?? `item:${item.id}`;
+    grouped.set(key, [...(grouped.get(key) ?? []), item]);
   }
 
-  for (const adj of taxItems) {
-    if (!adj.groupId) continue;
-    const groupItems = baseItems.filter((t) => t.groupId === adj.groupId);
-    if (groupItems.length === 0) continue;
-
-    const weights = groupItems.map((t) => calcItemTaxWeight(t));
-    let weightTotal = weights.reduce((sum, v) => sum + v, 0);
-    if (weightTotal <= 0) {
-      weights.splice(0, weights.length, ...groupItems.map((t) => Number(t.taxBaseAmount ?? t.amount ?? 0)));
-      weightTotal = weights.reduce((sum, v) => sum + v, 0);
+  for (const items of grouped.values()) {
+    const isExternal = items.some((item) => item.taxMode === "exclusive");
+    if (!isExternal) {
+      items.forEach((item) => {
+        const category = item.category || "未分類";
+        categoryMap.set(category, (categoryMap.get(category) ?? 0) + item.amount);
+      });
+      continue;
     }
-    if (weightTotal <= 0) continue;
 
-    const taxTotal = Number(adj.amount ?? 0);
-    let allocated = 0;
-    groupItems.forEach((item, idx) => {
+    const bases = new Map<string, number>();
+    items.forEach((item) => {
       const category = item.category || "未分類";
-      if (category === "外税") return;
-      const weight = weights[idx];
-      let share = 0;
-      if (idx === groupItems.length - 1) {
-        share = taxTotal - allocated;
-      } else {
-        share = Math.floor((taxTotal * weight) / weightTotal);
-      }
-      allocated += share;
-      categoryMap.set(category, (categoryMap.get(category) ?? 0) + share);
+      const rate = normalizeAnalyticsTaxRate(item.taxRate);
+      const key = `${category}\u0000${rate}`;
+      bases.set(key, (bases.get(key) ?? 0) + Number(item.taxBaseAmount ?? item.amount ?? 0));
+    });
+    bases.forEach((base, key) => {
+      const [category, rateText] = key.split("\u0000");
+      const gross = Math.floor(base * (1 + Number(rateText) / 100));
+      categoryMap.set(category, (categoryMap.get(category) ?? 0) + gross);
     });
   }
 

@@ -137,6 +137,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 					monthlyData={monthlyData}
 					accounts={props.accounts}
 					categories={props.categories}
+					draftScope={`calendar:${selectedDate}`}
 					activeGroupId={activeGroupId}
 					setActiveGroupId={setActiveGroupId}
 					activeGroupDate={activeGroupDate}

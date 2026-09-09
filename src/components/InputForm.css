@@ -693,3 +693,62 @@
   font-weight: 800;
   opacity: 0.75;
 }
+.draft-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.45rem;
+  align-items: end;
+  margin-bottom: 0.65rem;
+}
+
+.draft-controls label {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: #647168;
+}
+
+.draft-controls select,
+.draft-controls button {
+  min-height: 36px;
+}
+
+.input-budget-progress {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.55rem 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  background: #f2f6f2;
+}
+
+.input-budget-row,
+.input-budget-row > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.input-budget-row > div {
+  grid-template-columns: 1fr auto;
+  font-size: 0.75rem;
+}
+
+.input-budget-row progress {
+  width: 100%;
+  height: 7px;
+  accent-color: #4f8a68;
+}
+
+.input-budget-row progress.is-over {
+  accent-color: #c84b4b;
+}
+
+.input-budget-row small {
+  text-align: right;
+  color: #647168;
+}
+
+.input-budget-row small.is-over {
+  color: #b83232;
+}

@@ -5,7 +5,11 @@ import type { Transaction } from "../types/Transaction";
 import type { TaxMode, TaxRate, TransactionClassification } from "../types/Transaction";
 import type { Account } from "../types/Account";
 import type { Category } from "../types/Category";
+import type { InputDraft } from "../types/InputDraft";
 import { expenseCategoryOptions, incomeCategoryOptions } from "../data/categoryOptions";
+import { hydrateInputDraftsFromIndexedDB, loadInputDrafts, saveInputDrafts } from "../data/inputDraftStore";
+import { loadBudgets } from "../data/budgetStore";
+import { getMonthKey, isIncludedInRegularAnalytics, sumExpenseByCategoryAllocatedTax } from "../utils/analytics";
 import { WheelPickerInline } from "./WheelPickerInline";
 import { DateWheelPicker } from "./DateWheelPicker";
 import "./InputForm.css";
@@ -25,6 +29,7 @@ interface InputFormProps {
   setActiveGroupId?: (groupId: string | null) => void;
   activeGroupDate?: string | null;
   setActiveGroupDate?: (date: string | null) => void;
+  draftScope?: string;
 }
 
 type DraftTx = Omit<Transaction, "id">;
@@ -47,6 +52,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   setActiveGroupId: setActiveGroupIdProp,
   activeGroupDate: activeGroupDateProp,
   setActiveGroupDate: setActiveGroupDateProp,
+  draftScope = "input",
 }) => {
   const [type, setType] = React.useState<"expense" | "income" | "move">("expense");
 
@@ -63,11 +69,9 @@ export const InputForm: React.FC<InputFormProps> = ({
   const handleTabClick = (nextType: "expense" | "income" | "move") => {
     setEditingTransaction(null);
     setEditingReceiptIndex(null);
-    setReceiptItems([]);
     setActiveGroupId(null);
     setActiveGroupDate(null);
-    setType(nextType);
-    resetForm(nextType, { dateValue: todayISO() });
+    switchDraftType(nextType);
   };
 
   const activeAccountNames = React.useMemo(
@@ -118,6 +122,103 @@ export const InputForm: React.FC<InputFormProps> = ({
   // レシート仮置き
   const [receiptItems, setReceiptItems] = React.useState<DraftTx[]>([]);
   const [editingReceiptIndex, setEditingReceiptIndex] = React.useState<number | null>(null);
+  const [savedDrafts, setSavedDrafts] = React.useState<InputDraft[]>(() => loadInputDrafts());
+  const [activeDraftId, setActiveDraftId] = React.useState("");
+  const isApplyingDraft = React.useRef(false);
+
+  const applySavedDraft = React.useCallback((draft: InputDraft) => {
+    isApplyingDraft.current = true;
+    setActiveDraftId(draft.id);
+    setType(draft.type);
+    setAmount(draft.amount);
+    setDate(draft.date);
+    setName(draft.name);
+    setCategory(draft.category);
+    setSource(draft.source);
+    setSourceMove(draft.sourceMove);
+    setDestination(draft.destination);
+    setMemo(draft.memo);
+    setClassification(draft.classification);
+    setMoveFee(draft.moveFee);
+    setEntryMode(draft.entryMode);
+    setIsExternalTax(draft.entryMode === "receipt_exclusive");
+    setTaxRate(draft.taxRate);
+    setReceiptItems(draft.receiptItems);
+    setEditingReceiptIndex(null);
+    queueMicrotask(() => { isApplyingDraft.current = false; });
+  }, []);
+
+  const startEmptyDraft = React.useCallback((nextType: Transaction["type"] = "expense") => {
+    isApplyingDraft.current = true;
+    setActiveDraftId(`draft_${crypto.randomUUID()}`);
+    setType(nextType);
+    setAmount("");
+    setDate(selectedDate);
+    setName("");
+    setCategory(nextType === "income" ? defaultIncomeCategory : defaultExpenseCategory);
+    setSource(defaultSource);
+    setSourceMove(defaultMoveSource);
+    setDestination(defaultMoveDestination);
+    setMemo("");
+    setClassification("normal");
+    setMoveFee("");
+    setReceiptItems([]);
+    setEditingReceiptIndex(null);
+    setEntryMode("individual");
+    setIsExternalTax(false);
+    setTaxRate(10);
+    queueMicrotask(() => { isApplyingDraft.current = false; });
+  }, [defaultExpenseCategory, defaultIncomeCategory, defaultMoveDestination, defaultMoveSource, defaultSource, selectedDate]);
+
+  React.useEffect(() => {
+    if (editingTransaction || activeGroupId) return;
+    let cancelled = false;
+    void hydrateInputDraftsFromIndexedDB().then((all) => {
+      if (cancelled) return;
+      setSavedDrafts(all);
+      const latest = all
+        .filter((draft) => draft.scope === draftScope)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+      if (latest) applySavedDraft(latest);
+      else startEmptyDraft("expense");
+    });
+    return () => { cancelled = true; };
+  }, [draftScope]);
+
+  React.useEffect(() => {
+    if (editingTransaction || activeGroupId || isApplyingDraft.current || !activeDraftId) return;
+    const hasContent = Boolean(amount || name || memo || moveFee || receiptItems.length);
+    if (!hasContent) return;
+    const nextDraft: InputDraft = {
+      id: activeDraftId, scope: draftScope, type, amount, date, name, category, source,
+      sourceMove, destination, memo, classification, moveFee, entryMode, taxRate,
+      receiptItems, updatedAt: new Date().toISOString(),
+    };
+    setSavedDrafts((current) => {
+      const next = current.some((draft) => draft.id === activeDraftId)
+        ? current.map((draft) => draft.id === activeDraftId ? nextDraft : draft)
+        : [...current, nextDraft];
+      saveInputDrafts(next);
+      return next;
+    });
+  }, [activeDraftId, activeGroupId, amount, category, classification, date, destination, draftScope, editingTransaction, entryMode, memo, moveFee, name, receiptItems, source, sourceMove, taxRate, type]);
+
+  const discardActiveDraft = (ask = true) => {
+    if (ask && savedDrafts.some((draft) => draft.id === activeDraftId) && !window.confirm("この下書きを破棄しますか？")) return false;
+    const next = savedDrafts.filter((draft) => draft.id !== activeDraftId);
+    setSavedDrafts(next);
+    saveInputDrafts(next);
+    startEmptyDraft(type);
+    return true;
+  };
+
+  const switchDraftType = (nextType: Transaction["type"]) => {
+    const latest = savedDrafts
+      .filter((draft) => draft.scope === draftScope && draft.type === nextType)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    if (latest) applySavedDraft(latest);
+    else startEmptyDraft(nextType);
+  };
 
   const receiptBaseTotal = React.useMemo(
     () => receiptItems.reduce((sum, t) => sum + (t.amount || 0), 0),
@@ -438,6 +539,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   const copyEditingRecord = () => {
     if (!editingTransaction || editingTransaction.system) return;
     const copyDate = todayISO();
+    setActiveDraftId(`draft_${crypto.randomUUID()}`);
     const groupId = editingTransaction.groupId;
     const groupItems = groupId
       ? monthlyData.filter((transaction) => transaction.groupId === groupId && !transaction.isTaxAdjustment)
@@ -664,7 +766,10 @@ export const InputForm: React.FC<InputFormProps> = ({
 
     setReceiptItems([]);
     setEditingReceiptIndex(null);
-    resetForm(type, { keepDate: true });
+    const remainingDrafts = savedDrafts.filter((draft) => draft.id !== activeDraftId);
+    setSavedDrafts(remainingDrafts);
+    saveInputDrafts(remainingDrafts);
+    startEmptyDraft(type);
   };
 
   const calcTaxedAmount = (base: number, rate: TaxRate) => {
@@ -720,6 +825,57 @@ export const InputForm: React.FC<InputFormProps> = ({
     );
   };
 
+  const budgetMonth = getMonthKey(date);
+  const effectiveBudget = [...loadBudgets()]
+    .filter((entry) => entry.month <= budgetMonth)
+    .sort((a, b) => b.month.localeCompare(a.month))[0]?.byCategory ?? {};
+  const activeExpenseCategories = new Set(categories.filter((item) => item.type === "expense" && item.isActive).map((item) => item.name));
+  const totalBudget = Object.entries(effectiveBudget)
+    .filter(([budgetCategory, value]) => activeExpenseCategories.has(budgetCategory) && value > 0)
+    .reduce((sum, [, value]) => sum + value, 0);
+  const actualCategoryMap = Object.fromEntries(
+    sumExpenseByCategoryAllocatedTax(monthlyData, budgetMonth).map((item) => [item.category, item.value])
+  );
+  const actualTotal = monthlyData
+    .filter((transaction) => transaction.type === "expense" && getMonthKey(transaction.date) === budgetMonth && isIncludedInRegularAnalytics(transaction))
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  let pendingItems = receiptItems;
+  if (type === "expense" && hasFormDraft()) {
+    const current = buildDraft();
+    pendingItems = editingReceiptIndex == null
+      ? [...receiptItems, current]
+      : receiptItems.map((item, index) => index === editingReceiptIndex ? current : item);
+  }
+  pendingItems = pendingItems.filter((item) => (item.classification ?? "normal") === "normal");
+  const pendingByCategory = new Map<string, number>();
+  if (type === "expense") {
+    if (entryMode === "receipt_exclusive") {
+      const bases = new Map<string, number>();
+      pendingItems.forEach((item) => {
+        const key = `${item.category}\u0000${normalizeTaxRate(item.taxRate)}`;
+        bases.set(key, (bases.get(key) ?? 0) + item.amount);
+      });
+      bases.forEach((base, key) => {
+        const [pendingCategory, rate] = key.split("\u0000");
+        pendingByCategory.set(pendingCategory, (pendingByCategory.get(pendingCategory) ?? 0) + Math.floor(base * (1 + Number(rate) / 100)));
+      });
+    } else {
+      pendingItems.forEach((item) => pendingByCategory.set(item.category, (pendingByCategory.get(item.category) ?? 0) + item.amount));
+    }
+  }
+  const pendingTotal = type === "expense"
+    ? (entryMode === "receipt_exclusive" ? calcExternalGross(pendingItems).gross : pendingItems.reduce((sum, item) => sum + item.amount, 0))
+    : 0;
+  const categoryBudget = effectiveBudget[category];
+  const projectedCategoryActual = (actualCategoryMap[category] ?? 0) + (pendingByCategory.get(category) ?? 0);
+  const projectedTotalActual = actualTotal + pendingTotal;
+
+  const BudgetProgress = ({ label, actual, budget }: { label: string; actual: number; budget?: number }) => {
+    const rate = budget && budget > 0 ? (actual / budget) * 100 : null;
+    const remaining = budget != null ? budget - actual : null;
+    return <div className="input-budget-row"><div><span>{label}</span><span>{actual.toLocaleString()} / {budget ? budget.toLocaleString() : "未設定"}円</span></div>{rate != null && remaining != null && <><progress max={100} value={Math.min(rate, 100)} className={rate > 100 ? "is-over" : ""} /><small className={rate > 100 ? "is-over" : ""}>{rate.toFixed(1)}%・残り {remaining.toLocaleString()}円</small></>}</div>;
+  };
+
   if (editingTransaction?.system?.kind === "card_payment") {
     return (
       <div className="input-form system-move-editor">
@@ -743,6 +899,29 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   return (
     <div className="input-form">
+      {!editingTransaction && !activeGroupId && (
+        <div className="draft-controls">
+          <label>
+            下書き
+            <select value={activeDraftId} onChange={(event) => {
+              const selected = savedDrafts.find((draft) => draft.id === event.target.value);
+              if (selected) applySavedDraft(selected);
+            }}>
+              {!savedDrafts.some((draft) => draft.id === activeDraftId) && <option value={activeDraftId}>新規</option>}
+              {savedDrafts
+                .filter((draft) => draft.scope === draftScope)
+                .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+                .map((draft) => (
+                  <option key={draft.id} value={draft.id}>
+                    {draft.date}・{draft.type === "expense" ? "Out" : draft.type === "income" ? "In" : "Move"}・{draft.name || draft.memo || "入力途中"}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <button type="button" onClick={() => startEmptyDraft(type)}>新規</button>
+          <button type="button" onClick={() => discardActiveDraft(true)}>破棄</button>
+        </div>
+      )}
       <div className="tab-group" style={{ "--tab-index": tabIndex } as React.CSSProperties}>
         <button className={type === "expense" ? "active" : ""} onClick={() => handleTabClick("expense")} type="button">
           Out
@@ -849,6 +1028,13 @@ export const InputForm: React.FC<InputFormProps> = ({
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {type === "expense" && (
+          <div className="input-budget-progress" aria-label="予算進捗">
+            <BudgetProgress label={category} actual={projectedCategoryActual} budget={categoryBudget} />
+            <BudgetProgress label="総額" actual={projectedTotalActual} budget={totalBudget || undefined} />
           </div>
         )}
 
