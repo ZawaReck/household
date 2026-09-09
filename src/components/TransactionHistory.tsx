@@ -296,8 +296,9 @@ export const TransactionHistory: React.FC<Props> = ({
               const x = getCurrentX(t.id);
               const gid = (t as any).groupId as string | undefined;
               const meta = gid ? groupMeta.get(gid) : null;
-              const displayAmount =
-                meta && meta.isExternal && meta.items.length === 1 ? meta.total : t.amount;
+              const displayAmount = meta?.isExternal
+                ? Math.floor(Number(t.taxBaseAmount ?? t.amount) * (1 + normalizeTaxRate(t.taxRate) / 100))
+                : t.amount;
               const showGroupTotal =
                 gid && meta && meta.items.length >= 2 && groupLastId.get(gid) === t.id;
               const isGrouped = Boolean(gid && meta && meta.items.length >= 2);

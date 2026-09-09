@@ -82,6 +82,11 @@ const formatYen = (value: unknown) => {
   return `${Math.round(Number(resolved ?? 0)).toLocaleString()}円`;
 };
 const formatYenNumber = (value: number) => `${Math.round(value).toLocaleString()}円`;
+const transactionDisplayAmount = (transaction: Transaction) => {
+  if (transaction.taxMode !== "exclusive") return transaction.amount;
+  const rate = transaction.taxRate === 8 || transaction.taxRate === 10 ? transaction.taxRate : 0;
+  return Math.floor(Number(transaction.taxBaseAmount ?? transaction.amount) * (1 + rate / 100));
+};
 const isAccountVisibleOn = (account: Account, date: string) =>
   account.openingDate <= date && (account.isActive || Boolean(account.disabledAt && date < account.disabledAt));
 const localDateISO = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -478,7 +483,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     const unique = Array.from(new Set([...activeMaster, ...fromTx]));
     return sortByDefaultCategoryOrder(unique.map((name) => ({ name, value: 0 })), expenseCategoryOptions)
       .map((item) => item.name);
-  }, [transactions, categories, inactiveExpenseCategoryNames]);
+  }, [transactions, categories, inactiveExpenseCategoryNames, includeExcludedAnalytics]);
 
   React.useEffect(() => {
     const entry = budgets.find((b) => b.month === budgetMonthKey);
@@ -870,7 +875,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     ];
     const total = items.reduce((sum, item) => sum + item.value, 0);
     return { items, total };
-  }, [transactions, categoryMonthKey, monthlyCategoryMode]);
+  }, [transactions, categoryMonthKey, monthlyCategoryMode, includeExcludedAnalytics]);
 
   React.useEffect(() => {
     if (monthlyCategorySummary.items.length === 0) {
@@ -960,6 +965,16 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     selectedCategory === "" &&
     categoryPieData.length > 0 &&
     monthlyCategorySummary.items.every((item) => item.value > 0);
+  const monthlyCategoryTransactions = selectedCategory
+    ? transactions
+        .filter((transaction) => {
+          if (getMonthKey(transaction.date) !== categoryMonthKey || transaction.isTaxAdjustment) return false;
+          if (!isIncludedInRegularAnalytics(transaction, includeExcludedAnalytics)) return false;
+          if (monthlyCategoryMode === "net") return transaction.type === (selectedCategory === "収入" ? "income" : "expense");
+          return transaction.type === monthlyCategoryMode && (transaction.category || "未分類") === selectedCategory;
+        })
+        .sort((a, b) => b.date.localeCompare(a.date))
+    : [];
   const yearlyTrendMonths = React.useMemo(
     () => listMonthKeysBetween(`${yearlyCategoryYear}-01`, `${yearlyCategoryYear}-12`),
     [yearlyCategoryYear]
@@ -1016,7 +1031,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     ];
     const total = items.reduce((sum, item) => sum + item.value, 0);
     return { items, total };
-  }, [transactions, yearlyTransactions, yearlyTrendMonths, yearlyCategoryMode]);
+  }, [transactions, yearlyTransactions, yearlyTrendMonths, yearlyCategoryMode, includeExcludedAnalytics]);
 
   React.useEffect(() => {
     if (yearlyCategorySummary.items.length === 0) {
@@ -1102,6 +1117,35 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     yearlyPieData.length > 0 &&
     yearlyCategorySummary.items.every((item) => item.value > 0);
   const yearlyOverviewSeries = sumIncomeExpenseByMonth(transactions, categoryTrendMonths, includeExcludedAnalytics);
+  const yearlyCategoryTransactions = selectedYearlyCategory
+    ? yearlyTransactions
+        .filter((transaction) => {
+          if (transaction.isTaxAdjustment || !isIncludedInRegularAnalytics(transaction, includeExcludedAnalytics)) return false;
+          if (yearlyCategoryMode === "net") return transaction.type === (selectedYearlyCategory === "収入" ? "income" : "expense");
+          return transaction.type === yearlyCategoryMode && (transaction.category || "未分類") === selectedYearlyCategory;
+        })
+        .sort((a, b) => b.date.localeCompare(a.date))
+    : [];
+
+  const renderCategoryTransactions = (items: Transaction[], title: string) => (
+    <div className="card category-transaction-card">
+      <h3>{title}</h3>
+      {items.length === 0 ? <p className="muted">該当する取引はありません。</p> : <div className="table-wrap">
+        <table>
+          <thead><tr><th>日付</th><th>摘要</th><th>カテゴリ</th><th>口座</th><th>金額</th></tr></thead>
+          <tbody>{items.map((transaction) => <tr key={transaction.id}>
+            <td>{transaction.date}</td>
+            <td>{transaction.name}</td>
+            <td>{transaction.category}</td>
+            <td>{transaction.source}</td>
+            <td className={transaction.type === "income" ? "positive" : "negative"}>
+              {transaction.type === "income" ? "+" : "−"}{formatYen(transactionDisplayAmount(transaction))}
+            </td>
+          </tr>)}</tbody>
+        </table>
+      </div>}
+    </div>
+  );
 
   React.useEffect(() => {
     if (monthlyCategoryMode !== "net") return;
@@ -1790,6 +1834,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             )}
           </div>
         </div>
+        {selectedCategory && renderCategoryTransactions(monthlyCategoryTransactions, `${categoryMonthKey} ${selectedCategory} の取引明細`)}
       </TabPanel>
       )}
 
@@ -2103,6 +2148,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             )}
           </div>
         </div>
+        {selectedYearlyCategory && renderCategoryTransactions(yearlyCategoryTransactions, `${yearlyCategoryYear}年 ${selectedYearlyCategory} の取引明細`)}
       </TabPanel>
       )}
 

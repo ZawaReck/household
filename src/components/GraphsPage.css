@@ -102,6 +102,14 @@
   min-height: 260px;
 }
 
+.category-transaction-card {
+  margin-top: 16px;
+}
+
+.category-transaction-card h3 {
+  margin-top: 0;
+}
+
 .monthly-category-layout {
   display: grid;
   grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
