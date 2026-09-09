@@ -99,6 +99,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [memo, setMemo] = React.useState("");
   const [classification, setClassification] = React.useState<TransactionClassification>("normal");
   const [destination, setDestination] = React.useState(defaultMoveDestination); // 移動先（move）
+  const [moveFee, setMoveFee] = React.useState("");
 
   useEffect(() => {
     if (!activeAccountNames.includes(source)) setSource(defaultSource);
@@ -354,6 +355,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     setSource(defaultSource);
     setSourceMove(defaultMoveSource);
     setDestination(defaultMoveDestination);
+    setMoveFee("");
     setDate(nextDate);
     setIsSourcePickerOpen(false);
     setOpenMovePicker(null);
@@ -369,6 +371,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     if (type !== "move" && name.trim() === "") return false;
     const n = parseAmount();
     if (!Number.isFinite(n) || n <= 0) return false;
+    if (type === "move" && (!sourceMove || !destination || sourceMove === destination)) return false;
     if (type === "expense" && !Number.isInteger(n)) return false;
     return true;
   };
@@ -541,9 +544,10 @@ export const InputForm: React.FC<InputFormProps> = ({
 
     const groupId = type === "expense" ? (activeGroupId ?? `g_${Date.now()}`) : undefined;
 
+    const moveRelationId = type === "move" && Number(moveFee) > 0 ? crypto.randomUUID() : undefined;
     // ★ groupId を付与して「このまとまり」を後で引けるようにする
     const baseItems = itemsToCommit.map((t) => {
-      if (t.type !== "expense") return t;
+      if (t.type !== "expense") return moveRelationId ? { ...t, relationId: moveRelationId } : t;
       if (!isExternalTax) {
         return { ...(t as any), groupId, taxMode: "inclusive" } as any;
       }
@@ -552,6 +556,13 @@ export const InputForm: React.FC<InputFormProps> = ({
     });
 
     baseItems.forEach((t) => onAddTransaction(t as any));
+
+    if (type === "move") {
+      const fee = Number(moveFee);
+      if (Number.isFinite(fee) && fee > 0) {
+        onAddTransaction({ type: "expense", amount: Math.floor(fee), date, name: "振込手数料", category: "その他", source: sourceMove, destination: "", memo: "", isSpecial: false, classification: "normal", relationId: moveRelationId });
+      }
+    }
 
     if (type === "expense" && isExternalTax) {
       const baseExpenses = baseItems.filter((x: any) => x.type === "expense");
@@ -798,6 +809,9 @@ export const InputForm: React.FC<InputFormProps> = ({
                   onClose={() => setOpenMovePicker(null)}
                 />
               )}
+            </div>
+            <div className="kv-row-under">
+              <label className="kv-value-btn"><span className="kv-label">手数料</span><input type="number" min="0" step="1" value={moveFee} onChange={(event) => setMoveFee(event.target.value)} placeholder="0" /></label>
             </div>
           </div>
         )}

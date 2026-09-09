@@ -24,6 +24,7 @@ export interface Transaction {
   classification?: TransactionClassification;
   system?: SystemTransaction;
   groupId?: string;
+  relationId?: string;
 
 taxMode?: TaxMode;
 taxRate?: TaxRate;
