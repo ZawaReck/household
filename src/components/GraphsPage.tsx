@@ -1244,13 +1244,19 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
 
   const handleSubmitSontoku = (e: React.FormEvent) => {
     e.preventDefault();
+    const amount = Number(sontokuForm.amount);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(sontokuForm.date) || !Number.isInteger(amount) || amount <= 0) {
+      window.alert("日付と、1円以上の整数金額を入力してください。");
+      return;
+    }
     const id = sontokuForm.id || `st_${crypto.randomUUID()}`;
     const entry: SontokuEntry = {
       id,
       date: sontokuForm.date,
       kind: sontokuForm.kind,
-      amount: Math.max(0, Number(sontokuForm.amount) || 0),
+      amount,
       note: sontokuForm.note || "",
+      updatedAtISO: new Date().toISOString(),
     };
     upsertSontokuEntry(entry);
     setSontokuEntries(loadSontokuEntries());
@@ -2288,11 +2294,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
 
             <div className="sontoku-cards">
               <div>
-                <span>得合計</span>
+                <span>我慢合計</span>
                 <strong>{formatYen(sontokuSummary.gain)}</strong>
               </div>
               <div>
-                <span>損合計</span>
+                <span>衝動買い合計</span>
                 <strong>{formatYen(sontokuSummary.loss)}</strong>
               </div>
               <div>
@@ -2318,8 +2324,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       <XAxis dataKey="date" />
                       <YAxis />
                       <Tooltip formatter={(value) => formatYen(value)} />
-                      <Bar dataKey="gain" name="得" fill="#59A14F" />
-                      <Bar dataKey="loss" name="損" fill="#E15759" />
+                      <Bar dataKey="gain" name="我慢" fill="#59A14F" />
+                      <Bar dataKey="loss" name="衝動買い" fill="#E15759" />
                     </BarChart>
                   </ResponsiveContainer>
                 )
@@ -2355,7 +2361,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     className={sontokuForm.kind === kind ? "active" : ""}
                     onClick={() => setSontokuForm((prev) => ({ ...prev, kind }))}
                   >
-                    {kind === "gain" ? "得" : "損"}
+                    {kind === "gain" ? "我慢（得）" : "衝動買い（損）"}
                   </button>
                 ))}
               </div>
@@ -2363,6 +2369,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 金額
                 <input
                   type="number"
+                  min="1"
+                  step="1"
                   value={sontokuForm.amount}
                   onChange={(e) =>
                     setSontokuForm((prev) => ({ ...prev, amount: Number(e.target.value) || 0 }))
@@ -2392,7 +2400,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       <div>
                         <strong>{entry.date}</strong>
                         <span className={entry.kind === "gain" ? "positive" : "negative"}>
-                          {entry.kind === "gain" ? "得" : "損"}
+                          {entry.kind === "gain" ? "我慢" : "衝動買い"}
                         </span>
                         <span>{formatYen(entry.amount)}</span>
                         <span>{entry.note}</span>

@@ -264,7 +264,7 @@ export const App: React.FC = () => {
         const amount = byCategory[previous.name];
         delete byCategory[previous.name];
         byCategory[updatedCategory.name] = amount;
-        return { ...budget, byCategory };
+        return { ...budget, byCategory, updatedAtISO: renamedAt };
       }));
     }
     setCategories((current) => {

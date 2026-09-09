@@ -16,14 +16,15 @@ export const CategorySettings: React.FC<Props> = ({ categories, onSave, onMerge 
   const [mergeSourceId, setMergeSourceId] = React.useState("");
   const [mergeTargetId, setMergeTargetId] = React.useState("");
   const add = () => {
-    if (!name.trim() || categories.some((category) => category.type === type && category.name === name.trim())) return;
+    if (!name.trim()) { window.alert("カテゴリ名を入力してください。"); return; }
+    if (categories.some((category) => category.type === type && category.name === name.trim())) { window.alert("同じ種別に同名のカテゴリがあります。"); return; }
     const now = new Date().toISOString();
     onSave({ id: crypto.randomUUID(), name: name.trim(), type, isActive: true, createdAt: now, updatedAt: now });
     setName("");
   };
   const saveEdit = () => {
-    if (!editing || !editing.name.trim()) return;
-    if (categories.some((category) => category.id !== editing.id && category.type === editing.type && category.name === editing.name.trim())) return;
+    if (!editing || !editing.name.trim()) { window.alert("カテゴリ名を入力してください。"); return; }
+    if (categories.some((category) => category.id !== editing.id && category.type === editing.type && category.name === editing.name.trim())) { window.alert("同じ種別に同名のカテゴリがあります。"); return; }
     onSave({ ...editing, name: editing.name.trim(), updatedAt: new Date().toISOString() });
     setEditing(null);
   };

@@ -6,4 +6,5 @@ export interface SontokuEntry {
   kind: "gain" | "loss";
   amount: number;
   note?: string;
+  updatedAtISO?: string;
 }
