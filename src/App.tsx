@@ -19,6 +19,8 @@ import type { Category } from "./types/Category";
 import { loadCategories, saveCategories } from "./data/categoryStore";
 import './App.css';
 
+const DELETE_UNDO_MS = 5_000;
+
 export const App: React.FC = () => {
 
 	const [transactions, setTransactions] = useState<Transaction[]>(() => {
@@ -46,6 +48,7 @@ export const App: React.FC = () => {
 
 		const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [recentlyDeleted, setRecentlyDeleted] = useState<Transaction | null>(null);
 
   const handleAddTransaction = (transaction: Omit<Transaction, "id">) => {
     const newTransaction: Transaction = {
@@ -56,8 +59,29 @@ export const App: React.FC = () => {
   };
 
 	const handleDeleteTransaction = (id: string) => {
+		const target = transactions.find((transaction) => transaction.id === id);
+    if (!target) return;
+    if (target.system) {
+      window.alert("自動生成された記録は履歴から削除できません。関連する設定または元取引を変更してください。");
+      return;
+    }
+    if (!target.isTaxAdjustment) setRecentlyDeleted(target);
 		setTransactions((prev) => prev.filter((transaction) => transaction.id !== id));
 	};
+
+  useEffect(() => {
+    if (!recentlyDeleted) return;
+    const timer = window.setTimeout(() => setRecentlyDeleted(null), DELETE_UNDO_MS);
+    return () => window.clearTimeout(timer);
+  }, [recentlyDeleted]);
+
+  const undoDelete = () => {
+    if (!recentlyDeleted) return;
+    setTransactions((current) => current.some(({ id }) => id === recentlyDeleted.id)
+      ? current
+      : [...current, recentlyDeleted]);
+    setRecentlyDeleted(null);
+  };
 
   const handleUpdateTransaction = (updatedTransaction: Transaction) => {
     setTransactions((prev) =>
@@ -167,6 +191,12 @@ export const App: React.FC = () => {
         <NavLink to="/graphs">グラフ</NavLink>
       </nav>
       <button className="mobile-settings-trigger" type="button" aria-label="設定" onClick={() => setIsSettingsOpen(true)}>☰</button>
+      {recentlyDeleted && (
+        <div className="undo-toast" role="status">
+          <span>「{recentlyDeleted.name || recentlyDeleted.category}」を削除しました</span>
+          <button type="button" onClick={undoDelete}>元に戻す</button>
+        </div>
+      )}
     </div>
   </Router>
   );

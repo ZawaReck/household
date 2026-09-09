@@ -873,8 +873,6 @@ export const InputForm: React.FC<InputFormProps> = ({
             <button
               type="button"
               onClick={() => {
-                const ok = window.confirm("この項目を削除しますか？");
-                if (!ok) return;
                 onDeleteTransaction(editingTransaction.id);
                 setEditingTransaction(null);
                 resetForm(type, { keepDate: true });

@@ -156,3 +156,41 @@ header {
   font-size: 18px;
   cursor: pointer;
 }
+
+.undo-toast {
+  position: fixed;
+  z-index: 100;
+  left: 50%;
+  bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  max-width: calc(100vw - 32px);
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: #173c25;
+  color: white;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 24%);
+  transform: translateX(-50%);
+}
+
+.undo-toast span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.undo-toast button {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 0;
+  background: transparent;
+  color: #b9f7c8;
+  font-weight: 800;
+}
+
+@media (max-width: 800px) {
+  .undo-toast {
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+}

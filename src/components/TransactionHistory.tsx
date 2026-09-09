@@ -223,8 +223,6 @@ export const TransactionHistory: React.FC<Props> = ({
   };
 
   const onClickDelete = (id: string) => {
-    const ok = window.confirm("この項目を削除しますか？");
-    if (!ok) return;
     onDeleteTransaction(id);
     setOpenId(null);
   };
