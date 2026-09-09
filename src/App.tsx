@@ -4,7 +4,6 @@ import React, {useState, useEffect} from "react";
 import { BrowserRouter as Router, Route, Routes, NavLink } from "react-router-dom";
 import { InputForm } from "./components/InputForm";
 import { DashboardPage } from "./components/DashboardPage";
-import { GraphsPage } from "./components/GraphsPage";
 import { AccountSettings } from "./components/AccountSettings";
 import { CategorySettings } from "./components/CategorySettings";
 import { CsvImportSettings } from "./components/CsvImportSettings";
@@ -29,6 +28,8 @@ import type { ScheduledMove } from "./types/ScheduledMove";
 import { loadAccountActualState, saveAccountActualState } from "./data/accountActualStore";
 import { reconcileMonthlyAdjustments } from "./utils/monthlyAdjustments";
 import './App.css';
+
+const GraphsPage = React.lazy(() => import("./components/GraphsPage").then((module) => ({ default: module.GraphsPage })));
 
 export const App: React.FC = () => {
 
@@ -373,16 +374,18 @@ export const App: React.FC = () => {
         } />
 
         <Route path="/graphs" element={
-          <GraphsPage
-            transactions={visibleTransactions}
-            showFutureTransactions={showFutureTransactions}
-            onShowFutureTransactionsChange={setShowFutureTransactions}
-            includeExcludedAnalytics={includeExcludedAnalytics}
-            onIncludeExcludedAnalyticsChange={setIncludeExcludedAnalytics}
-            setTransactions={setTransactions}
-            accounts={accounts}
-            categories={categories}
-          />
+          <React.Suspense fallback={<div className="sync-loading">グラフを読み込んでいます…</div>}>
+            <GraphsPage
+              transactions={visibleTransactions}
+              showFutureTransactions={showFutureTransactions}
+              onShowFutureTransactionsChange={setShowFutureTransactions}
+              includeExcludedAnalytics={includeExcludedAnalytics}
+              onIncludeExcludedAnalyticsChange={setIncludeExcludedAnalytics}
+              setTransactions={setTransactions}
+              accounts={accounts}
+              categories={categories}
+            />
+          </React.Suspense>
         } />
         </Routes>
       </main>
