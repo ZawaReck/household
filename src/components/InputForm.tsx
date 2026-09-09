@@ -430,6 +430,55 @@ export const InputForm: React.FC<InputFormProps> = ({
     }
   };
 
+  const copyEditingRecord = () => {
+    if (!editingTransaction || editingTransaction.system) return;
+    const copyDate = todayISO();
+    const groupId = editingTransaction.groupId;
+    const groupItems = groupId
+      ? monthlyData.filter((transaction) => transaction.groupId === groupId && !transaction.isTaxAdjustment)
+      : [];
+
+    if (groupItems.length >= 2) {
+      const drafts = groupItems.map((transaction): DraftTx => {
+        const { id: _id, system: _system, groupId: _groupId, relationId: _relationId, ...draft } = transaction;
+        return { ...draft, date: copyDate };
+      });
+      const external = groupItems.some((transaction) => transaction.taxMode === "exclusive");
+      setEditingTransaction(null);
+      setActiveGroupId(null);
+      setActiveGroupDate(null);
+      setEditingReceiptIndex(null);
+      resetForm("expense", { dateValue: copyDate });
+      setType("expense");
+      setDate(copyDate);
+      setSource(groupItems[0].source);
+      setIsExternalTax(external);
+      setReceiptItems(drafts);
+      return;
+    }
+
+    setEditingTransaction(null);
+    setActiveGroupId(null);
+    setActiveGroupDate(null);
+    setEditingReceiptIndex(null);
+    setReceiptItems([]);
+    setType(editingTransaction.type);
+    setAmount(String(editingTransaction.amount));
+    setDate(copyDate);
+    setName(editingTransaction.name || "");
+    setMemo(editingTransaction.memo || "");
+    setClassification(editingTransaction.classification ?? "normal");
+    if (editingTransaction.type === "move") {
+      setSourceMove(editingTransaction.source);
+      setDestination(editingTransaction.destination);
+    } else {
+      setSource(editingTransaction.source);
+      setCategory(editingTransaction.category);
+    }
+    setIsExternalTax(editingTransaction.taxMode === "exclusive");
+    setTaxRate(normalizeTaxRate(editingTransaction.taxRate));
+  };
+
 
   // 登録: (1) 本編集なら更新, (2) 仮編集ならその内容含めて反映, (3) フォーム入力中があればそれも反映, (4) 仮置き全件反映
   const commitAll = () => {
@@ -867,6 +916,12 @@ export const InputForm: React.FC<InputFormProps> = ({
 
           {!editingTransaction && type === "expense" && (
             <button type="submit">{editingReceiptIndex != null ? "更新" : "追加"}</button>
+          )}
+
+          {editingTransaction && (
+            <button type="button" disabled={Boolean(editingTransaction.system)} onClick={copyEditingRecord}>
+              コピー
+            </button>
           )}
 
           {editingTransaction && (
