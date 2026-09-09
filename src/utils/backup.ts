@@ -50,10 +50,19 @@ export const restoreBackup = (payload: BackupPayload, mode: RestoreMode) => {
   for (const key of keys) {
     const incoming = payload.data[key];
     if (mode === "replace") {
-      if (incoming == null) localStorage.removeItem(key); else localStorage.setItem(key, JSON.stringify(incoming));
+      if (incoming == null) {
+        localStorage.removeItem(key);
+        void writeOfflineValue(key, null);
+      } else {
+        localStorage.setItem(key, JSON.stringify(incoming));
+        void writeOfflineValue(key, incoming);
+      }
     } else if (incoming != null) {
-      localStorage.setItem(key, JSON.stringify(mergeValues(read(key), incoming)));
+      const merged = mergeValues(read(key), incoming);
+      localStorage.setItem(key, JSON.stringify(merged));
+      void writeOfflineValue(key, merged);
     }
   }
   localStorage.setItem(epochKey, mode === "replace" ? crypto.randomUUID() : (localStorage.getItem(epochKey) ?? payload.dataEpoch));
 };
+import { writeOfflineValue } from "../data/offlineStore";

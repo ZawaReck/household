@@ -19,4 +19,7 @@ export const safeLoadJSON = <T>(key: string, fallback: T): T => {
 export const safeSaveJSON = <T>(key: string, value: T) => {
   if (typeof localStorage === "undefined") return;
   localStorage.setItem(key, JSON.stringify(value));
+  void writeOfflineValue(key, value);
+  window.dispatchEvent(new CustomEvent("household-local-change", { detail: key }));
 };
+import { writeOfflineValue } from "./offlineStore";

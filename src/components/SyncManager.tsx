@@ -1,6 +1,7 @@
 import React from "react";
 import { backupKeys } from "../utils/backup";
 import { getGoogleIdToken } from "./AuthGate";
+import { writeOfflineValue } from "../data/offlineStore";
 
 type RemoteRecord = { key: string; value: unknown; updatedAt: string; deletedAt?: string | null };
 type SyncMeta = { lastPull: string; updatedAt: Record<string, string>; observed: Record<string, string | null> };
@@ -36,8 +37,13 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
         let appliedRemote = false;
         for (const record of payload.records) {
           if (!backupKeys.includes(record.key) || record.updatedAt < (meta.updatedAt[record.key] ?? "")) continue;
-          if (record.deletedAt) localStorage.removeItem(record.key);
-          else localStorage.setItem(record.key, JSON.stringify(record.value));
+          if (record.deletedAt) {
+            localStorage.removeItem(record.key);
+            void writeOfflineValue(record.key, null);
+          } else {
+            localStorage.setItem(record.key, JSON.stringify(record.value));
+            void writeOfflineValue(record.key, record.value);
+          }
           meta.updatedAt[record.key] = record.updatedAt;
           meta.observed[record.key] = localStorage.getItem(record.key);
           appliedRemote = true;
