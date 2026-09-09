@@ -47,6 +47,7 @@ export const importHouseholdCsv = (raw: string): { transactions: Transaction[]; 
     }
     transactions.push({
       id: crypto.randomUUID(),
+      updatedAt: new Date().toISOString(),
       type: amount < 0 ? "expense" : "income",
       amount: Math.abs(amount),
       date,

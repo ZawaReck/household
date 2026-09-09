@@ -210,10 +210,12 @@ export const App: React.FC = () => {
       }
     }
     if (previous && previous.name !== updatedAccount.name) {
+      const renamedAt = new Date().toISOString();
       setTransactions((current) => current.map((transaction) => ({
         ...transaction,
         source: transaction.source === previous.name ? updatedAccount.name : transaction.source,
         destination: transaction.destination === previous.name ? updatedAccount.name : transaction.destination,
+        ...((transaction.source === previous.name || transaction.destination === previous.name) ? { updatedAt: renamedAt } : {}),
       })));
       setScheduledMoves((current) => current.map((schedule) => ({
         ...schedule,
@@ -247,9 +249,10 @@ export const App: React.FC = () => {
   const handleSaveCategory = (updatedCategory: Category) => {
     const previous = categories.find((category) => category.id === updatedCategory.id);
     if (previous && previous.name !== updatedCategory.name) {
+      const renamedAt = new Date().toISOString();
       setTransactions((current) => current.map((transaction) =>
         transaction.type === previous.type && transaction.category === previous.name
-          ? { ...transaction, category: updatedCategory.name }
+          ? { ...transaction, category: updatedCategory.name, updatedAt: renamedAt }
           : transaction
       ));
       saveBudgets(loadBudgets().map((budget) => {
@@ -270,9 +273,10 @@ export const App: React.FC = () => {
     const source = categories.find((category) => category.id === sourceId);
     const target = categories.find((category) => category.id === targetId);
     if (!source || !target || source.type !== target.type) return;
+    const mergedAt = new Date().toISOString();
     setTransactions((current) => current.map((transaction) =>
       transaction.type === source.type && transaction.category === source.name
-        ? { ...transaction, category: target.name }
+        ? { ...transaction, category: target.name, updatedAt: mergedAt }
         : transaction
     ));
     setCategories((current) => current.map((category) => category.id === sourceId

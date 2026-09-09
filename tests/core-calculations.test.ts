@@ -1,0 +1,108 @@
+import { describe, expect, it } from "vitest";
+import type { Account } from "../src/types/Account";
+import type { ScheduledMove } from "../src/types/ScheduledMove";
+import type { Transaction } from "../src/types/Transaction";
+import { sumExpenseByCategoryAllocatedTax, sumIncomeExpenseByMonth } from "../src/utils/analytics";
+import { reconcileCardPayments } from "../src/utils/cardPayments";
+import { reconcileMonthlyAdjustments } from "../src/utils/monthlyAdjustments";
+import { reconcileScheduledMoves } from "../src/utils/scheduledMoves";
+
+const transaction = (partial: Partial<Transaction> & Pick<Transaction, "id" | "type" | "amount" | "date">): Transaction => ({
+  name: "test",
+  category: partial.type === "move" ? "move" : "その他",
+  source: "財布",
+  destination: "",
+  memo: "",
+  isSpecial: false,
+  classification: "normal",
+  ...partial,
+});
+
+const account = (partial: Partial<Account> & Pick<Account, "id" | "name" | "kind">): Account => ({
+  openingBalance: 0,
+  openingDate: "2026-01-01",
+  isActive: true,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  ...partial,
+});
+
+describe("analytics", () => {
+  it("rounds external tax after summing each category and tax rate", () => {
+    const items = [
+      transaction({ id: "a", type: "expense", amount: 5, date: "2026-09-01", category: "食費", groupId: "g", taxMode: "exclusive", taxRate: 10, taxBaseAmount: 5 }),
+      transaction({ id: "b", type: "expense", amount: 5, date: "2026-09-01", category: "食費", groupId: "g", taxMode: "exclusive", taxRate: 10, taxBaseAmount: 5 }),
+    ];
+    expect(sumExpenseByCategoryAllocatedTax(items, "2026-09")).toEqual([{ category: "食費", value: 11 }]);
+  });
+
+  it("includes settled and special entries only when explicitly requested", () => {
+    const items = [
+      transaction({ id: "normal", type: "expense", amount: 100, date: "2026-09-01" }),
+      transaction({ id: "settled", type: "expense", amount: 200, date: "2026-09-02", classification: "settled" }),
+      transaction({ id: "special", type: "expense", amount: 300, date: "2026-09-03", classification: "special" }),
+    ];
+    expect(sumIncomeExpenseByMonth(items, ["2026-09"])[0].expense).toBe(100);
+    expect(sumIncomeExpenseByMonth(items, ["2026-09"], true)[0].expense).toBe(600);
+  });
+});
+
+describe("automatic moves", () => {
+  it("reconciles card payments idempotently using the captured billing cycle", () => {
+    const bank = account({ id: "bank", name: "銀行", kind: "bank" });
+    const card = account({
+      id: "card",
+      name: "カード",
+      kind: "credit_card",
+      creditCard: { limit: 100_000, closingDay: 31, paymentDay: 27, paymentDelayMonths: 1, defaultPaymentAccountId: "bank" },
+    });
+    const use = transaction({
+      id: "use",
+      type: "expense",
+      amount: 1_000,
+      date: "2026-01-15",
+      source: "カード",
+      cardCycle: { cardAccountId: "card", closingDay: 31, paymentDay: 27, paymentDelayMonths: 1 },
+    });
+    const first = reconcileCardPayments([use], [bank, card]);
+    const payment = first.find((item) => item.system?.kind === "card_payment");
+    expect(payment).toMatchObject({ amount: 1_000, date: "2026-02-27", source: "銀行", destination: "カード" });
+    expect(reconcileCardPayments(first, [bank, card])).toEqual(first);
+  });
+
+  it("generates each scheduled occurrence once and clamps a monthly day to month end", () => {
+    const schedule: ScheduledMove = {
+      id: "saving",
+      startDate: "2026-01-01",
+      isActive: true,
+      activePeriods: [{ start: "2026-01-01" }],
+      revisions: [{ effectiveFrom: "2026-01-01", source: "銀行", destination: "証券", amount: 10_000, name: "積立", frequency: "monthly", executionDay: 31 }],
+      skippedDates: [],
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const first = reconcileScheduledMoves([], [schedule], "2026-02-28");
+    expect(first.transactions.map((item) => item.date)).toEqual(["2026-01-31", "2026-02-28"]);
+    expect(reconcileScheduledMoves(first.transactions, [schedule], "2026-02-28").generatedCount).toBe(0);
+  });
+});
+
+describe("month-end reconciliation", () => {
+  it("rebuilds one deterministic adjustment after a past transaction changes", () => {
+    const wallet = account({ id: "wallet", name: "財布", kind: "cash", openingBalance: 1_000 });
+    const initial = transaction({ id: "expense", type: "expense", amount: 100, date: "2026-01-10" });
+    const state = {
+      byMonth: { "2026-01": { 財布: 850 } },
+      confirmedByMonth: { "2026-01": ["財布"] },
+      basisDateByMonth: { "2026-01": "2026-01-31" },
+    };
+    const first = reconcileMonthlyAdjustments([initial], [wallet], state);
+    expect(first.find((item) => item.system?.kind === "monthly_adjustment")).toMatchObject({ type: "expense", amount: 50 });
+    expect(reconcileMonthlyAdjustments(first, [wallet], state)).toEqual(first);
+
+    const edited = first.map((item) => item.id === "expense" ? { ...item, amount: 200 } : item);
+    const rebuilt = reconcileMonthlyAdjustments(edited, [wallet], state);
+    expect(rebuilt.filter((item) => item.system?.kind === "monthly_adjustment")).toHaveLength(1);
+    expect(rebuilt.find((item) => item.system?.kind === "monthly_adjustment")).toMatchObject({ type: "income", amount: 50 });
+  });
+});
