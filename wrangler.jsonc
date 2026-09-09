@@ -12,7 +12,7 @@
     {
       "binding": "DB",
       "database_name": "household",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "9f788770-e491-4f43-9e2e-374e4436c0a6",
       "migrations_dir": "migrations"
     }
   ]
