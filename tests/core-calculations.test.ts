@@ -112,6 +112,27 @@ describe("automatic moves", () => {
     expect(reconcileCardPayments([historicalPayment], [bank, card])).toEqual([historicalPayment]);
   });
 
+  it("keeps historical card payments if the configured payment account is unavailable", () => {
+    const disabledBank = account({ id: "bank", name: "銀行", kind: "bank", isActive: false, disabledAt: "2026-03-01" });
+    const card = account({
+      id: "card",
+      name: "カード",
+      kind: "credit_card",
+      creditCard: { limit: 100_000, closingDay: 31, paymentDay: 27, paymentDelayMonths: 1, defaultPaymentAccountId: "bank" },
+    });
+    const historicalPayment = transaction({
+      id: "card-payment:card:31-27-1:2026-01",
+      type: "move",
+      amount: 1_000,
+      date: "2026-02-27",
+      source: "銀行",
+      destination: "カード",
+      system: { kind: "card_payment", key: "card:31-27-1:2026-01", cardAccountId: "card" },
+    });
+
+    expect(reconcileCardPayments([historicalPayment], [disabledBank, card])).toEqual([historicalPayment]);
+  });
+
   it("invalidates a card confirmation when the calculated available amount changes", () => {
     const card = account({
       id: "card",

@@ -28,12 +28,18 @@ const statementMonthFor = (date: string, closingDay: number) => {
 
 export const reconcileCardPayments = (transactions: Transaction[], accounts: Account[]) => {
   const cards = accounts.filter((account) => account.isActive && account.kind === "credit_card" && account.creditCard);
-  const managedCardIds = new Set(cards.map((account) => account.id));
+  const paymentAccountByCardId = new Map(cards.flatMap((card) => {
+    const paymentAccount = accounts.find((account) =>
+      account.id === card.creditCard!.defaultPaymentAccountId && account.isActive && account.kind !== "credit_card"
+    );
+    return paymentAccount ? [[card.id, paymentAccount] as const] : [];
+  }));
+  const managedCardIds = new Set(paymentAccountByCardId.keys());
   const desired = new Map<string, Transaction>();
 
   for (const card of cards) {
     const settings = card.creditCard!;
-    const paymentAccount = accounts.find((account) => account.id === settings.defaultPaymentAccountId && account.isActive);
+    const paymentAccount = paymentAccountByCardId.get(card.id);
     if (!paymentAccount) continue;
 
     const buckets = new Map<string, { amount: number; statementYear: number; statementMonth: number; paymentDay: number; paymentDelayMonths: number }>();

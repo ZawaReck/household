@@ -60,6 +60,13 @@ export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSav
     if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.openingDate)) { window.alert("開始基準日を入力してください。"); return; }
     if (!Number.isInteger(draft.openingBalance)) { window.alert("開始残高は円単位の整数で入力してください。"); return; }
     const original = accounts.find((account) => account.id === draft.id);
+    const usedAsCardPaymentSource = accounts.some((account) =>
+      account.id !== draft.id && account.isActive && account.kind === "credit_card" && account.creditCard?.defaultPaymentAccountId === draft.id
+    );
+    if (usedAsCardPaymentSource && draft.kind === "credit_card") {
+      window.alert("有効なカードの既定引落元に設定されている口座は、カードへ変更できません。");
+      return;
+    }
     if (original?.kind === "credit_card" && draft.kind !== "credit_card") {
       if (creditCardOutstandingAsOf(original, transactions, today) !== 0 || hasFutureAutomaticCardPayment(original, transactions, today)) {
         window.alert("未引落利用額または未来の自動引落Moveがあるカードは、別の種別へ変更できません。");
@@ -75,7 +82,11 @@ export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSav
         return;
       }
       if (!Number.isInteger(settings.paymentDelayMonths) || settings.paymentDelayMonths < 0 || settings.paymentDelayMonths > 2) { window.alert("引落月数は0〜2の整数で入力してください。"); return; }
-      if (!settings.defaultPaymentAccountId) { window.alert("既定引落元を選択してください。"); return; }
+      const paymentAccount = accounts.find((account) => account.id === settings.defaultPaymentAccountId);
+      if (!paymentAccount || !paymentAccount.isActive || paymentAccount.kind === "credit_card" || paymentAccount.id === draft.id) {
+        window.alert("有効なカード以外の口座を既定引落元に選択してください。");
+        return;
+      }
     }
     onSave({ ...draft, name: draft.name.trim(), updatedAt: new Date().toISOString() });
     setDraft(null);
@@ -96,6 +107,13 @@ export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSav
 
   const toggleActive = (account: Account) => {
     if (account.isActive) {
+      const usedAsCardPaymentSource = accounts.some((card) =>
+        card.isActive && card.kind === "credit_card" && card.creditCard?.defaultPaymentAccountId === account.id
+      );
+      if (usedAsCardPaymentSource) {
+        window.alert("有効なカードの既定引落元に設定されている口座は無効化できません。先にカード設定を変更してください。");
+        return;
+      }
       if (account.kind === "credit_card") {
         const outstanding = creditCardOutstandingAsOf(account, transactions, today);
         if (outstanding !== 0 || hasFutureAutomaticCardPayment(account, transactions, today)) {
