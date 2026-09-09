@@ -28,6 +28,7 @@ import type { ScheduledMove } from "./types/ScheduledMove";
 import { loadAccountActualState, saveAccountActualState } from "./data/accountActualStore";
 import { reconcileMonthlyAdjustments } from "./utils/monthlyAdjustments";
 import { invalidateChangedCardConfirmations } from "./utils/cardConfirmations";
+import { loadInputDrafts, saveInputDrafts } from "./data/inputDraftStore";
 import './App.css';
 
 const GraphsPage = React.lazy(() => import("./components/GraphsPage").then((module) => ({ default: module.GraphsPage })));
@@ -254,6 +255,34 @@ export const App: React.FC = () => {
         return [month, renamed];
       }));
       saveAccountActualState({ ...actualState, byMonth, confirmedByMonth, cardLimitByMonth });
+      setScheduledMoves((current) => current.map((schedule) => ({
+        ...schedule,
+        revisions: schedule.revisions.map((revision) => ({
+          ...revision,
+          source: revision.source === previous.name ? updatedAccount.name : revision.source,
+          destination: revision.destination === previous.name ? updatedAccount.name : revision.destination,
+        })),
+        ...(schedule.revisions.some((revision) => revision.source === previous.name || revision.destination === previous.name)
+          ? { updatedAt: renamedAt }
+          : {}),
+      })));
+      saveInputDrafts(loadInputDrafts().map((draft) => {
+        const changed = draft.source === previous.name || draft.sourceMove === previous.name || draft.destination === previous.name ||
+          draft.receiptItems.some((item) => item.source === previous.name || item.destination === previous.name);
+        if (!changed) return draft;
+        return {
+          ...draft,
+          source: draft.source === previous.name ? updatedAccount.name : draft.source,
+          sourceMove: draft.sourceMove === previous.name ? updatedAccount.name : draft.sourceMove,
+          destination: draft.destination === previous.name ? updatedAccount.name : draft.destination,
+          receiptItems: draft.receiptItems.map((item) => ({
+          ...item,
+          source: item.source === previous.name ? updatedAccount.name : item.source,
+          destination: item.destination === previous.name ? updatedAccount.name : item.destination,
+          })),
+          updatedAt: renamedAt,
+        };
+      }));
     }
     setAccounts((current) => {
       const exists = current.some((account) => account.id === updatedAccount.id);
@@ -279,6 +308,20 @@ export const App: React.FC = () => {
         byCategory[updatedCategory.name] = amount;
         return { ...budget, byCategory, updatedAtISO: renamedAt };
       }));
+      saveInputDrafts(loadInputDrafts().map((draft) => {
+        const changed = (draft.type === previous.type && draft.category === previous.name) ||
+          draft.receiptItems.some((item) => item.type === previous.type && item.category === previous.name);
+        if (!changed) return draft;
+        return {
+          ...draft,
+          category: draft.type === previous.type && draft.category === previous.name ? updatedCategory.name : draft.category,
+          receiptItems: draft.receiptItems.map((item) => ({
+            ...item,
+            category: item.type === previous.type && item.category === previous.name ? updatedCategory.name : item.category,
+          })),
+          updatedAt: renamedAt,
+        };
+      }));
     }
     setCategories((current) => {
       const exists = current.some((category) => category.id === updatedCategory.id);
@@ -299,6 +342,20 @@ export const App: React.FC = () => {
       ? { ...category, isActive: false, mergedIntoId: targetId, updatedAt: new Date().toISOString() }
       : category
     ));
+    saveInputDrafts(loadInputDrafts().map((draft) => {
+      const changed = (draft.type === source.type && draft.category === source.name) ||
+        draft.receiptItems.some((item) => item.type === source.type && item.category === source.name);
+      if (!changed) return draft;
+      return {
+        ...draft,
+        category: draft.type === source.type && draft.category === source.name ? target.name : draft.category,
+        receiptItems: draft.receiptItems.map((item) => ({
+          ...item,
+          category: item.type === source.type && item.category === source.name ? target.name : item.category,
+        })),
+        updatedAt: mergedAt,
+      };
+    }));
   };
   const handleCsvImport = (imported: Transaction[]) => {
     setTransactions((current) => {
