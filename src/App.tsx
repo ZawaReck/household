@@ -19,8 +19,6 @@ import type { Category } from "./types/Category";
 import { loadCategories, saveCategories } from "./data/categoryStore";
 import './App.css';
 
-const DELETE_UNDO_MS = 5_000;
-
 export const App: React.FC = () => {
 
 	const [transactions, setTransactions] = useState<Transaction[]>(() => {
@@ -52,6 +50,10 @@ export const App: React.FC = () => {
     const [showFutureTransactions, setShowFutureTransactions] = useState(() =>
       localStorage.getItem("showFutureTransactions") !== "false"
     );
+    const [deleteUndoSeconds, setDeleteUndoSeconds] = useState(() => {
+      const saved = Number(localStorage.getItem("deleteUndoSeconds") ?? 5);
+      return Number.isFinite(saved) && saved >= 1 ? Math.min(saved, 60) : 5;
+    });
 
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -62,6 +64,9 @@ export const App: React.FC = () => {
     useEffect(() => {
       localStorage.setItem("showFutureTransactions", String(showFutureTransactions));
     }, [showFutureTransactions]);
+    useEffect(() => {
+      localStorage.setItem("deleteUndoSeconds", String(deleteUndoSeconds));
+    }, [deleteUndoSeconds]);
 
   const handleAddTransaction = (transaction: Omit<Transaction, "id">) => {
     const newTransaction: Transaction = {
@@ -84,9 +89,9 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     if (!recentlyDeleted) return;
-    const timer = window.setTimeout(() => setRecentlyDeleted(null), DELETE_UNDO_MS);
+    const timer = window.setTimeout(() => setRecentlyDeleted(null), deleteUndoSeconds * 1_000);
     return () => window.clearTimeout(timer);
-  }, [recentlyDeleted]);
+  }, [deleteUndoSeconds, recentlyDeleted]);
 
   const undoDelete = () => {
     if (!recentlyDeleted) return;
@@ -179,6 +184,11 @@ export const App: React.FC = () => {
               <label>
                 <input type="checkbox" checked={showFutureTransactions} onChange={(event) => setShowFutureTransactions(event.target.checked)} />
                 未来の記録を表示
+              </label>
+              <label className="view-settings-number">
+                削除の取消時間
+                <input type="number" min="1" max="60" value={deleteUndoSeconds} onChange={(event) => setDeleteUndoSeconds(Math.max(1, Math.min(60, Number(event.target.value) || 5)))} />
+                秒
               </label>
             </section>
             <CsvImportSettings onImport={handleCsvImport} />

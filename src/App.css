@@ -176,6 +176,18 @@ header {
   font-weight: 700;
 }
 
+.view-settings-number {
+  margin-top: 12px;
+}
+
+.view-settings-number input {
+  width: 62px;
+  padding: 6px;
+  border: 1px solid #b8d7c0;
+  border-radius: 7px;
+  color: #245e2d;
+}
+
 .undo-toast {
   position: fixed;
   z-index: 100;
