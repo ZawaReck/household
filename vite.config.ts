@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { rmSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -25,6 +27,12 @@ export default defineConfig({
           }
         ]
       }
-    })
+    }),
+    {
+      name: 'exclude-local-fixtures',
+      closeBundle() {
+        rmSync(resolve(process.cwd(), 'dist/fixtures/demoData.local.json'), { force: true })
+      },
+    },
   ],
 })
