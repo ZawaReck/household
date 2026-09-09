@@ -28,6 +28,8 @@ export const DashboardPage: React.FC<Props> = (props) => {
 	const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
 	const [activeGroupDate, setActiveGroupDate] = useState<string | null>(null);
 	const [isSearchOpen, setIsSearchOpen] = useState(false);
+	const [isInputSheetOpen, setIsInputSheetOpen] = useState(false);
+	const [isInputSheetExpanded, setIsInputSheetExpanded] = useState(false);
 
 	const year = currentDate.getFullYear();
 	const month = currentDate.getMonth();
@@ -51,6 +53,29 @@ export const DashboardPage: React.FC<Props> = (props) => {
 			new Date().toISOString().slice(0, 10)
 		);
 
+	const openEditSheet = (transaction: Transaction) => {
+		setActiveGroupId(null);
+		setActiveGroupDate(null);
+		props.onEditTransaction(transaction);
+		setIsInputSheetOpen(true);
+		setIsInputSheetExpanded(false);
+	};
+
+	const handleDateClick = (date: string) => {
+		if (date === selectedDate) {
+			props.setEditingTransaction(null);
+			setActiveGroupId(null);
+			setActiveGroupDate(null);
+			setIsInputSheetOpen(true);
+			setIsInputSheetExpanded(false);
+			return;
+		}
+		setSelectedDate(date);
+		window.requestAnimationFrame(() => {
+			document.getElementById(`history-date-${date}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+		});
+	};
+
 
 	return (
 		<div className="dashboard-page-root">
@@ -61,8 +86,9 @@ export const DashboardPage: React.FC<Props> = (props) => {
 						month={month}
 						monthlyData={monthlyData}
 						onMonthChange={(offset: number) => setCurrentDate(new Date(year, month + offset, 1))}
-						onDateClick={setSelectedDate}
+						onDateClick={handleDateClick}
 						onOpenSearch={() => setIsSearchOpen(true)}
+						selectedDate={selectedDate}
 						/>
 						<SummaryView
 							monthlyData={monthlyData}
@@ -74,19 +100,30 @@ export const DashboardPage: React.FC<Props> = (props) => {
 				<TransactionHistory
 					monthlyData={monthlyData}
 					onDeleteTransaction={props.onDeleteTransaction}
-					onEditTransaction={(transaction) => {
-						setActiveGroupId(null);
-						setActiveGroupDate(null);
-						props.onEditTransaction(transaction);
-					}}
+					onEditTransaction={openEditSheet}
 					onSelectGroup={(groupId, date) => {
 						setActiveGroupId(groupId);
 						setActiveGroupDate(date);
 						props.setEditingTransaction(null);
+						setIsInputSheetOpen(true);
+						setIsInputSheetExpanded(false);
 					}}
 				/>
 		</section>
-		<section className="column input-section">
+		{isInputSheetOpen && <button className="input-sheet-backdrop" aria-label="入力画面を閉じる" onClick={() => setIsInputSheetOpen(false)} />}
+		<section
+			className={`column input-section ${isInputSheetOpen ? "sheet-open" : ""} ${isInputSheetExpanded ? "sheet-expanded" : ""}`}
+			onFocusCapture={() => setIsInputSheetExpanded(true)}
+		>
+			<div className="input-sheet-toolbar">
+				<button
+					type="button"
+					className="input-sheet-handle"
+					aria-label={isInputSheetExpanded ? "入力画面を縮める" : "入力画面を広げる"}
+					onClick={() => setIsInputSheetExpanded((current) => !current)}
+				><span /></button>
+				<button type="button" className="input-sheet-close" aria-label="入力画面を閉じる" onClick={() => setIsInputSheetOpen(false)}>×</button>
+			</div>
 			<div className="sticky-input">
 				<InputForm
 					onAddTransaction={props.onAddTransaction}
@@ -112,7 +149,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 				onDeleteTransaction={props.onDeleteTransaction}
 				onEditTransaction={(transaction) => {
 					setIsSearchOpen(false);
-					props.onEditTransaction(transaction);
+					openEditSheet(transaction);
 				}}
 				onSelectGroup={(groupId, date) => {
 					setIsSearchOpen(false);

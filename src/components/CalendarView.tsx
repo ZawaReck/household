@@ -12,9 +12,10 @@ interface CalendarViewProps {
 	onMonthChange: (offset: number) => void;
   onDateClick: (dateStr: string) => void;
   onOpenSearch?: () => void;
+  selectedDate?: string;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange, onDateClick, onOpenSearch }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange, onDateClick, onOpenSearch, selectedDate }) => {
 	const firstDayOfMonth = new Date(year, month, 1);
 	const start = new Date (year, month, 1 - firstDayOfMonth.getDay()); // 週の始まりの日曜日
 
@@ -62,7 +63,7 @@ const weeksToRender = weeksNeeded === 6 ? 6 : weeksNeeded === 4 ? 4 : 5;
 
         return (
           <div key={index}
-            className={`cell ${isCurrentMonth ? "" : "other-month"}`}
+            className={`cell ${isCurrentMonth ? "" : "other-month"} ${dateStr === selectedDate ? "selected" : ""}`}
             onClick={() => {
               if (!dateStr) return;
               onDateClick(dateStr);

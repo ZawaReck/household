@@ -291,7 +291,7 @@ export const TransactionHistory: React.FC<Props> = ({
 
         return (
           <React.Fragment key={date}>
-            <div className="date-header">{formatDateHeader(date)}</div>
+            <div className="date-header" id={`history-date-${date}`}>{formatDateHeader(date)}</div>
 
             {orderedVisibleItems.map((t, idx) => {
               const x = getCurrentX(t.id);
