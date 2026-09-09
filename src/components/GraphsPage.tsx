@@ -519,12 +519,16 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     saveInvestmentState(next);
   };
 
-  const investmentAccounts = accountMaster.filter((account) => account.isActive && account.kind === "investment");
-  const investmentAssets: InvestmentAsset[] = investmentAccounts.map((account) => ({
+  const investmentAccounts = React.useMemo(
+    () => accountMaster.filter((account) => account.isActive && account.kind === "investment"),
+    [accountMaster],
+  );
+  const investmentAssets: InvestmentAsset[] = React.useMemo(() => investmentAccounts.map((account) => ({
     id: account.id,
     name: account.name,
     initialPrincipal: account.openingBalance - (account.initialProfit ?? 0),
-  }));
+    openingValue: account.openingBalance,
+  })), [investmentAccounts]);
 
   const handleSaveSnapshot = (date: string, values: Record<string, number>) => {
     const id = `is_${date}`;
@@ -537,13 +541,14 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     });
   };
 
-  const investmentSnapshots = [...investmentState.snapshots].sort((a, b) =>
+  const investmentSnapshots = React.useMemo(() => [...investmentState.snapshots].sort((a, b) =>
     a.date.localeCompare(b.date)
-  );
+  ), [investmentState.snapshots]);
   const latestSnapshot = investmentSnapshots[investmentSnapshots.length - 1];
   const snapshotDateForTable = latestSnapshot?.date ?? todayISO;
 
   const investmentFlows = (account: Account, date: string) => {
+    if (date < account.openingDate) return { deposits: 0, withdrawals: 0, cumulativeDeposits: 0 };
     let deposits = 0;
     let withdrawals = 0;
     transactions.forEach((transaction) => {
@@ -558,14 +563,21 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const investmentChartData = investmentSnapshots.map((snapshot) => {
     const point: Record<string, number | string> = { date: snapshot.date };
     investmentAssets.forEach((asset) => {
-      point[asset.id] = snapshot.values[asset.id] ?? 0;
+      const account = investmentAccounts.find((item) => item.id === asset.id);
+      point[asset.id] = account && snapshot.date >= account.openingDate
+        ? snapshot.values[asset.id] ?? account.openingBalance
+        : 0;
     });
     return point;
   });
 
   const investmentProfitData = investmentSnapshots.map((snapshot) => {
     const totalValue = investmentAssets.reduce(
-      (sum, asset) => sum + (snapshot.values[asset.id] ?? 0),
+      (sum, asset) => {
+        const account = investmentAccounts.find((item) => item.id === asset.id);
+        if (!account || snapshot.date < account.openingDate) return sum;
+        return sum + (snapshot.values[asset.id] ?? account.openingBalance);
+      },
       0
     );
     const totals = investmentAccounts.reduce((acc, account) => {
@@ -575,7 +587,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       return acc;
     }, { deposits: 0, withdrawals: 0 });
     const profit = totalValue + totals.withdrawals - totals.deposits;
-    const profitRate = totals.deposits > 0 ? (profit / totals.deposits) * 100 : 0;
+    const profitRate = totals.deposits > 0 ? (profit / totals.deposits) * 100 : null;
     return { date: snapshot.date, profit, profitRate };
   });
   const investmentPeriodStart = React.useMemo(() => {
@@ -1424,7 +1436,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             <SnapshotForm
               assets={investmentAssets}
               defaultDate={todayISO}
-              latestSnapshot={latestSnapshot}
+              snapshots={investmentSnapshots}
               onSave={handleSaveSnapshot}
             />
           </div>
@@ -1470,8 +1482,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   <YAxis yAxisId="right" orientation="right" />
                   <Tooltip
                     formatter={(value, name) =>
-                      name === "profitRate"
-                        ? `${Number(value ?? 0).toFixed(1)}%`
+                      name === "損益率"
+                        ? value == null ? "—" : `${Number(value).toFixed(1)}%`
                         : formatYen(value)
                     }
                   />
@@ -2391,22 +2403,31 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
 const SnapshotForm: React.FC<{
   assets: InvestmentAsset[];
   defaultDate: string;
-  latestSnapshot?: { date: string; values: Record<string, number> };
+  snapshots: Array<{ date: string; values: Record<string, number> }>;
   onSave: (date: string, values: Record<string, number>) => void;
-}> = ({ assets, defaultDate, latestSnapshot, onSave }) => {
+}> = ({ assets, defaultDate, snapshots, onSave }) => {
   const [date, setDate] = React.useState(defaultDate);
   const [values, setValues] = React.useState<Record<string, number>>({});
 
   React.useEffect(() => {
-    if (!latestSnapshot) return;
-    setValues(latestSnapshot.values);
-  }, [latestSnapshot]);
+    const nearest = [...snapshots]
+      .filter((snapshot) => snapshot.date <= date)
+      .sort((a, b) => b.date.localeCompare(a.date))[0];
+    setValues(Object.fromEntries(assets.map((asset) => [
+      asset.id,
+      nearest?.values[asset.id] ?? asset.openingValue ?? 0,
+    ])));
+  }, [assets, date, snapshots]);
 
   return (
     <form
       className="snapshot-form"
       onSubmit={(e) => {
         e.preventDefault();
+        if (!date || assets.some((asset) => !Number.isInteger(values[asset.id] ?? 0))) {
+          window.alert("日付と、円単位の整数評価額を入力してください。");
+          return;
+        }
         onSave(date, values);
       }}
     >
@@ -2419,6 +2440,7 @@ const SnapshotForm: React.FC<{
           {asset.name}
           <input
             type="number"
+            step="1"
             value={values[asset.id] ?? 0}
             onChange={(e) =>
               setValues((prev) => ({ ...prev, [asset.id]: Number(e.target.value) || 0 }))

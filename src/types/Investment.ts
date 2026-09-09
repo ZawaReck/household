@@ -6,6 +6,7 @@ export interface InvestmentAsset {
   id: string;
   name: string;
   initialPrincipal: number;
+  openingValue?: number;
   recurring?: {
     amount: number;
     startMonth: MonthKey;
