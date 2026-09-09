@@ -20,13 +20,19 @@ export const HistorySearch = ({
 }: Props) => {
   const [query, setQuery] = useState("");
   const [type, setType] = useState<"all" | Transaction["type"]>("all");
+  const [category, setCategory] = useState("all");
+  const [account, setAccount] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const categories = useMemo(() => Array.from(new Set(transactions.map((item) => item.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, "ja")), [transactions]);
+  const accounts = useMemo(() => Array.from(new Set(transactions.flatMap((item) => [item.source, item.destination]).filter(Boolean))).sort((a, b) => a.localeCompare(b, "ja")), [transactions]);
 
   const results = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("ja");
     return transactions.filter((transaction) => {
       if (type !== "all" && transaction.type !== type) return false;
+      if (category !== "all" && transaction.category !== category) return false;
+      if (account !== "all" && transaction.source !== account && transaction.destination !== account) return false;
       if (dateFrom && transaction.date < dateFrom) return false;
       if (dateTo && transaction.date > dateTo) return false;
       if (!normalized) return true;
@@ -39,7 +45,7 @@ export const HistorySearch = ({
         String(transaction.amount),
       ].some((value) => value?.toLocaleLowerCase("ja").includes(normalized));
     });
-  }, [dateFrom, dateTo, query, transactions, type]);
+  }, [account, category, dateFrom, dateTo, query, transactions, type]);
 
   return (
     <div className="history-search-backdrop" role="presentation" onClick={onClose}>
@@ -73,6 +79,14 @@ export const HistorySearch = ({
               <option value="income">In</option>
               <option value="move">Move</option>
             </select>
+          </label>
+          <label>
+            <span>カテゴリ</span>
+            <select value={category} onChange={(event) => setCategory(event.target.value)}><option value="all">すべて</option>{categories.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+          </label>
+          <label>
+            <span>口座</span>
+            <select value={account} onChange={(event) => setAccount(event.target.value)}><option value="all">すべて</option>{accounts.map((item) => <option key={item} value={item}>{item}</option>)}</select>
           </label>
           <label>
             <span>開始日</span>
