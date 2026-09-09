@@ -3,6 +3,8 @@
   "name": "household",
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-09",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": { "crons": ["0 0 * * *"] },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",

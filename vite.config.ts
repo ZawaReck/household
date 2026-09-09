@@ -9,6 +9,7 @@ export default defineConfig({
   plugins: [react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: { importScripts: ['push-sw.js'] },
       manifest: {
         name: 'Household',
         short_name: 'kakeibo',

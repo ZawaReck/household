@@ -1,10 +1,14 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import webpush from "web-push";
 
 interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
   GOOGLE_CLIENT_ID: string;
   ALLOWED_EMAILS: string;
+  VAPID_PUBLIC_KEY: string;
+  VAPID_PRIVATE_KEY: string;
+  VAPID_SUBJECT: string;
 }
 
 type SyncRecord = { key: string; value: unknown; updatedAt: string; deletedAt?: string | null };
@@ -35,6 +39,22 @@ const handleApi = async (request: Request, env: Env) => {
 
   const url = new URL(request.url);
   if (url.pathname === "/api/auth/me") return json({ authenticated: true });
+  if (url.pathname === "/api/push/public-key" && request.method === "GET") return json({ publicKey: env.VAPID_PUBLIC_KEY });
+  if (url.pathname === "/api/push/subscriptions" && request.method === "POST") {
+    const subscription = await request.json<{ endpoint?: string }>();
+    if (!subscription.endpoint || !subscription.endpoint.startsWith("https://")) return json({ error: "invalid_subscription" }, 400);
+    const now = new Date().toISOString();
+    await env.DB.prepare(`INSERT INTO push_subscriptions (user_id, endpoint, subscription_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, endpoint) DO UPDATE SET subscription_json = excluded.subscription_json, updated_at = excluded.updated_at`)
+      .bind(userId, subscription.endpoint, JSON.stringify(subscription), now, now).run();
+    return json({ ok: true });
+  }
+  if (url.pathname === "/api/push/subscriptions" && request.method === "DELETE") {
+    const body = await request.json<{ endpoint?: string }>();
+    if (!body.endpoint) return json({ error: "invalid_subscription" }, 400);
+    await env.DB.prepare("DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?").bind(userId, body.endpoint).run();
+    return json({ ok: true });
+  }
   if (url.pathname !== "/api/sync") return json({ error: "not_found" }, 404);
 
   if (request.method === "GET") {
@@ -66,6 +86,63 @@ const handleApi = async (request: Request, env: Env) => {
   return json({ error: "method_not_allowed" }, 405);
 };
 
+const getJstParts = (timestamp: number) => {
+  const date = new Date(timestamp + 9 * 60 * 60 * 1000);
+  return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate() };
+};
+const lastDay = (year: number, month: number) => new Date(Date.UTC(year, month, 0)).getUTCDate();
+const pad = (value: number) => String(value).padStart(2, "0");
+const reminderMonth = (timestamp: number) => {
+  const current = getJstParts(timestamp);
+  if (current.day === lastDay(current.year, current.month)) return `${current.year}-${pad(current.month)}`;
+  const previous = current.month === 1 ? { year: current.year - 1, month: 12 } : { year: current.year, month: current.month - 1 };
+  return `${previous.year}-${pad(previous.month)}`;
+};
+
+const needsMonthEndUpdate = (records: Record<string, unknown>, month: string) => {
+  const monthEnd = `${month}-${pad(lastDay(Number(month.slice(0, 4)), Number(month.slice(5, 7))))}`;
+  const accounts = Array.isArray(records["accounts.v1"]) ? records["accounts.v1"] as Array<Record<string, unknown>> : [];
+  const actualState = records.accountActualBalances as { byMonth?: Record<string, Record<string, number>>; confirmedByMonth?: Record<string, string[]> } | undefined;
+  const investmentState = records.investments as { snapshots?: Array<{ date: string; values: Record<string, number> }> } | undefined;
+  const transactions = Array.isArray(records.transactions) ? records.transactions as Array<Record<string, unknown>> : [];
+  const snapshot = investmentState?.snapshots?.find((item) => item.date === monthEnd);
+  return accounts.some((account) => {
+    if (!account.isActive || String(account.openingDate ?? "") > monthEnd) return false;
+    if (account.kind === "investment") return snapshot?.values?.[String(account.id)] == null;
+    const accountName = String(account.name);
+    const confirmed = (actualState?.confirmedByMonth?.[month] ?? []).includes(accountName);
+    if (account.kind !== "credit_card") return !confirmed;
+    const used = transactions.reduce((sum, transaction) => {
+      if (String(transaction.date ?? "") > monthEnd) return sum;
+      if (transaction.type === "expense" && !transaction.system && transaction.source === accountName) return sum + Number(transaction.amount ?? 0);
+      const system = transaction.system as { kind?: string } | undefined;
+      if (transaction.type === "move" && transaction.destination === accountName && system?.kind === "card_payment") return sum - Number(transaction.amount ?? 0);
+      return sum;
+    }, 0);
+    const creditCard = account.creditCard as { limit?: number } | undefined;
+    const available = Number(creditCard?.limit ?? 0) - used;
+    return !confirmed || actualState?.byMonth?.[month]?.[accountName] !== available;
+  });
+};
+
+const sendMonthEndReminders = async (controller: ScheduledController, env: Env) => {
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return;
+  const subscriptions = await env.DB.prepare("SELECT user_id, endpoint, subscription_json FROM push_subscriptions").all();
+  const month = reminderMonth(controller.scheduledTime);
+  webpush.setVapidDetails(env.VAPID_SUBJECT, env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY);
+  for (const row of subscriptions.results) {
+    const recordRows = await env.DB.prepare("SELECT record_key, value_json FROM sync_records WHERE user_id = ? AND deleted_at IS NULL").bind(row.user_id).all();
+    const records = Object.fromEntries(recordRows.results.map((record) => [String(record.record_key), record.value_json == null ? null : JSON.parse(String(record.value_json))]));
+    if (!needsMonthEndUpdate(records, month)) continue;
+    try {
+      await webpush.sendNotification(JSON.parse(String(row.subscription_json)), JSON.stringify({ title: "家計簿 月末更新", body: `${month}の残高更新が未完了です。`, url: "/graphs?tab=portfolio" }));
+    } catch (error) {
+      const statusCode = (error as { statusCode?: number }).statusCode;
+      if (statusCode === 404 || statusCode === 410) await env.DB.prepare("DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?").bind(row.user_id, row.endpoint).run();
+    }
+  }
+};
+
 export default {
   async fetch(request: Request, env: Env) {
     const url = new URL(request.url);
@@ -74,5 +151,8 @@ export default {
       return new Response("Not found", { status: 404, headers: { "cache-control": "no-store" } });
     }
     return env.ASSETS.fetch(request);
+  },
+  async scheduled(controller, env) {
+    await sendMonthEndReminders(controller, env);
   },
 } satisfies ExportedHandler<Env>;

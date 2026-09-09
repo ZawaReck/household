@@ -10,6 +10,7 @@ import { CategorySettings } from "./components/CategorySettings";
 import { CsvImportSettings } from "./components/CsvImportSettings";
 import { BackupSettings } from "./components/BackupSettings";
 import { LogoutSettings } from "./components/LogoutSettings";
+import { NotificationSettings } from "./components/NotificationSettings";
 import { ScheduledMoveSettings } from "./components/ScheduledMoveSettings";
 import type { Transaction } from "./types/Transaction";
 import { loadTransactions, saveTransactions } from "./data/transactionStore";
@@ -232,6 +233,7 @@ export const App: React.FC = () => {
             <AccountSettings accounts={accounts} transactions={transactions} onSave={handleSaveAccount} />
             <CategorySettings categories={categories} onSave={handleSaveCategory} onMerge={handleMergeCategory} />
             <ScheduledMoveSettings accounts={accounts} schedules={scheduledMoves} onChange={setScheduledMoves} />
+            <NotificationSettings />
             <section className="view-settings">
               <h2>表示</h2>
               <label>
