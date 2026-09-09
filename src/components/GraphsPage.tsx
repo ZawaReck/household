@@ -766,6 +766,25 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   };
 
   const handleSavePortfolioActuals = () => {
+    const maxBalanceDate = portfolioMonthKey === currentMonthKey ? todayISO : portfolioAsOf;
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(portfolioBalanceDate) ||
+      getMonthKey(portfolioBalanceDate) !== portfolioMonthKey ||
+      portfolioBalanceDate > maxBalanceDate
+    ) {
+      window.alert("残高基準日は対象月内かつ今日以前の日付を指定してください。");
+      return;
+    }
+    const invalidAccount = accountNames.find((account) => !Number.isInteger(portfolioActualInputs[account]));
+    if (invalidAccount) {
+      window.alert(`${invalidAccount}の実残高は円単位の整数で入力してください。`);
+      return;
+    }
+    const invalidCard = cardStatuses.find(({ account }) => !Number.isInteger(cardAvailableInputs[account.name]));
+    if (invalidCard) {
+      window.alert(`${invalidCard.account.name}の実利用可能額は円単位の整数で入力してください。`);
+      return;
+    }
     const regularActuals = Object.fromEntries(
       regularAccountNames.map((account) => [account, portfolioActualInputs[account] ?? 0])
     );
