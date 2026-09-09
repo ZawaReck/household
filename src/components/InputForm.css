@@ -501,6 +501,11 @@
   margin-bottom: 12px;
 }
 
+.system-move-editor { display: grid; gap: 14px; }
+.system-move-editor h3, .system-move-editor p { margin: 0; color: #245e2d; }
+.system-move-editor label { display: grid; gap: 5px; color: #245e2d; font-weight: 700; }
+.system-move-editor input, .system-move-editor select { min-height: 42px; border: 1px solid #b8d7c0; border-radius: 8px; padding: 8px; color: #245e2d; background: #fff; }
+
 /* 合計バー：date-headerを左右に割ってボタンを置く */
 .receipt-total-bar{
   display: flex;

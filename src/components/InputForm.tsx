@@ -713,6 +713,25 @@ export const InputForm: React.FC<InputFormProps> = ({
     );
   };
 
+  if (editingTransaction?.system?.kind === "card_payment") {
+    return (
+      <div className="input-form system-move-editor">
+        <h3>カード自動引落を編集</h3>
+        <p>{editingTransaction.name} · {editingTransaction.amount.toLocaleString()}円</p>
+        <label>引落日<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
+        <label>引落元
+          <select value={sourceMove} onChange={(event) => setSourceMove(event.target.value)}>
+            {paymentAccountNames.map((account) => <option key={account} value={account}>{account}</option>)}
+          </select>
+        </label>
+        <div className="form-buttons receipt-buttons">
+          <button type="button" onClick={() => { onUpdateTransaction({ ...editingTransaction, date, source: sourceMove }); setEditingTransaction(null); }}>更新</button>
+          <button type="button" onClick={() => setEditingTransaction(null)}>キャンセル</button>
+        </div>
+      </div>
+    );
+  }
+
   const tabIndex = type === "expense" ? 0 : type === "income" ? 1 : 2;
 
   return (
