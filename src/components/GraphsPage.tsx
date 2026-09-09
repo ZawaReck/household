@@ -55,6 +55,8 @@ import "./GraphsPage.css";
 
 interface Props {
   transactions: Transaction[];
+  showFutureTransactions: boolean;
+  onShowFutureTransactionsChange: (show: boolean) => void;
   setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
   accounts: Account[];
   categories: Category[];
@@ -394,7 +396,7 @@ const CategoryMonthlyTrendChart: React.FC<{
   );
 };
 
-export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, accounts: accountMaster, categories }) => {
+export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactions, onShowFutureTransactionsChange, setTransactions, accounts: accountMaster, categories }) => {
   const todayISO = new Date().toISOString().slice(0, 10);
   const currentMonthKey = getMonthKey(todayISO);
   const allMonthKeys = getMonthKeysFromTransactions(transactions, currentMonthKey);
@@ -1290,17 +1292,27 @@ export const GraphsPage: React.FC<Props> = ({ transactions, setTransactions, acc
 
   return (
     <div className="graphs-page-root">
-      <div className="graphs-tabs">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            className={activeTab === tab.id ? "active" : ""}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="graphs-topbar">
+        <div className="graphs-tabs">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={activeTab === tab.id ? "active" : ""}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className={`future-toggle ${showFutureTransactions ? "active" : ""}`}
+          aria-pressed={showFutureTransactions}
+          onClick={() => onShowFutureTransactionsChange(!showFutureTransactions)}
+        >
+          未来の記録 {showFutureTransactions ? "ON" : "OFF"}
+        </button>
       </div>
 
       {activeTab === "invest" && (

@@ -320,6 +320,8 @@ export const App: React.FC = () => {
           <Route path="/" element={
             <DashboardPage
               transactions={visibleTransactions}
+              showFutureTransactions={showFutureTransactions}
+              onShowFutureTransactionsChange={setShowFutureTransactions}
               accounts={accounts}
               categories={categories}
               onDeleteTransaction={handleDeleteTransaction}
@@ -353,6 +355,8 @@ export const App: React.FC = () => {
         <Route path="/graphs" element={
           <GraphsPage
             transactions={visibleTransactions}
+            showFutureTransactions={showFutureTransactions}
+            onShowFutureTransactionsChange={setShowFutureTransactions}
             setTransactions={setTransactions}
             accounts={accounts}
             categories={categories}

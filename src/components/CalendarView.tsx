@@ -12,10 +12,12 @@ interface CalendarViewProps {
 	onMonthChange: (offset: number) => void;
   onDateClick: (dateStr: string) => void;
   onOpenSearch?: () => void;
+  onToggleFuture?: () => void;
+  showFutureTransactions?: boolean;
   selectedDate?: string;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange, onDateClick, onOpenSearch, selectedDate }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange, onDateClick, onOpenSearch, onToggleFuture, showFutureTransactions = true, selectedDate }) => {
 	const firstDayOfMonth = new Date(year, month, 1);
 	const start = new Date (year, month, 1 - firstDayOfMonth.getDay()); // 週の始まりの日曜日
 
@@ -39,6 +41,16 @@ const weeksToRender = weeksNeeded === 6 ? 6 : weeksNeeded === 4 ? 4 : 5;
 				<button onClick={() => onMonthChange(1)}>▷</button>
 				{onOpenSearch && (
 					<button className="calendar-search-trigger" type="button" aria-label="履歴検索" onClick={onOpenSearch}>⌕</button>
+				)}
+				{onToggleFuture && (
+					<button
+						className={`calendar-future-toggle ${showFutureTransactions ? "active" : ""}`}
+						type="button"
+						aria-pressed={showFutureTransactions}
+						onClick={onToggleFuture}
+					>
+						未来 {showFutureTransactions ? "ON" : "OFF"}
+					</button>
 				)}
 			</div>
 			<div className="calendar-weekdays">

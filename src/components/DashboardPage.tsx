@@ -14,6 +14,8 @@ import './DashboardPage.css';
 
 interface Props {
 	transactions: Transaction[];
+	showFutureTransactions: boolean;
+	onShowFutureTransactionsChange: (show: boolean) => void;
 	accounts: Account[];
 	categories: Category[];
 	onDeleteTransaction: (id: string) => void;
@@ -103,6 +105,8 @@ export const DashboardPage: React.FC<Props> = (props) => {
 						onMonthChange={(offset: number) => setCurrentDate(new Date(year, month + offset, 1))}
 						onDateClick={handleDateClick}
 						onOpenSearch={() => setIsSearchOpen(true)}
+						onToggleFuture={() => props.onShowFutureTransactionsChange(!props.showFutureTransactions)}
+						showFutureTransactions={props.showFutureTransactions}
 						selectedDate={selectedDate}
 						/>
 						<SummaryView

@@ -8,11 +8,45 @@
   margin: 0 0 16px;
 }
 
+.graphs-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .graphs-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
+}
+
+.future-toggle {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border: 1px solid #8aa697;
+  border-radius: 999px;
+  background: #fff;
+  color: #3e5a4b;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.future-toggle.active {
+  border-color: #006428;
+  background: #dff1e5;
+  color: #006428;
+}
+
+@media (max-width: 767px) {
+  .graphs-topbar {
+    display: block;
+  }
+
+  .future-toggle {
+    margin: 0 0 12px;
+  }
 }
 
 .graphs-tabs button {
