@@ -31,6 +31,11 @@ export const reconcileReceiptTaxAdjustments = (transactions: Transaction[]) => {
     if (tax <= 0) return;
     const first = items[0];
     const existing = existingAdjustments.get(groupId);
+    const changed = !existing ||
+      existing.amount !== tax ||
+      existing.date !== first.date ||
+      existing.source !== first.source ||
+      existing.classification !== (first.classification ?? "normal");
     const desired: Transaction = {
       ...(existing ?? {}),
       id: existing?.id ?? `tax-adjustment:${groupId}`,
@@ -46,6 +51,7 @@ export const reconcileReceiptTaxAdjustments = (transactions: Transaction[]) => {
       classification: first.classification ?? "normal",
       groupId,
       isTaxAdjustment: true,
+      updatedAt: changed ? new Date().toISOString() : existing?.updatedAt,
     };
     desiredAdjustments.push(desired);
   });

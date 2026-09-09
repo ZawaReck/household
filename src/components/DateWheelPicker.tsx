@@ -1,6 +1,6 @@
 /* src/components/DateWheelPicker.tsx */
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./DateWheelPicker.css";
 import {
   clampDay,
@@ -208,8 +208,9 @@ export const DateWheelPicker: React.FC<Props> = ({
   const [isOpen, setIsOpen] = useState(false);
   const today = useMemo(() => getTodayParts(), []);
   const yearRange = resolveYearRange(minYear, maxYear, today.year);
-  const safeFrom = (raw?: string) =>
-    toSafeDateParts(raw, yearRange.minYear, yearRange.maxYear);
+  const safeFrom = useCallback((raw?: string) =>
+    toSafeDateParts(raw, yearRange.minYear, yearRange.maxYear),
+  [yearRange.minYear, yearRange.maxYear]);
 
   const isControlled = value !== undefined;
   const [internal, setInternal] = useState(() => safeFrom(value ?? defaultValue));
@@ -218,7 +219,7 @@ export const DateWheelPicker: React.FC<Props> = ({
     if (!isControlled) return;
     const next = safeFrom(value);
     setInternal(next);
-  }, [isControlled, value, yearRange.minYear, yearRange.maxYear]);
+  }, [isControlled, safeFrom, value]);
 
   useEffect(() => {
     if (isControlled) return;
@@ -228,7 +229,7 @@ export const DateWheelPicker: React.FC<Props> = ({
       next.month !== internal.month ||
       next.day !== internal.day;
     if (changed) setInternal(next);
-  }, [isControlled, yearRange.minYear, yearRange.maxYear]);
+  }, [internal, isControlled, safeFrom]);
 
   const parts = isControlled ? safeFrom(value) : internal;
   const pad2 = (num: number) => String(num).padStart(2, "0");

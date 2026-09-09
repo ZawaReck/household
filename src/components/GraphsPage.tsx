@@ -657,13 +657,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     () => ({ ...estimatedBalances, ...investmentValuesForPortfolio }),
     [estimatedBalances, investmentValuesForPortfolio]
   );
-  const activeCardAccounts = accountMaster.filter(
+  const activeCardAccounts = React.useMemo(() => accountMaster.filter(
     (account) => account.isActive && account.kind === "credit_card" && account.creditCard
-  );
-  const cardStatuses = activeCardAccounts.map((account) => {
+  ), [accountMaster]);
+  const cardStatuses = React.useMemo(() => activeCardAccounts.map((account) => {
     const used = creditCardOutstandingAsOf(account, transactions, portfolioBalanceDate);
     return { account, used, available: (account.creditCard?.limit ?? 0) - used };
-  });
+  }), [activeCardAccounts, portfolioBalanceDate, transactions]);
   const cardMonthConfirmed = cardStatuses.length > 0 && cardStatuses.every(({ account, available }) =>
     (accountActualState.confirmedByMonth[portfolioMonthKey] ?? []).includes(account.name) &&
     accountActualState.byMonth[portfolioMonthKey]?.[account.name] === available
@@ -688,7 +688,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       account.name,
       saved[account.name] ?? available,
     ])));
-  }, [portfolioMonthKey, accountActualState, transactions, accountMaster]);
+  }, [portfolioMonthKey, accountActualState, cardStatuses]);
 
   const handlePortfolioActualChange = (account: string, value: string) => {
     setPortfolioActualInputs((prev) => ({
