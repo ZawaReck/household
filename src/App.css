@@ -157,6 +157,25 @@ header {
   cursor: pointer;
 }
 
+.view-settings {
+  padding: 16px;
+  border-top: 1px solid #d2e2d5;
+  color: #245e2d;
+}
+
+.view-settings h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.view-settings label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .undo-toast {
   position: fixed;
   z-index: 100;

@@ -49,6 +49,19 @@ export const App: React.FC = () => {
 		const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [recentlyDeleted, setRecentlyDeleted] = useState<Transaction | null>(null);
+    const [showFutureTransactions, setShowFutureTransactions] = useState(() =>
+      localStorage.getItem("showFutureTransactions") !== "false"
+    );
+
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const visibleTransactions = showFutureTransactions
+      ? transactions
+      : transactions.filter((transaction) => transaction.date <= today);
+
+    useEffect(() => {
+      localStorage.setItem("showFutureTransactions", String(showFutureTransactions));
+    }, [showFutureTransactions]);
 
   const handleAddTransaction = (transaction: Omit<Transaction, "id">) => {
     const newTransaction: Transaction = {
@@ -137,6 +150,13 @@ export const App: React.FC = () => {
             <div className="settings-drawer-top"><strong>設定</strong><button type="button" onClick={() => setIsSettingsOpen(false)}>×</button></div>
             <AccountSettings accounts={accounts} transactions={transactions} onSave={handleSaveAccount} />
             <CategorySettings categories={categories} onSave={handleSaveCategory} />
+            <section className="view-settings">
+              <h2>表示</h2>
+              <label>
+                <input type="checkbox" checked={showFutureTransactions} onChange={(event) => setShowFutureTransactions(event.target.checked)} />
+                未来の記録を表示
+              </label>
+            </section>
             <CsvImportSettings onImport={handleCsvImport} />
             <BackupSettings />
             <LogoutSettings />
@@ -148,7 +168,7 @@ export const App: React.FC = () => {
         <Routes>
           <Route path="/" element={
             <DashboardPage
-              transactions={transactions}
+              transactions={visibleTransactions}
               accounts={accounts}
               categories={categories}
               onDeleteTransaction={handleDeleteTransaction}
@@ -170,7 +190,7 @@ export const App: React.FC = () => {
               editingTransaction={editingTransaction}
               setEditingTransaction={setEditingTransaction}
               selectedDate={selectedDate}
-              monthlyData={transactions}
+              monthlyData={visibleTransactions}
               accounts={accounts}
               categories={categories}
           />
@@ -178,7 +198,7 @@ export const App: React.FC = () => {
 
         <Route path="/graphs" element={
           <GraphsPage
-            transactions={transactions}
+            transactions={visibleTransactions}
             setTransactions={setTransactions}
             accounts={accounts}
           />
