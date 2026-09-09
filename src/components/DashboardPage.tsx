@@ -10,12 +10,15 @@ import { InputForm } from "./InputForm";
 import { TransactionHistory } from "./TransactionHistory";
 import { HistorySearch } from "./HistorySearch";
 import { MonthEndReminder } from "./MonthEndReminder";
+import { isIncludedInRegularAnalytics } from "../utils/analytics";
 import './DashboardPage.css';
 
 interface Props {
 	transactions: Transaction[];
 	showFutureTransactions: boolean;
 	onShowFutureTransactionsChange: (show: boolean) => void;
+	includeExcludedAnalytics: boolean;
+	onIncludeExcludedAnalyticsChange: (include: boolean) => void;
 	accounts: Account[];
 	categories: Category[];
 	onDeleteTransaction: (id: string) => void;
@@ -47,7 +50,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 
 	//2. 繰越金計算
 	const openingBalance = props.transactions
-		.filter((transaction) => new Date(transaction.date) < new Date(year, month, 1))
+		.filter((transaction) => new Date(transaction.date) < new Date(year, month, 1) && isIncludedInRegularAnalytics(transaction, props.includeExcludedAnalytics))
 		.reduce((sum, transaction) => {
 			if (transaction.type === "income") return sum + transaction.amount;
 			if (transaction.type === "expense") return sum - transaction.amount;
@@ -107,11 +110,14 @@ export const DashboardPage: React.FC<Props> = (props) => {
 						onOpenSearch={() => setIsSearchOpen(true)}
 						onToggleFuture={() => props.onShowFutureTransactionsChange(!props.showFutureTransactions)}
 						showFutureTransactions={props.showFutureTransactions}
+						onToggleExcluded={() => props.onIncludeExcludedAnalyticsChange(!props.includeExcludedAnalytics)}
+						includeExcludedAnalytics={props.includeExcludedAnalytics}
 						selectedDate={selectedDate}
 						/>
 						<SummaryView
 							monthlyData={monthlyData}
 							openingBalance={openingBalance}
+							includeExcludedAnalytics={props.includeExcludedAnalytics}
 					/>
 				</div>
 			</section>

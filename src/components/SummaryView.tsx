@@ -8,14 +8,15 @@ import './SummaryView.css';
 interface Props {
     monthlyData: Transaction[];
     openingBalance: number;
+    includeExcludedAnalytics: boolean;
 }
 
-export const SummaryView: React.FC<Props> = ({ monthlyData, openingBalance }) => {
+export const SummaryView: React.FC<Props> = ({ monthlyData, openingBalance, includeExcludedAnalytics }) => {
     const income = monthlyData
-        .filter((transaction) => transaction.type === "income" && isIncludedInRegularAnalytics(transaction))
+        .filter((transaction) => transaction.type === "income" && isIncludedInRegularAnalytics(transaction, includeExcludedAnalytics))
         .reduce((sum, transaction) => sum + transaction.amount, 0);
     const expense = monthlyData
-        .filter((transaction) => transaction.type === "expense" && isIncludedInRegularAnalytics(transaction))
+        .filter((transaction) => transaction.type === "expense" && isIncludedInRegularAnalytics(transaction, includeExcludedAnalytics))
         .reduce((sum, transaction) => sum + transaction.amount, 0);
     const total = income - expense;
     const balance = openingBalance + total;

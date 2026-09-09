@@ -14,10 +14,12 @@ interface CalendarViewProps {
   onOpenSearch?: () => void;
   onToggleFuture?: () => void;
   showFutureTransactions?: boolean;
+  onToggleExcluded?: () => void;
+  includeExcludedAnalytics?: boolean;
   selectedDate?: string;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange, onDateClick, onOpenSearch, onToggleFuture, showFutureTransactions = true, selectedDate }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange, onDateClick, onOpenSearch, onToggleFuture, showFutureTransactions = true, onToggleExcluded, includeExcludedAnalytics = false, selectedDate }) => {
 	const firstDayOfMonth = new Date(year, month, 1);
 	const start = new Date (year, month, 1 - firstDayOfMonth.getDay()); // 週の始まりの日曜日
 
@@ -42,17 +44,11 @@ const weeksToRender = weeksNeeded === 6 ? 6 : weeksNeeded === 4 ? 4 : 5;
 				{onOpenSearch && (
 					<button className="calendar-search-trigger" type="button" aria-label="履歴検索" onClick={onOpenSearch}>⌕</button>
 				)}
-				{onToggleFuture && (
-					<button
-						className={`calendar-future-toggle ${showFutureTransactions ? "active" : ""}`}
-						type="button"
-						aria-pressed={showFutureTransactions}
-						onClick={onToggleFuture}
-					>
-						未来 {showFutureTransactions ? "ON" : "OFF"}
-					</button>
-				)}
 			</div>
+			{(onToggleFuture || onToggleExcluded) && <div className="calendar-view-options">
+				{onToggleFuture && <button className={showFutureTransactions ? "active" : ""} type="button" aria-pressed={showFutureTransactions} onClick={onToggleFuture}>未来の記録 {showFutureTransactions ? "ON" : "OFF"}</button>}
+				{onToggleExcluded && <button className={includeExcludedAnalytics ? "active" : ""} type="button" aria-pressed={includeExcludedAnalytics} onClick={onToggleExcluded}>通算・特別 {includeExcludedAnalytics ? "含む" : "除外"}</button>}
+			</div>}
 			<div className="calendar-weekdays">
       {["日", "月", "火", "水", "木", "金", "土"].map((day) => (
         <div key={day} className="calendar-name">{day}</div>
@@ -70,8 +66,8 @@ const weeksToRender = weeksNeeded === 6 ? 6 : weeksNeeded === 4 ? 4 : 5;
           : null;
 
         const dayTransactions = isCurrentMonth ? monthlyData.filter(t => t.date === dateStr) : [];
-        const income = dayTransactions.filter(t => t.type === "income" && isIncludedInRegularAnalytics(t)).reduce((sum, t) => sum + t.amount, 0);
-        const expense = dayTransactions.filter(t => t.type === "expense" && isIncludedInRegularAnalytics(t)).reduce((sum, t) => sum + t.amount, 0);
+        const income = dayTransactions.filter(t => t.type === "income" && isIncludedInRegularAnalytics(t, includeExcludedAnalytics)).reduce((sum, t) => sum + t.amount, 0);
+        const expense = dayTransactions.filter(t => t.type === "expense" && isIncludedInRegularAnalytics(t, includeExcludedAnalytics)).reduce((sum, t) => sum + t.amount, 0);
 
         return (
           <div key={index}

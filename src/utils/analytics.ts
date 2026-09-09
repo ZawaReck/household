@@ -5,8 +5,8 @@ import type { Transaction } from "../types/Transaction";
 export const transactionClassification = (transaction: Transaction) =>
   transaction.classification ?? (transaction.isSpecial ? "special" : "normal");
 
-export const isIncludedInRegularAnalytics = (transaction: Transaction) =>
-  transactionClassification(transaction) === "normal";
+export const isIncludedInRegularAnalytics = (transaction: Transaction, includeExcluded = false) =>
+  includeExcluded || transactionClassification(transaction) === "normal";
 
 export const getMonthKey = (dateISO: string) => dateISO.slice(0, 7);
 
@@ -38,11 +38,12 @@ export const listMonthKeysBetween = (startMonthKey: string, endMonthKey: string)
 
 export const sumIncomeExpenseByMonth = (
   transactions: Transaction[],
-  monthKeys: string[]
+  monthKeys: string[],
+  includeExcluded = false,
 ) => {
   return monthKeys.map((month) => {
     const monthTx = transactions.filter(
-      (t) => getMonthKey(t.date) === month && isIncludedInRegularAnalytics(t)
+      (t) => getMonthKey(t.date) === month && isIncludedInRegularAnalytics(t, includeExcluded)
     );
     const income = monthTx
       .filter((t) => t.type === "income")
@@ -58,10 +59,11 @@ const normalizeAnalyticsTaxRate = (rate: unknown) => rate === 8 || rate === 10 ?
 
 export const sumExpenseByCategoryAllocatedTax = (
   transactions: Transaction[],
-  monthKey: string
+  monthKey: string,
+  includeExcluded = false,
 ) => {
   const monthTx = transactions.filter(
-    (t) => getMonthKey(t.date) === monthKey && isIncludedInRegularAnalytics(t)
+    (t) => getMonthKey(t.date) === monthKey && isIncludedInRegularAnalytics(t, includeExcluded)
   );
   const expenses = monthTx.filter((t) => t.type === "expense");
   const baseItems = expenses.filter((t) => t.isTaxAdjustment !== true);
@@ -105,10 +107,11 @@ export const sumExpenseByCategoryAllocatedTax = (
 export const sumExpenseByCategoryAllocatedTaxByMonth = (
   transactions: Transaction[],
   monthKeys: string[],
-  category: string
+  category: string,
+  includeExcluded = false,
 ) => {
   return monthKeys.map((month) => {
-    const items = sumExpenseByCategoryAllocatedTax(transactions, month);
+    const items = sumExpenseByCategoryAllocatedTax(transactions, month, includeExcluded);
     const found = items.find((i) => i.category === category);
     return { month, value: found ? found.value : 0 };
   });

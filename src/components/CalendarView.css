@@ -24,9 +24,16 @@
   font-size: 1.35rem;
 }
 
-.calendar-future-toggle {
-  position: absolute;
-  left: 6px;
+.calendar-view-options {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 5px 6px;
+  border-bottom: 1px solid #b8d7c0;
+  background: #f9fbf9;
+}
+
+.calendar-view-options button {
   padding: 5px 8px;
   border: 1px solid #8aa697;
   border-radius: 999px;
@@ -35,7 +42,7 @@
   font-size: 0.7rem;
 }
 
-.calendar-future-toggle.active {
+.calendar-view-options button.active {
   border-color: #006428;
   background: #dff1e5;
   color: #006428;

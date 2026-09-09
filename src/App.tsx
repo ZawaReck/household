@@ -75,6 +75,9 @@ export const App: React.FC = () => {
     const [showFutureTransactions, setShowFutureTransactions] = useState(() =>
       localStorage.getItem("showFutureTransactions") !== "false"
     );
+    const [includeExcludedAnalytics, setIncludeExcludedAnalytics] = useState(() =>
+      localStorage.getItem("includeExcludedAnalytics") === "true"
+    );
     const [deleteUndoSeconds, setDeleteUndoSeconds] = useState(() => {
       const saved = Number(localStorage.getItem("deleteUndoSeconds") ?? 5);
       return Number.isFinite(saved) && saved >= 1 ? Math.min(saved, 60) : 5;
@@ -89,6 +92,9 @@ export const App: React.FC = () => {
     useEffect(() => {
       localStorage.setItem("showFutureTransactions", String(showFutureTransactions));
     }, [showFutureTransactions]);
+    useEffect(() => {
+      localStorage.setItem("includeExcludedAnalytics", String(includeExcludedAnalytics));
+    }, [includeExcludedAnalytics]);
     useEffect(() => {
       localStorage.setItem("deleteUndoSeconds", String(deleteUndoSeconds));
     }, [deleteUndoSeconds]);
@@ -322,6 +328,8 @@ export const App: React.FC = () => {
               transactions={visibleTransactions}
               showFutureTransactions={showFutureTransactions}
               onShowFutureTransactionsChange={setShowFutureTransactions}
+              includeExcludedAnalytics={includeExcludedAnalytics}
+              onIncludeExcludedAnalyticsChange={setIncludeExcludedAnalytics}
               accounts={accounts}
               categories={categories}
               onDeleteTransaction={handleDeleteTransaction}
@@ -357,6 +365,8 @@ export const App: React.FC = () => {
             transactions={visibleTransactions}
             showFutureTransactions={showFutureTransactions}
             onShowFutureTransactionsChange={setShowFutureTransactions}
+            includeExcludedAnalytics={includeExcludedAnalytics}
+            onIncludeExcludedAnalyticsChange={setIncludeExcludedAnalytics}
             setTransactions={setTransactions}
             accounts={accounts}
             categories={categories}

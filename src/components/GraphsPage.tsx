@@ -57,6 +57,8 @@ interface Props {
   transactions: Transaction[];
   showFutureTransactions: boolean;
   onShowFutureTransactionsChange: (show: boolean) => void;
+  includeExcludedAnalytics: boolean;
+  onIncludeExcludedAnalyticsChange: (include: boolean) => void;
   setTransactions: React.Dispatch<React.SetStateAction<Transaction[]>>;
   accounts: Account[];
   categories: Category[];
@@ -398,7 +400,7 @@ const CategoryMonthlyTrendChart: React.FC<{
   );
 };
 
-export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactions, onShowFutureTransactionsChange, setTransactions, accounts: accountMaster, categories }) => {
+export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactions, onShowFutureTransactionsChange, includeExcludedAnalytics, onIncludeExcludedAnalyticsChange, setTransactions, accounts: accountMaster, categories }) => {
   const todayISO = new Date().toISOString().slice(0, 10);
   const currentMonthKey = getMonthKey(todayISO);
   const allMonthKeys = getMonthKeysFromTransactions(transactions, currentMonthKey);
@@ -467,7 +469,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
 
   const expenseCategories = React.useMemo(() => {
     const fromTx = transactions
-      .filter((t) => t.type === "expense" && t.isTaxAdjustment !== true && isIncludedInRegularAnalytics(t))
+      .filter((t) => t.type === "expense" && t.isTaxAdjustment !== true && isIncludedInRegularAnalytics(t, includeExcludedAnalytics))
       .map((t) => t.category)
       .filter((c) => c && c !== "外税" && !inactiveExpenseCategoryNames.has(c));
     const activeMaster = categories
@@ -827,7 +829,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const monthlyCategorySummary = React.useMemo(() => {
     if (monthlyCategoryMode === "expense") {
       const items = sortByDefaultCategoryOrder(
-        sumExpenseByCategoryAllocatedTax(transactions, categoryMonthKey).map((item) => ({
+        sumExpenseByCategoryAllocatedTax(transactions, categoryMonthKey, includeExcludedAnalytics).map((item) => ({
           name: item.category,
           value: item.value,
         })),
@@ -841,7 +843,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       const monthTx = transactions.filter((t) => getMonthKey(t.date) === categoryMonthKey);
       const categoryMap = new Map<string, number>();
       monthTx
-        .filter((t) => t.type === "income" && isIncludedInRegularAnalytics(t))
+        .filter((t) => t.type === "income" && isIncludedInRegularAnalytics(t, includeExcludedAnalytics))
         .forEach((t) => {
           const key = t.category || "未分類";
           categoryMap.set(key, (categoryMap.get(key) ?? 0) + t.amount);
@@ -856,7 +858,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       return { items, total };
     }
 
-    const monthSeries = sumIncomeExpenseByMonth(transactions, [categoryMonthKey])[0] ?? {
+    const monthSeries = sumIncomeExpenseByMonth(transactions, [categoryMonthKey], includeExcludedAnalytics)[0] ?? {
       month: categoryMonthKey,
       income: 0,
       expense: 0,
@@ -895,7 +897,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
           const found = sumExpenseByCategoryAllocatedTaxByMonth(
             transactions,
             [month],
-            selectedCategory
+            selectedCategory,
+            includeExcludedAnalytics,
           )[0];
           return { month, value: found?.value ?? 0 };
         }
@@ -903,12 +906,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
         if (monthlyCategoryMode === "income") {
           const monthTx = transactions.filter((t) => getMonthKey(t.date) === month);
           const value = monthTx
-            .filter((t) => t.type === "income" && isIncludedInRegularAnalytics(t) && (t.category || "未分類") === selectedCategory)
+            .filter((t) => t.type === "income" && isIncludedInRegularAnalytics(t, includeExcludedAnalytics) && (t.category || "未分類") === selectedCategory)
             .reduce((sum, t) => sum + t.amount, 0);
           return { month, value };
         }
 
-        const totals = sumIncomeExpenseByMonth(transactions, [month])[0] ?? {
+        const totals = sumIncomeExpenseByMonth(transactions, [month], includeExcludedAnalytics)[0] ?? {
           month,
           income: 0,
           expense: 0,
@@ -970,7 +973,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     if (yearlyCategoryMode === "expense") {
       const items = sortByDefaultCategoryOrder(
         yearlyTrendMonths.flatMap((month) =>
-          sumExpenseByCategoryAllocatedTax(transactions, month).map((item) => ({
+          sumExpenseByCategoryAllocatedTax(transactions, month, includeExcludedAnalytics).map((item) => ({
             name: item.category,
             value: item.value,
           }))
@@ -989,7 +992,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     if (yearlyCategoryMode === "income") {
       const categoryMap = new Map<string, number>();
       yearlyTransactions
-        .filter((t) => t.type === "income" && isIncludedInRegularAnalytics(t))
+        .filter((t) => t.type === "income" && isIncludedInRegularAnalytics(t, includeExcludedAnalytics))
         .forEach((t) => {
           const key = t.category || "未分類";
           categoryMap.set(key, (categoryMap.get(key) ?? 0) + t.amount);
@@ -1004,7 +1007,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       return { items, total };
     }
 
-    const yearSeries = sumIncomeExpenseByMonth(transactions, yearlyTrendMonths);
+    const yearSeries = sumIncomeExpenseByMonth(transactions, yearlyTrendMonths, includeExcludedAnalytics);
     const incomeTotal = yearSeries.reduce((sum, item) => sum + item.income, 0);
     const expenseTotal = yearSeries.reduce((sum, item) => sum + item.expense, 0);
     const items = [
@@ -1035,7 +1038,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
           const found = sumExpenseByCategoryAllocatedTaxByMonth(
             transactions,
             [month],
-            selectedYearlyCategory
+            selectedYearlyCategory,
+            includeExcludedAnalytics,
           )[0];
           return { month, value: found?.value ?? 0 };
         }
@@ -1043,12 +1047,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
         if (yearlyCategoryMode === "income") {
           const monthTx = transactions.filter((t) => getMonthKey(t.date) === month);
           const value = monthTx
-            .filter((t) => t.type === "income" && isIncludedInRegularAnalytics(t) && (t.category || "未分類") === selectedYearlyCategory)
+            .filter((t) => t.type === "income" && isIncludedInRegularAnalytics(t, includeExcludedAnalytics) && (t.category || "未分類") === selectedYearlyCategory)
             .reduce((sum, t) => sum + t.amount, 0);
           return { month, value };
         }
 
-        const totals = sumIncomeExpenseByMonth(transactions, [month])[0] ?? {
+        const totals = sumIncomeExpenseByMonth(transactions, [month], includeExcludedAnalytics)[0] ?? {
           month,
           income: 0,
           expense: 0,
@@ -1097,7 +1101,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     selectedYearlyCategory === "" &&
     yearlyPieData.length > 0 &&
     yearlyCategorySummary.items.every((item) => item.value > 0);
-  const yearlyOverviewSeries = sumIncomeExpenseByMonth(transactions, categoryTrendMonths);
+  const yearlyOverviewSeries = sumIncomeExpenseByMonth(transactions, categoryTrendMonths, includeExcludedAnalytics);
 
   React.useEffect(() => {
     if (monthlyCategoryMode !== "net") return;
@@ -1314,6 +1318,14 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
           onClick={() => onShowFutureTransactionsChange(!showFutureTransactions)}
         >
           未来の記録 {showFutureTransactions ? "ON" : "OFF"}
+        </button>
+        <button
+          type="button"
+          className={`future-toggle ${includeExcludedAnalytics ? "active" : ""}`}
+          aria-pressed={includeExcludedAnalytics}
+          onClick={() => onIncludeExcludedAnalyticsChange(!includeExcludedAnalytics)}
+        >
+          通算・特別 {includeExcludedAnalytics ? "含む" : "除外"}
         </button>
       </div>
 
