@@ -150,6 +150,18 @@ header {
   background: #245e2d;
 }
 
+.settings-drawer-title {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.settings-version {
+  color: rgba(255, 255, 255, .72);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
 .settings-drawer-top button, .nav-menu button {
   border: 0;
   background: transparent;

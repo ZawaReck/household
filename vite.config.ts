@@ -2,10 +2,16 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { rmSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
+
+const appVersion = `0.1.${execFileSync('git', ['rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).trim()}`
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [react(),
     VitePWA({
       registerType: 'autoUpdate',

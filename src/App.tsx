@@ -383,7 +383,10 @@ export const App: React.FC = () => {
       {isSettingsOpen && (
         <div className="settings-backdrop" onClick={() => setIsSettingsOpen(false)}>
           <aside className="settings-drawer" onClick={(event) => event.stopPropagation()}>
-            <div className="settings-drawer-top"><strong>設定</strong><button type="button" onClick={() => setIsSettingsOpen(false)}>×</button></div>
+            <div className="settings-drawer-top">
+              <div className="settings-drawer-title"><strong>設定</strong><span className="settings-version">v{__APP_VERSION__}</span></div>
+              <button type="button" onClick={() => setIsSettingsOpen(false)}>×</button>
+            </div>
             <AccountSettings accounts={accounts} transactions={transactions} onSave={handleSaveAccount} />
             <CategorySettings categories={categories} onSave={handleSaveCategory} onMerge={handleMergeCategory} />
             <ScheduledMoveSettings accounts={accounts} schedules={scheduledMoves} onChange={setScheduledMoves} />
