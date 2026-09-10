@@ -396,7 +396,7 @@ export const App: React.FC = () => {
               </label>
               <label className="view-settings-number">
                 削除の取消時間
-                <input type="number" min="1" max="60" value={deleteUndoSeconds} onChange={(event) => setDeleteUndoSeconds(Math.max(1, Math.min(60, Number(event.target.value) || 5)))} />
+                <input type="number" inputMode="numeric" min="1" max="60" value={deleteUndoSeconds} onChange={(event) => setDeleteUndoSeconds(Math.max(1, Math.min(60, Number(event.target.value) || 5)))} />
                 秒
               </label>
             </section>

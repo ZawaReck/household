@@ -1649,6 +1649,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                           <td>
                             <input
                               type="number"
+                              inputMode="numeric"
                               value={actual}
                               onChange={(e) => handlePortfolioActualChange(account, e.target.value)}
                             />
@@ -1675,7 +1676,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     <tbody>{cardStatuses.map(({ account, limit, used, available }) => (
                       <tr key={account.id}>
                         <td>{account.name}<span className="muted"> / 上限 {formatYen(limit)}</span></td><td>{formatYen(used)}</td><td>{formatYen(available)}</td>
-                        <td><input type="number" value={cardAvailableInputs[account.name] ?? available} onChange={(event) => setCardAvailableInputs((current) => ({ ...current, [account.name]: Number(event.target.value) }))} /></td>
+                        <td><input type="number" inputMode="numeric" value={cardAvailableInputs[account.name] ?? available} onChange={(event) => setCardAvailableInputs((current) => ({ ...current, [account.name]: Number(event.target.value) }))} /></td>
                       </tr>
                     ))}</tbody>
                   </table>
@@ -2304,6 +2305,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                           <td>
                             <input
                               type="number"
+                              inputMode="numeric"
                               min="1"
                               step="1"
                               placeholder="未設定"
@@ -2436,6 +2438,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 金額
                 <input
                   type="number"
+                  inputMode="numeric"
                   min="1"
                   step="1"
                   value={sontokuForm.amount}
@@ -2531,6 +2534,7 @@ const SnapshotForm: React.FC<{
           {asset.name}
           <input
             type="number"
+            inputMode="numeric"
             step="1"
             value={values[asset.id] ?? 0}
             onChange={(e) =>

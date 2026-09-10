@@ -171,19 +171,19 @@ export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSav
               {Object.entries(kindLabels).map(([kind, label]) => <option key={kind} value={kind}>{label}</option>)}
             </select>
           </label>
-          <label>開始残高<input type="number" step="1" value={draft.openingBalance} onChange={(event) => setDraft({ ...draft, openingBalance: Number(event.target.value) })} /></label>
+          <label>開始残高<input type="number" inputMode="numeric" step="1" value={draft.openingBalance} onChange={(event) => setDraft({ ...draft, openingBalance: Number(event.target.value) })} /></label>
           {draft.kind === "investment" && (
-            <label>開始時点損益<input type="number" step="1" value={draft.initialProfit ?? 0} onChange={(event) => setDraft({ ...draft, initialProfit: Number(event.target.value) })} /></label>
+            <label>開始時点損益<input type="number" inputMode="numeric" step="1" value={draft.initialProfit ?? 0} onChange={(event) => setDraft({ ...draft, initialProfit: Number(event.target.value) })} /></label>
           )}
           <label>開始基準日<input type="date" value={draft.openingDate} onChange={(event) => setDraft({ ...draft, openingDate: event.target.value })} /></label>
           {draft.kind === "credit_card" && draft.creditCard && (
             <fieldset className="card-settings-fields">
               <legend>カード設定</legend>
-              <label>利用限度額<input type="number" min="0" step="1" value={draft.creditCard.limit} onChange={(event) => setDraft({ ...draft, creditCard: { ...draft.creditCard!, limit: Number(event.target.value) } })} /></label>
+              <label>利用限度額<input type="number" inputMode="numeric" min="0" step="1" value={draft.creditCard.limit} onChange={(event) => setDraft({ ...draft, creditCard: { ...draft.creditCard!, limit: Number(event.target.value) } })} /></label>
               <div className="card-settings-grid">
-                <label>締め日<input type="number" min="1" max="31" value={draft.creditCard.closingDay} onChange={(event) => setDraft({ ...draft, creditCard: { ...draft.creditCard!, closingDay: Number(event.target.value) } })} /></label>
-                <label>引落日<input type="number" min="1" max="31" value={draft.creditCard.paymentDay} onChange={(event) => setDraft({ ...draft, creditCard: { ...draft.creditCard!, paymentDay: Number(event.target.value) } })} /></label>
-                <label>引落月数<input type="number" min="0" max="2" value={draft.creditCard.paymentDelayMonths} onChange={(event) => setDraft({ ...draft, creditCard: { ...draft.creditCard!, paymentDelayMonths: Number(event.target.value) } })} /></label>
+                <label>締め日<input type="number" inputMode="numeric" min="1" max="31" value={draft.creditCard.closingDay} onChange={(event) => setDraft({ ...draft, creditCard: { ...draft.creditCard!, closingDay: Number(event.target.value) } })} /></label>
+                <label>引落日<input type="number" inputMode="numeric" min="1" max="31" value={draft.creditCard.paymentDay} onChange={(event) => setDraft({ ...draft, creditCard: { ...draft.creditCard!, paymentDay: Number(event.target.value) } })} /></label>
+                <label>引落月数<input type="number" inputMode="numeric" min="0" max="2" value={draft.creditCard.paymentDelayMonths} onChange={(event) => setDraft({ ...draft, creditCard: { ...draft.creditCard!, paymentDelayMonths: Number(event.target.value) } })} /></label>
               </div>
               <label>既定引落元
                 <select value={draft.creditCard.defaultPaymentAccountId ?? ""} onChange={(event) => setDraft({ ...draft, creditCard: { ...draft.creditCard!, defaultPaymentAccountId: event.target.value || undefined } })}>

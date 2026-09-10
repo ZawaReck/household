@@ -943,6 +943,7 @@ export const InputForm: React.FC<InputFormProps> = ({
           />
           <input
             type="number"
+            inputMode="numeric"
             min="1"
             step={type === "expense" ? "1" : "any"}
             value={amount}
@@ -1057,7 +1058,7 @@ export const InputForm: React.FC<InputFormProps> = ({
               )}
             </div>
             <div className="kv-row-under">
-              <label className="kv-value-btn"><span className="kv-label">手数料</span><input type="number" min="0" step="1" value={moveFee} onChange={(event) => setMoveFee(event.target.value)} placeholder="0" /></label>
+              <label className="kv-value-btn"><span className="kv-label">手数料</span><input type="number" inputMode="numeric" min="0" step="1" value={moveFee} onChange={(event) => setMoveFee(event.target.value)} placeholder="0" /></label>
             </div>
           </div>
         )}
