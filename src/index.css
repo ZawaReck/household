@@ -69,6 +69,11 @@ html[data-app-page="input"] main {
   overflow: hidden;
 }
 
+html[data-input-sheet-open="true"] {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 .auth-screen {
   min-height: 100dvh;
   display: grid;

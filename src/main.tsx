@@ -9,6 +9,13 @@ import { SyncManager } from './components/SyncManager.tsx'
 import { hydrateOfflineStorage } from './data/offlineStore.ts'
 import { backupKeys } from './utils/backup.ts'
 
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+  || (navigator as Navigator & { standalone?: boolean }).standalone === true
+
+if (isStandalone && window.location.pathname !== '/add') {
+  window.history.replaceState(null, '', '/add')
+}
+
 const renderApp = () => createRoot(document.getElementById('root')!).render(
   <StrictMode><AuthGate><SyncManager><App /></SyncManager></AuthGate></StrictMode>,
 )

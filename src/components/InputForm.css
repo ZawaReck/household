@@ -1104,7 +1104,6 @@
     height: 40px;
     border: 0;
     border-radius: 4px;
-    background: #c6ffdd;
     color: #006428;
     font-size: 15px;
   }
@@ -1112,11 +1111,13 @@
   .move-fee-row span {
     display: flex;
     align-items: center;
+    background: transparent;
     padding: 0 12px;
   }
 
   .move-fee-row input {
     width: 100%;
+    background: #c6ffdd;
     padding: 0 12px;
     text-align: right;
   }
@@ -1353,6 +1354,6 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    padding: 15px 0 0;
+    padding: 0;
   }
 }
