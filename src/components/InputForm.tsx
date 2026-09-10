@@ -870,9 +870,13 @@ export const InputForm: React.FC<InputFormProps> = ({
   const projectedCategoryActual = (actualCategoryMap[category] ?? 0) + (pendingByCategory.get(category) ?? 0);
   const projectedTotalActual = actualTotal + pendingTotal;
 
-  const BudgetProgress = ({ label, actual, budget }: { label: string; actual: number; budget?: number }) => {
+  const BudgetProgress = ({ kind, actual, budget }: { kind: "category" | "total"; actual: number; budget?: number }) => {
     const rate = budget && budget > 0 ? (actual / budget) * 100 : null;
-    return <div className="input-budget-row"><span>{label}</span><span>{actual.toLocaleString()}/{budget ? budget.toLocaleString() : "未設定"}</span><progress max={100} value={rate == null ? 0 : Math.min(rate, 100)} className={rate != null && rate > 100 ? "is-over" : ""} /></div>;
+    const isOver = rate != null && rate > 100;
+    return <div className={`input-budget-row is-${kind} ${isOver ? "is-over" : ""}`}>
+      <span className="input-budget-value"><strong>{actual.toLocaleString()}</strong>/{budget ? budget.toLocaleString() : "未設定"}</span>
+      {rate != null && <progress max={100} value={Math.min(rate, 100)} className={isOver ? "is-over" : ""} />}
+    </div>;
   };
 
   if (editingTransaction?.system?.kind === "card_payment") {
@@ -1042,8 +1046,8 @@ export const InputForm: React.FC<InputFormProps> = ({
 
         {type === "expense" && (
           <div className="input-budget-progress" aria-label="予算進捗">
-            <BudgetProgress label={category} actual={projectedCategoryActual} budget={categoryBudget} />
-            <BudgetProgress label="総額" actual={projectedTotalActual} budget={totalBudget || undefined} />
+            <BudgetProgress kind="category" actual={projectedCategoryActual} budget={categoryBudget} />
+            <BudgetProgress kind="total" actual={projectedTotalActual} budget={totalBudget || undefined} />
           </div>
         )}
 

@@ -766,6 +766,10 @@
   accent-color: #c84b4b;
 }
 
+.input-budget-row.is-over .input-budget-value strong {
+  color: #b83232;
+}
+
 .input-budget-row small {
   text-align: right;
   color: #647168;
@@ -944,9 +948,7 @@
     min-height: 23px;
     margin: 6px 35px;
     padding: 0;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
+    display: block;
     border-radius: 0;
     background: transparent;
   }
@@ -955,15 +957,30 @@
   .type-move .tab-group { margin-bottom: 90px; }
 
   .input-budget-row {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 3px;
+    position: absolute;
+    inset: 0;
     color: #006428;
     font-size: 8px;
     line-height: 10px;
   }
 
-  .input-budget-row:nth-child(2) { text-align: right; }
+  .input-budget-value {
+    position: absolute;
+    top: 0;
+    white-space: nowrap;
+  }
+
+  .input-budget-value strong { font-weight: 400; }
+  .input-budget-row.is-over .input-budget-value strong { color: #c62828; }
+  .input-budget-row.is-category .input-budget-value {
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+  }
+  .input-budget-row.is-total .input-budget-value {
+    right: 0;
+    text-align: right;
+  }
 
   .input-budget-row progress {
     position: absolute;
@@ -974,10 +991,19 @@
     border: 0;
     border-radius: 4px;
     accent-color: #006428;
+    appearance: none;
+    -webkit-appearance: none;
+    background: #d7e3db;
   }
 
-  .input-budget-row:nth-child(1) progress { top: 13px; }
-  .input-budget-row:nth-child(2) progress { top: 18px; }
+  .input-budget-row progress::-webkit-progress-bar { border-radius: 4px; background: #d7e3db; }
+  .input-budget-row progress::-webkit-progress-value { border-radius: 4px; background: #006428; }
+  .input-budget-row progress::-moz-progress-bar { border-radius: 4px; background: #006428; }
+  .input-budget-row progress.is-over::-webkit-progress-value { background: #c62828; }
+  .input-budget-row progress.is-over::-moz-progress-bar { background: #c62828; }
+
+  .input-budget-row.is-category progress { top: 13px; }
+  .input-budget-row.is-total progress { top: 18px; }
 
   .input-form .row-2 {
     order: 4;
@@ -1112,7 +1138,7 @@
     display: flex;
     align-items: center;
     background: transparent;
-    padding: 0 12px;
+    padding: 0 9px;
   }
 
   .move-fee-row input {
@@ -1354,6 +1380,6 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    padding: 0;
+    padding: 32px 0 0;
   }
 }
