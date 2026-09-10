@@ -1,5 +1,4 @@
 import React from "react";
-import { getGoogleIdToken } from "./AuthGate";
 import "./AccountSettings.css";
 import "./NotificationSettings.css";
 
@@ -18,19 +17,18 @@ export const NotificationSettings: React.FC = () => {
     void navigator.serviceWorker.ready.then((registration) => registration.pushManager.getSubscription()).then((subscription) => setEnabled(Boolean(subscription)));
   }, [supported]);
 
-  const authHeaders = () => ({ authorization: `Bearer ${getGoogleIdToken() ?? ""}` });
   const enable = async () => {
     try {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") { setMessage("通知が許可されていません。"); return; }
-      const keyResponse = await fetch("/api/push/public-key", { headers: authHeaders() });
+      const keyResponse = await fetch("/api/push/public-key");
       if (!keyResponse.ok) throw new Error("key");
       const { publicKey } = await keyResponse.json() as { publicKey: string };
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodeKey(publicKey) });
       const response = await fetch("/api/push/subscriptions", {
         method: "POST",
-        headers: { ...authHeaders(), "content-type": "application/json" },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify(subscription),
       });
       if (!response.ok) throw new Error("save");
@@ -44,7 +42,7 @@ export const NotificationSettings: React.FC = () => {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
     if (subscription) {
-      await fetch("/api/push/subscriptions", { method: "DELETE", headers: { ...authHeaders(), "content-type": "application/json" }, body: JSON.stringify({ endpoint: subscription.endpoint }) });
+      await fetch("/api/push/subscriptions", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ endpoint: subscription.endpoint }) });
       await subscription.unsubscribe();
     }
     setEnabled(false);
@@ -53,7 +51,7 @@ export const NotificationSettings: React.FC = () => {
   const sendTest = async () => {
     setMessage("テスト通知を送信しています…");
     try {
-      const response = await fetch("/api/push/test", { method: "POST", headers: authHeaders() });
+      const response = await fetch("/api/push/test", { method: "POST" });
       if (!response.ok) throw new Error("delivery");
       setMessage("テスト通知を送信しました。iPhoneで受信を確認してください。");
     } catch {

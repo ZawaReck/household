@@ -31,6 +31,7 @@
   color: #3e5a4b;
   cursor: pointer;
   font-weight: 600;
+  transition: color 160ms ease, background-color 200ms ease, border-color 200ms ease, transform 180ms ease;
 }
 
 .future-toggle.active {
@@ -57,12 +58,14 @@
   background: #D7E3DB;
   cursor: pointer;
   font-weight: 600;
+  transition: color 160ms ease, background-color 200ms ease, border-color 200ms ease, transform 180ms ease;
 }
 
 .graphs-tabs button.active {
   background: #006828;
   color: #F9FFFB;
   border-color: #006828;
+  animation: graph-segment-selection-in 220ms cubic-bezier(.2, .75, .25, 1);
 }
 
 .graphs-section {
@@ -70,6 +73,7 @@
   border: 1px solid #d7e3db;
   border-radius: 12px;
   background: #F9FFFB;
+  animation: graph-panel-in 220ms ease-out both;
 }
 
 .graphs-section-header {
@@ -343,6 +347,7 @@ select {
   border: 1px solid #ccd7d0;
   background: #D7E3DB;
   cursor: pointer;
+  transition: color 160ms ease, background-color 200ms ease, border-color 200ms ease, transform 180ms ease;
 }
 
 .toggle-group button.active,
@@ -350,6 +355,29 @@ select {
   background: #006828;
   color: #F9FFFB;
   border-color: #006828;
+  animation: graph-segment-selection-in 220ms cubic-bezier(.2, .75, .25, 1);
+}
+
+@keyframes graph-segment-selection-in {
+  from { transform: scale(.94); }
+  to { transform: scale(1); }
+}
+
+@keyframes graph-panel-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .future-toggle,
+  .graphs-tabs button,
+  .graphs-tabs button.active,
+  .graphs-section,
+  .toggle-group button,
+  .period-buttons button.active {
+    animation-duration: 1ms;
+    transition-duration: 1ms;
+  }
 }
 
 .toggle-group button:disabled,

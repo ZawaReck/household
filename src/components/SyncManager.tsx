@@ -1,6 +1,6 @@
 import React from "react";
 import { backupKeys, mergeValues } from "../utils/backup";
-import { getGoogleIdToken } from "./AuthGate";
+import { handleUnauthorized } from "./AuthGate";
 import { writeOfflineValue } from "../data/offlineStore";
 import { applyDeletionTombstones, DELETION_TOMBSTONE_KEY, loadDeletionTombstones } from "../data/deletionStore";
 import {
@@ -38,8 +38,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
       if (running) { rerun = true; return; }
       running = true;
       try {
-        const token = getGoogleIdToken();
-        if (!token || !navigator.onLine || stopped) { setStatus("offline"); setReady(true); return; }
+        if (!navigator.onLine || stopped) { setStatus("offline"); setReady(true); return; }
         setStatus("syncing");
         try {
         const meta = loadMeta();
@@ -52,10 +51,10 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
           });
           const replace = await fetch("/api/sync", {
             method: "PUT",
-            headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+            headers: { "content-type": "application/json" },
             body: JSON.stringify({ records, dataEpoch, replaceEpoch: true }),
           });
-          if (replace.status === 401) { sessionStorage.removeItem("googleIdToken"); window.location.reload(); return; }
+          if (replace.status === 401) { handleUnauthorized(); return; }
           if (!replace.ok) throw new Error("epoch_replace_failed");
           records.forEach((record) => {
             meta.updatedAt[record.key] = now;
@@ -69,9 +68,9 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
           return;
         }
         const response = await fetch(`/api/sync?since=${encodeURIComponent(meta.lastPull)}`, {
-          headers: { authorization: `Bearer ${token}`, "x-data-epoch": dataEpoch },
+          headers: { "x-data-epoch": dataEpoch },
         });
-        if (response.status === 401) { sessionStorage.removeItem("googleIdToken"); window.location.reload(); return; }
+        if (response.status === 401) { handleUnauthorized(); return; }
         if (response.status === 409) {
           const mismatch = await response.json() as { dataEpoch?: string };
           if (!mismatch.dataEpoch) throw new Error("epoch_mismatch_without_epoch");
@@ -128,7 +127,8 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
           pending.push({ key, value: raw == null ? null : JSON.parse(raw), updatedAt: now, deletedAt: raw == null ? now : null });
         }
         if (pending.length) {
-          const push = await fetch("/api/sync", { method: "PUT", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ records: pending, dataEpoch }) });
+          const push = await fetch("/api/sync", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ records: pending, dataEpoch }) });
+          if (push.status === 401) { handleUnauthorized(); return; }
           if (!push.ok) throw new Error("push_failed");
         }
         localStorage.setItem(META_KEY, JSON.stringify(meta));

@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, jwtVerify, SignJWT } from "jose";
 import webpush from "web-push";
 
 interface Env {
@@ -6,6 +6,7 @@ interface Env {
   ASSETS: Fetcher;
   GOOGLE_CLIENT_ID: string;
   ALLOWED_EMAILS: string;
+  SESSION_SECRET: string;
   VAPID_PUBLIC_KEY: string;
   VAPID_PRIVATE_KEY: string;
   VAPID_SUBJECT: string;
@@ -13,15 +14,15 @@ interface Env {
 
 type SyncRecord = { key: string; value: unknown; updatedAt: string; deletedAt?: string | null };
 const googleKeys = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"));
+const sessionCookieName = "household_session";
+const sessionMaxAgeSeconds = 60 * 60 * 24 * 400;
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+const json = (body: unknown, status = 200, extraHeaders?: HeadersInit) => new Response(JSON.stringify(body), {
   status,
-  headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+  headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...extraHeaders },
 });
 
-const authenticate = async (request: Request, env: Env) => {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!token) throw new Error("missing_token");
+const authenticateGoogleToken = async (token: string, env: Env) => {
   const { payload } = await jwtVerify(token, googleKeys, {
     issuer: ["https://accounts.google.com", "accounts.google.com"],
     audience: env.GOOGLE_CLIENT_ID,
@@ -32,13 +33,61 @@ const authenticate = async (request: Request, env: Env) => {
   return String(payload.sub);
 };
 
+const sessionKey = (env: Env) => new TextEncoder().encode(env.SESSION_SECRET);
+const issueSessionToken = (userId: string, env: Env) => new SignJWT({})
+  .setProtectedHeader({ alg: "HS256" })
+  .setIssuer("household")
+  .setAudience("household-pwa")
+  .setSubject(userId)
+  .setIssuedAt()
+  .setExpirationTime(`${sessionMaxAgeSeconds}s`)
+  .sign(sessionKey(env));
+const readCookie = (request: Request, name: string) => request.headers.get("cookie")
+  ?.split(";")
+  .map((part) => part.trim().split("="))
+  .find(([key]) => key === name)?.slice(1).join("=");
+const sessionCookie = (token: string) => `${sessionCookieName}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${sessionMaxAgeSeconds}`;
+const expiredSessionCookie = () => `${sessionCookieName}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
+
+const authenticate = async (request: Request, env: Env) => {
+  const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  if (bearer) return authenticateGoogleToken(bearer, env);
+  const token = readCookie(request, sessionCookieName);
+  if (!token || !env.SESSION_SECRET) throw new Error("missing_session");
+  const { payload } = await jwtVerify(token, sessionKey(env), {
+    algorithms: ["HS256"],
+    issuer: "household",
+    audience: "household-pwa",
+  });
+  if (!payload.sub) throw new Error("invalid_session");
+  return String(payload.sub);
+};
+
 const handleApi = async (request: Request, env: Env) => {
+  const url = new URL(request.url);
+  if (url.pathname === "/api/auth/session" && request.method === "POST") {
+    const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+    if (!token || !env.SESSION_SECRET) return json({ error: "session_unavailable" }, 503);
+    try {
+      const userId = await authenticateGoogleToken(token, env);
+      const session = await issueSessionToken(userId, env);
+      return json({ authenticated: true }, 200, { "set-cookie": sessionCookie(session) });
+    } catch {
+      return json({ error: "unauthorized" }, 401);
+    }
+  }
+  if (url.pathname === "/api/auth/logout" && request.method === "POST") {
+    return json({ ok: true }, 200, { "set-cookie": expiredSessionCookie() });
+  }
+
   let userId: string;
   try { userId = await authenticate(request, env); }
   catch { return json({ error: "unauthorized" }, 401); }
 
-  const url = new URL(request.url);
-  if (url.pathname === "/api/auth/me") return json({ authenticated: true });
+  if (url.pathname === "/api/auth/me") {
+    const session = await issueSessionToken(userId, env);
+    return json({ authenticated: true }, 200, { "set-cookie": sessionCookie(session) });
+  }
   if (url.pathname === "/api/push/public-key" && request.method === "GET") return json({ publicKey: env.VAPID_PUBLIC_KEY });
   if (url.pathname === "/api/push/subscriptions" && request.method === "POST") {
     const subscription = await request.json<{ endpoint?: string }>();

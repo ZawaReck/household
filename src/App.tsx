@@ -83,6 +83,8 @@ export const App: React.FC = () => {
 
 		const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isSettingsClosing, setIsSettingsClosing] = useState(false);
+    const settingsCloseTimer = React.useRef<number | undefined>(undefined);
     const [recentlyDeleted, setRecentlyDeleted] = useState<Transaction | null>(null);
     const [generatedMoveCount, setGeneratedMoveCount] = useState(0);
     const [showFutureTransactions, setShowFutureTransactions] = useState(() =>
@@ -95,6 +97,23 @@ export const App: React.FC = () => {
       const saved = Number(localStorage.getItem("deleteUndoSeconds") ?? 5);
       return Number.isFinite(saved) && saved >= 1 ? Math.min(saved, 60) : 5;
     });
+
+    const openSettings = () => {
+      if (settingsCloseTimer.current) window.clearTimeout(settingsCloseTimer.current);
+      setIsSettingsClosing(false);
+      setIsSettingsOpen(true);
+    };
+    const closeSettings = () => {
+      if (!isSettingsOpen || isSettingsClosing) return;
+      setIsSettingsClosing(true);
+      settingsCloseTimer.current = window.setTimeout(() => {
+        setIsSettingsOpen(false);
+        setIsSettingsClosing(false);
+      }, 220);
+    };
+    useEffect(() => () => {
+      if (settingsCloseTimer.current) window.clearTimeout(settingsCloseTimer.current);
+    }, []);
 
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -374,18 +393,18 @@ export const App: React.FC = () => {
 			<div className="app-container">
       <header>
         <nav className="nav-menu">
-          <button className="settings-trigger" type="button" aria-label="設定" onClick={() => setIsSettingsOpen(true)}>☰</button>
+          <button className="settings-trigger" type="button" aria-label="設定" onClick={openSettings}>☰</button>
           <NavLink to="/">入力・ダッシュボード</NavLink>
           <NavLink to="/graphs">グラフ</NavLink>
         </nav>
       </header>
 
       {isSettingsOpen && (
-        <div className="settings-backdrop" onClick={() => setIsSettingsOpen(false)}>
+        <div className={`settings-backdrop ${isSettingsClosing ? "is-closing" : ""}`} onClick={closeSettings}>
           <aside className="settings-drawer" onClick={(event) => event.stopPropagation()}>
             <div className="settings-drawer-top">
               <div className="settings-drawer-title"><strong>設定</strong><span className="settings-version">v{__APP_VERSION__}</span></div>
-              <button type="button" onClick={() => setIsSettingsOpen(false)}>×</button>
+              <button type="button" onClick={closeSettings}>×</button>
             </div>
             <AccountSettings accounts={accounts} transactions={transactions} onSave={handleSaveAccount} />
             <CategorySettings categories={categories} onSave={handleSaveCategory} onMerge={handleMergeCategory} />
@@ -470,7 +489,7 @@ export const App: React.FC = () => {
         <NavLink to="/">カレンダー</NavLink>
         <NavLink to="/graphs">グラフ</NavLink>
       </nav>
-      <button className="mobile-settings-trigger" type="button" aria-label="設定" onClick={() => setIsSettingsOpen(true)}>☰</button>
+      <button className="mobile-settings-trigger" type="button" aria-label="設定" onClick={openSettings}>☰</button>
       {recentlyDeleted && (
         <div className="undo-toast" role="status">
           <span>「{recentlyDeleted.name || recentlyDeleted.category}」を削除しました</span>
