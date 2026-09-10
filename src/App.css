@@ -120,7 +120,7 @@ header {
     border-radius: 22px;
     background: #006428;
     transform: translateX(calc(var(--nav-index) * 100%));
-    transition: transform 240ms cubic-bezier(.2, .75, .25, 1);
+    transition: transform 140ms cubic-bezier(.2, .75, .25, 1);
     will-change: transform;
   }
   .mobile-bottom-nav a { position: relative; z-index: 1; display: grid; place-items: center; height: 43px; padding: 0; border-radius: 22px; color: #006428; background: transparent; text-align: center; text-decoration: none; font-size: 15px; font-weight: 400; }
@@ -145,7 +145,7 @@ header {
   z-index: 50;
   inset: 0;
   background: rgba(16, 31, 20, .32);
-  animation: settings-backdrop-in 180ms ease-out both;
+  animation: settings-backdrop-in 120ms ease-out both;
 }
 
 .settings-drawer {
@@ -154,17 +154,17 @@ header {
   overflow-y: auto;
   background: #fbfffb;
   box-shadow: 4px 0 20px rgba(0, 0, 0, .2);
-  animation: settings-drawer-in 220ms cubic-bezier(.2, .75, .25, 1) both;
+  animation: settings-drawer-in 140ms cubic-bezier(.2, .75, .25, 1) both;
   touch-action: pan-y;
 }
 
 .settings-backdrop.is-closing {
   pointer-events: none;
-  animation: settings-backdrop-out 220ms ease-in both;
+  animation: settings-backdrop-out 140ms ease-in both;
 }
 
 .settings-backdrop.is-closing .settings-drawer {
-  animation: settings-drawer-out 220ms cubic-bezier(.55, 0, 1, .45) both;
+  animation: settings-drawer-out 140ms cubic-bezier(.55, 0, 1, .45) both;
 }
 
 @keyframes settings-backdrop-in {

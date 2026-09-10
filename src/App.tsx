@@ -122,7 +122,7 @@ export const App: React.FC = () => {
       settingsCloseTimer.current = window.setTimeout(() => {
         setIsSettingsOpen(false);
         setIsSettingsClosing(false);
-      }, 220);
+      }, 140);
     };
     const handleSettingsTouchStart = (event: React.TouchEvent<HTMLElement>) => {
       const touch = event.touches[0];
@@ -135,7 +135,7 @@ export const App: React.FC = () => {
       if (!start || !touch) return;
       const deltaX = touch.clientX - start.x;
       const deltaY = touch.clientY - start.y;
-      if (deltaX < -64 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) closeSettings();
+      if (deltaX < -44 && Math.abs(deltaX) > Math.abs(deltaY) * 1.15) closeSettings();
     };
     useEffect(() => () => {
       if (settingsCloseTimer.current) window.clearTimeout(settingsCloseTimer.current);

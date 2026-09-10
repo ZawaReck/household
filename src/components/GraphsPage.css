@@ -65,7 +65,7 @@
   background: #006828;
   color: #F9FFFB;
   border-color: #006828;
-  animation: graph-segment-selection-in 220ms cubic-bezier(.2, .75, .25, 1);
+  animation: graph-segment-selection-in 140ms cubic-bezier(.2, .75, .25, 1);
 }
 
 .graphs-section {
@@ -73,7 +73,7 @@
   border: 1px solid #d7e3db;
   border-radius: 12px;
   background: #F9FFFB;
-  animation: graph-panel-in 220ms ease-out both;
+  animation: graph-panel-in 160ms ease-out both;
 }
 
 .graphs-section-header {
@@ -355,7 +355,7 @@ select {
   background: #006828;
   color: #F9FFFB;
   border-color: #006828;
-  animation: graph-segment-selection-in 220ms cubic-bezier(.2, .75, .25, 1);
+  animation: graph-segment-selection-in 140ms cubic-bezier(.2, .75, .25, 1);
 }
 
 @keyframes graph-segment-selection-in {
