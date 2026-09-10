@@ -587,6 +587,8 @@
   flex-wrap: wrap;
 }
 
+.move-fee-row { display: none; }
+
 .receipt-mode-control {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -949,6 +951,9 @@
     background: transparent;
   }
 
+  .type-income .tab-group,
+  .type-move .tab-group { margin-bottom: 90px; }
+
   .input-budget-row {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -1022,6 +1027,18 @@
     row-gap: 4px;
   }
 
+  .type-income .category-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    justify-content: center;
+    gap: 4px 5px;
+  }
+
+  .type-income .category-btn {
+    flex: 0 0 calc((100% - 20px) / 5);
+  }
+
   .category-btn {
     width: 100%;
     height: 40px;
@@ -1068,6 +1085,46 @@
     min-height: 40px;
     margin-top: -1px;
   }
+
+  .move-fee-row {
+    order: 5;
+    align-self: center;
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 3px;
+    width: calc(100% - 12px);
+    height: 40px;
+    min-height: 40px;
+    margin-top: 3px;
+  }
+
+  .move-fee-row span,
+  .move-fee-row input {
+    box-sizing: border-box;
+    height: 40px;
+    border: 0;
+    border-radius: 4px;
+    background: #c6ffdd;
+    color: #006428;
+    font-size: 15px;
+  }
+
+  .move-fee-row span {
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+  }
+
+  .move-fee-row input {
+    width: 100%;
+    padding: 0 12px;
+    text-align: right;
+  }
+
+  .type-move .move-fields { order: 6; }
+  .type-move .date-wheel-picker { order: 7; }
+  .type-move .move-fields .kv-row-under { margin-top: -1px; }
+  .type-move .date-wheel-picker { margin-top: -1px; }
 
   .input-form .date-wheel-trigger {
     height: 40px;

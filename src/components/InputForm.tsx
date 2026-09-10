@@ -901,7 +901,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   const tabIndex = type === "expense" ? 0 : type === "income" ? 1 : 2;
 
   return (
-    <div className="input-form">
+    <div className={`input-form type-${type}`}>
       {!editingTransaction && !activeGroupId && (
         <details className="draft-controls">
           <summary aria-label="下書き">•••</summary>
@@ -1048,6 +1048,13 @@ export const InputForm: React.FC<InputFormProps> = ({
         )}
 
         {type === "move" && (
+          <div className="move-fee-row">
+            <span>手数料</span>
+            <input type="number" inputMode="numeric" min="0" step="1" value={moveFee} onChange={(event) => setMoveFee(event.target.value)} placeholder="0" aria-label="手数料" />
+          </div>
+        )}
+
+        {type === "move" && (
           <div className="move-fields">
             <div className="kv-row picker-anchor">
               <button
@@ -1087,9 +1094,6 @@ export const InputForm: React.FC<InputFormProps> = ({
                   onClose={() => setOpenMovePicker(null)}
                 />
               )}
-            </div>
-            <div className="kv-row-under">
-              <label className="kv-value-btn"><span className="kv-label">手数料</span><input type="number" inputMode="numeric" min="0" step="1" value={moveFee} onChange={(event) => setMoveFee(event.target.value)} placeholder="0" /></label>
             </div>
           </div>
         )}
