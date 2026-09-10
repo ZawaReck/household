@@ -1,6 +1,7 @@
 import React from "react";
 import { getGoogleIdToken } from "./AuthGate";
 import "./AccountSettings.css";
+import "./NotificationSettings.css";
 
 const decodeKey = (value: string) => {
   const padded = `${value}${"=".repeat((4 - value.length % 4) % 4)}`.replace(/-/g, "+").replace(/_/g, "/");
@@ -49,6 +50,16 @@ export const NotificationSettings: React.FC = () => {
     setEnabled(false);
     setMessage("通知を無効にしました。");
   };
+  const sendTest = async () => {
+    setMessage("テスト通知を送信しています…");
+    try {
+      const response = await fetch("/api/push/test", { method: "POST", headers: authHeaders() });
+      if (!response.ok) throw new Error("delivery");
+      setMessage("テスト通知を送信しました。iPhoneで受信を確認してください。");
+    } catch {
+      setMessage("テスト通知を送信できませんでした。通知を一度無効化し、PWAから再度有効にしてください。");
+    }
+  };
 
-  return <section className="account-settings"><div className="account-settings-heading"><h2>通知</h2>{supported && <button type="button" onClick={enabled ? disable : enable}>{enabled ? "無効にする" : "有効にする"}</button>}</div><p>{supported ? "月末当日と、未更新の翌月以降に毎朝9:00通知します。" : "このブラウザはプッシュ通知に対応していません。"}</p>{message && <p>{message}</p>}</section>;
+  return <section className="account-settings"><div className="account-settings-heading"><h2>通知</h2>{supported && <div className="notification-actions"><button type="button" onClick={enabled ? disable : enable}>{enabled ? "無効にする" : "有効にする"}</button>{enabled && <button type="button" onClick={sendTest}>テスト送信</button>}</div>}</div><p>{supported ? "月末当日と、未更新の翌月以降に毎朝9:00通知します。" : "このブラウザはプッシュ通知に対応していません。"}</p>{message && <p role="status">{message}</p>}</section>;
 };

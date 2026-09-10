@@ -55,6 +55,31 @@ const handleApi = async (request: Request, env: Env) => {
     await env.DB.prepare("DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?").bind(userId, body.endpoint).run();
     return json({ ok: true });
   }
+  if (url.pathname === "/api/push/test" && request.method === "POST") {
+    if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return json({ error: "push_not_configured" }, 503);
+    const subscriptions = await env.DB.prepare("SELECT endpoint, subscription_json FROM push_subscriptions WHERE user_id = ?").bind(userId).all();
+    if (subscriptions.results.length === 0) return json({ error: "subscription_not_found" }, 409);
+    webpush.setVapidDetails(env.VAPID_SUBJECT, env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY);
+    let sent = 0;
+    let failed = 0;
+    for (const row of subscriptions.results) {
+      try {
+        await webpush.sendNotification(JSON.parse(String(row.subscription_json)), JSON.stringify({
+          title: "家計簿 通知テスト",
+          body: "プッシュ通知を受信できました。",
+          url: "/",
+        }));
+        sent += 1;
+      } catch (error) {
+        failed += 1;
+        const statusCode = (error as { statusCode?: number }).statusCode;
+        if (statusCode === 404 || statusCode === 410) {
+          await env.DB.prepare("DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?").bind(userId, row.endpoint).run();
+        }
+      }
+    }
+    return sent > 0 ? json({ ok: true, sent, failed }) : json({ error: "delivery_failed", sent, failed }, 502);
+  }
   if (url.pathname !== "/api/sync") return json({ error: "not_found" }, 404);
 
   const requestedEpoch = request.method === "GET"
