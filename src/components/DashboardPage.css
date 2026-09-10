@@ -60,7 +60,21 @@
   .column {
     height: auto;
     border-right: none;
-    border-bottom: 1.5px solid #D7E3DB;
+    border-bottom: 0;
+  }
+
+  .calendar-section {
+    padding: 0;
+    overflow: visible;
+  }
+
+  .calendar-section .scroll-content {
+    width: 100%;
+  }
+
+  .history-section {
+    width: 100%;
+    overflow: visible;
   }
 
   .input-section {

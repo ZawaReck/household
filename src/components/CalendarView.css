@@ -2,6 +2,7 @@
 
 .calendar-view {
   /* 全体の外枠（一番外側の線） */
+  position: relative;
   border: 1.5px solid #006428;
   background-color: #fff;
 }
@@ -25,12 +26,23 @@
 }
 
 .calendar-view-options {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
   padding: 5px 6px;
   border-bottom: 1px solid #b8d7c0;
   background: #f9fbf9;
+}
+
+.calendar-view-options > summary {
+  cursor: pointer;
+  list-style: none;
+  text-align: right;
+}
+
+.calendar-view-options > summary::-webkit-details-marker { display: none; }
+
+.calendar-view-options > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
 .calendar-view-options button {
@@ -166,8 +178,160 @@
 
 /* スマホ版でも形を崩さない設定 */
 @media (max-width: 767px) {
+  .calendar-view {
+    width: 100%;
+    border: 0;
+    background: #f9fffb;
+  }
+
+  .calendar-nav {
+    height: 37px;
+    padding: 0;
+    gap: 0;
+    border: 0;
+    background: #f9fffb;
+  }
+
+  .calendar-nav > span {
+    width: 124px;
+    color: #006428;
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 29px;
+    text-align: center;
+  }
+
+  .calendar-nav > button:not(.calendar-search-trigger) {
+    width: 24px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #006428;
+    font-size: 20px;
+    line-height: 30px;
+  }
+
+  .calendar-search-trigger {
+    top: 4px;
+    right: 7px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #006428;
+    font-size: 18px;
+    line-height: 28px;
+  }
+
+  .calendar-view-options {
+    position: absolute;
+    z-index: 8;
+    top: 5px;
+    right: 37px;
+    width: 26px;
+    height: 27px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .calendar-view-options > summary {
+    width: 26px;
+    height: 27px;
+    color: #789081;
+    font-size: 11px;
+    line-height: 25px;
+    text-align: center;
+  }
+
+  .calendar-view-options > div {
+    position: absolute;
+    z-index: 10;
+    top: 29px;
+    right: -30px;
+    display: grid;
+    width: 180px;
+    gap: 5px;
+    padding: 7px;
+    border: 1px solid #8aa697;
+    border-radius: 8px;
+    background: #f9fffb;
+    box-shadow: 0 8px 22px rgb(0 60 24 / 18%);
+  }
+
+  .calendar-view-options button {
+    height: 32px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .calendar-weekdays {
+    height: 10px;
+  }
+
+  .calendar-name {
+    box-sizing: border-box;
+    height: 10px;
+    padding: 0;
+    border-right: 1px solid #006428;
+    border-bottom: 1px solid #006428;
+    border-top: 1px solid #006428;
+    background: #f9fffb;
+    color: #006428;
+    font-size: 8px;
+    line-height: 8px;
+  }
+
+  .calendar-name:first-child { color: #aa0000; }
+  .calendar-name:last-child { color: #0000aa; }
+
+  .calendar-days {
+    height: calc(var(--weeks) * 26px + 1px);
+    margin-top: -1px;
+  }
+
   .cell {
     height: auto;
-    padding: 4px;
+    min-height: 0;
+    padding: 0 1px;
+    border-right: 1px solid #006428;
+    border-bottom: 1px solid #006428;
+    background: #f9fffb;
+    color: #006428;
+  }
+
+  .date-num {
+    margin: 0;
+    font-size: 8px;
+    line-height: 9px;
+  }
+
+  .cell:nth-child(7n + 1) .date-num { color: #aa0000; }
+  .cell:nth-child(7n) .date-num { color: #0000aa; }
+
+  .cell-amounts {
+    min-height: 16px;
+    margin-top: auto;
+    line-height: 8px;
+  }
+
+  .cell-amounts span,
+  .cell-amounts span.small-font {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 8px !important;
+    line-height: 8px;
+    text-overflow: clip;
+  }
+
+  .cell.other-month {
+    background: #d7e3db;
+  }
+
+  .calendar-days .cell.selected {
+    background: #c6ffdd;
+    box-shadow: none;
   }
 }

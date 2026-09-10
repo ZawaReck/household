@@ -39,16 +39,19 @@ const weeksToRender = weeksNeeded === 6 ? 6 : weeksNeeded === 4 ? 4 : 5;
 		<div className="calendar-view">
 			<div className="calendar-nav">
 				<button onClick={() => onMonthChange(-1)}>◁</button>
-				<span>{year}年 {month + 1}月</span>
+				<span>{year}年{month + 1}月</span>
 				<button onClick={() => onMonthChange(1)}>▷</button>
 				{onOpenSearch && (
 					<button className="calendar-search-trigger" type="button" aria-label="履歴検索" onClick={onOpenSearch}>⌕</button>
 				)}
 			</div>
-			{(onToggleFuture || onToggleExcluded) && <div className="calendar-view-options">
-				{onToggleFuture && <button className={showFutureTransactions ? "active" : ""} type="button" aria-pressed={showFutureTransactions} onClick={onToggleFuture}>未来の記録 {showFutureTransactions ? "ON" : "OFF"}</button>}
-				{onToggleExcluded && <button className={includeExcludedAnalytics ? "active" : ""} type="button" aria-pressed={includeExcludedAnalytics} onClick={onToggleExcluded}>通算・特別 {includeExcludedAnalytics ? "含む" : "除外"}</button>}
-			</div>}
+			{(onToggleFuture || onToggleExcluded) && <details className="calendar-view-options">
+				<summary aria-label="カレンダー表示設定">•••</summary>
+				<div>
+					{onToggleFuture && <button className={showFutureTransactions ? "active" : ""} type="button" aria-pressed={showFutureTransactions} onClick={onToggleFuture}>未来の記録 {showFutureTransactions ? "ON" : "OFF"}</button>}
+					{onToggleExcluded && <button className={includeExcludedAnalytics ? "active" : ""} type="button" aria-pressed={includeExcludedAnalytics} onClick={onToggleExcluded}>通算・特別 {includeExcludedAnalytics ? "含む" : "除外"}</button>}
+				</div>
+			</details>}
 			<div className="calendar-weekdays">
       {["日", "月", "火", "水", "木", "金", "土"].map((day) => (
         <div key={day} className="calendar-name">{day}</div>

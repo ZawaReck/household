@@ -39,11 +39,11 @@ export const SummaryView: React.FC<Props> = ({ monthlyData, openingBalance, incl
             </div>
             <div className="summary-bottom">
                 <div className="summary-bottom-item opening">
-                    <span className="summary-label">Opening:</span>
+                    <span className="summary-label">繰越金:</span>
                     <strong className="summary-value">{openingBalance.toLocaleString()}円</strong>
                 </div>
                 <div className="summary-bottom-item balance">
-                    <span className="summary-label">Balance:</span>
+                    <span className="summary-label">残高:</span>
                     <strong className="summary-value">{balance.toLocaleString()}円</strong>
                 </div>
             </div>
