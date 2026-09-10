@@ -38,10 +38,14 @@ const MobileBottomNav: React.FC = () => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const activeIndex = pathname === "/add" ? 0 : pathname.startsWith("/graphs") ? 2 : 1;
+  React.useEffect(() => {
+    document.documentElement.dataset.appPage = activeIndex === 0 ? "input" : activeIndex === 1 ? "calendar" : "graphs";
+    return () => { delete document.documentElement.dataset.appPage; };
+  }, [activeIndex]);
   const drag = useSegmentedDrag<HTMLElement>({
     count: 3,
     selectedIndex: activeIndex,
-    onSelect: (index) => navigate((["/add", "/", "/graphs"] as const)[index] ?? "/"),
+    onSelect: (index) => navigate((["/add", "/", "/graphs"] as const)[index] ?? "/", { replace: true }),
     cssVariable: "--nav-position",
     horizontalPadding: 4,
   });
@@ -53,9 +57,9 @@ const MobileBottomNav: React.FC = () => {
       style={{ "--nav-index": activeIndex } as React.CSSProperties}
       {...drag.handlers}
     >
-      <button type="button" className={activeIndex === 0 ? "active" : ""} aria-current={activeIndex === 0 ? "page" : undefined} onClick={() => navigate("/add")}>入力</button>
-      <button type="button" className={activeIndex === 1 ? "active" : ""} aria-current={activeIndex === 1 ? "page" : undefined} onClick={() => navigate("/")}>カレンダー</button>
-      <button type="button" className={activeIndex === 2 ? "active" : ""} aria-current={activeIndex === 2 ? "page" : undefined} onClick={() => navigate("/graphs")}>グラフ</button>
+      <button type="button" className={activeIndex === 0 ? "active" : ""} aria-current={activeIndex === 0 ? "page" : undefined} onClick={() => navigate("/add", { replace: true })}>入力</button>
+      <button type="button" className={activeIndex === 1 ? "active" : ""} aria-current={activeIndex === 1 ? "page" : undefined} onClick={() => navigate("/", { replace: true })}>カレンダー</button>
+      <button type="button" className={activeIndex === 2 ? "active" : ""} aria-current={activeIndex === 2 ? "page" : undefined} onClick={() => navigate("/graphs", { replace: true })}>グラフ</button>
     </nav>
   );
 };
@@ -481,8 +485,8 @@ export const App: React.FC = () => {
       <header>
         <nav className="nav-menu">
           <button className="settings-trigger" type="button" aria-label="設定" onClick={openSettings}>☰</button>
-          <NavLink to="/">入力・ダッシュボード</NavLink>
-          <NavLink to="/graphs">グラフ</NavLink>
+          <NavLink to="/" replace>入力・ダッシュボード</NavLink>
+          <NavLink to="/graphs" replace>グラフ</NavLink>
         </nav>
       </header>
 

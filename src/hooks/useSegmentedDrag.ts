@@ -58,7 +58,7 @@ export const useSegmentedDrag = <T extends HTMLElement>({
     }
     setIsDragging(false);
     if (cleanupTimer.current) window.clearTimeout(cleanupTimer.current);
-    if (current.dragged) cleanupTimer.current = window.setTimeout(() => element.style.removeProperty(cssVariable), 160);
+    if (current.dragged) cleanupTimer.current = window.setTimeout(() => element.style.removeProperty(cssVariable), 300);
     window.setTimeout(() => { suppressClick.current = false; }, 0);
   }, [cssVariable, onSelect, selectedIndex]);
 

@@ -55,7 +55,7 @@ export const MonthEndReminder: React.FC<Props> = ({ accounts, transactions }) =>
     <>
       <aside className="month-end-banner" role="status">
         <div><strong>{targetMonth} 月末更新が未完了です</strong><span>{missing.map((account) => account.name).join("、")}</span></div>
-        <Link to={`/graphs?tab=portfolio&month=${targetMonth}`}>更新する</Link>
+        <Link replace to={`/graphs?tab=portfolio&month=${targetMonth}`}>更新する</Link>
       </aside>
       {isPopupOpen && (
         <div className="month-end-popup-backdrop">
@@ -63,7 +63,7 @@ export const MonthEndReminder: React.FC<Props> = ({ accounts, transactions }) =>
             <h2 id="month-end-popup-title">月末更新が未完了です</h2>
             <p>{targetMonth} の残高確認が必要です。</p>
             <p className="month-end-popup-accounts">{missing.map((account) => account.name).join("、")}</p>
-            <div><button type="button" onClick={() => setIsPopupOpen(false)}>あとで</button><Link to={`/graphs?tab=portfolio&month=${targetMonth}`}>更新する</Link></div>
+            <div><button type="button" onClick={() => setIsPopupOpen(false)}>あとで</button><Link replace to={`/graphs?tab=portfolio&month=${targetMonth}`}>更新する</Link></div>
           </section>
         </div>
       )}

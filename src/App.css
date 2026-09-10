@@ -120,7 +120,7 @@ header {
     border-radius: 22px;
     background: #006428;
     transform: translateX(calc(var(--nav-position, var(--nav-index)) * 100%));
-    transition: transform 140ms cubic-bezier(.2, .75, .25, 1);
+    transition: transform 260ms cubic-bezier(.2, .72, .25, 1);
     will-change: transform;
   }
   .mobile-bottom-nav.is-dragging::before { transition: none; }
@@ -224,7 +224,7 @@ header {
 }
 
 .mobile-bottom-nav button {
-  transition: color 160ms ease, background-color 200ms ease, transform 180ms ease;
+  transition: color 220ms ease, background-color 260ms ease, transform 260ms ease;
 }
 
 @media (prefers-reduced-motion: reduce) {

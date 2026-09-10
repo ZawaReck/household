@@ -4,6 +4,7 @@ html, body, #root {
   height: 100%;
   width: 100%;
   margin: 0;
+  overscroll-behavior-x: none;
 }
 
 :root {
@@ -36,7 +37,36 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;   /* 横スクロールは基本殺す */
+  touch-action: pan-y pinch-zoom;
   /* overflow-y: hidden;   縦スクロール設定 */
+}
+
+.app-container {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.app-container input,
+.app-container textarea,
+.app-container [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+html[data-app-page="input"],
+html[data-app-page="input"] body,
+html[data-app-page="input"] #root,
+html[data-app-page="input"] .app-container {
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html[data-app-page="input"] main {
+  height: calc(100dvh - 46px);
+  overflow: hidden;
 }
 
 .auth-screen {

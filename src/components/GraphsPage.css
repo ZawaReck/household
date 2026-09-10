@@ -65,7 +65,7 @@
   background: #006828;
   color: #F9FFFB;
   border-color: #006828;
-  animation: graph-segment-selection-in 140ms cubic-bezier(.2, .75, .25, 1);
+  animation: graph-segment-selection-in 240ms cubic-bezier(.2, .72, .25, 1);
 }
 
 .graphs-section {
@@ -355,7 +355,7 @@ select {
   background: #006828;
   color: #F9FFFB;
   border-color: #006828;
-  animation: graph-segment-selection-in 140ms cubic-bezier(.2, .75, .25, 1);
+  animation: graph-segment-selection-in 240ms cubic-bezier(.2, .72, .25, 1);
 }
 
 @keyframes graph-segment-selection-in {
