@@ -957,7 +957,12 @@ export const InputForm: React.FC<InputFormProps> = ({
         {/* 入力単位 + 外税時の税率（支出のみ） */}
         {type === "expense" && (
           <div className="tax-controls" aria-label="消費税設定">
-            <div className="receipt-mode-control" role="radiogroup" aria-label="入力モード">
+            <div
+              className="receipt-mode-control"
+              role="radiogroup"
+              aria-label="入力モード"
+              style={{ "--receipt-mode-index": entryMode === "receipt_exclusive" ? 0 : entryMode === "receipt_inclusive" ? 1 : 2 } as React.CSSProperties}
+            >
               {([
                 ["receipt_exclusive", "一括外税"],
                 ["receipt_inclusive", "一括内税"],

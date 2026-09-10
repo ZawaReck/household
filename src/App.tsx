@@ -1,7 +1,7 @@
 /* src/App.tsx */
 
 import React, {useState, useEffect} from "react";
-import { BrowserRouter as Router, Route, Routes, NavLink } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, NavLink, useLocation } from "react-router-dom";
 import { InputForm } from "./components/InputForm";
 import { DashboardPage } from "./components/DashboardPage";
 import { AccountSettings } from "./components/AccountSettings";
@@ -32,6 +32,18 @@ import { loadInputDrafts, saveInputDrafts } from "./data/inputDraftStore";
 import './App.css';
 
 const GraphsPage = React.lazy(() => import("./components/GraphsPage").then((module) => ({ default: module.GraphsPage })));
+
+const MobileBottomNav: React.FC = () => {
+  const { pathname } = useLocation();
+  const activeIndex = pathname === "/add" ? 0 : pathname.startsWith("/graphs") ? 2 : 1;
+  return (
+    <nav className="mobile-bottom-nav" aria-label="メインナビゲーション" style={{ "--nav-index": activeIndex } as React.CSSProperties}>
+      <NavLink to="/add">入力</NavLink>
+      <NavLink to="/" end>カレンダー</NavLink>
+      <NavLink to="/graphs">グラフ</NavLink>
+    </nav>
+  );
+};
 
 export const App: React.FC = () => {
 
@@ -85,6 +97,7 @@ export const App: React.FC = () => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isSettingsClosing, setIsSettingsClosing] = useState(false);
     const settingsCloseTimer = React.useRef<number | undefined>(undefined);
+    const settingsSwipeStart = React.useRef<{ x: number; y: number } | null>(null);
     const [recentlyDeleted, setRecentlyDeleted] = useState<Transaction | null>(null);
     const [generatedMoveCount, setGeneratedMoveCount] = useState(0);
     const [showFutureTransactions, setShowFutureTransactions] = useState(() =>
@@ -110,6 +123,19 @@ export const App: React.FC = () => {
         setIsSettingsOpen(false);
         setIsSettingsClosing(false);
       }, 220);
+    };
+    const handleSettingsTouchStart = (event: React.TouchEvent<HTMLElement>) => {
+      const touch = event.touches[0];
+      if (touch) settingsSwipeStart.current = { x: touch.clientX, y: touch.clientY };
+    };
+    const handleSettingsTouchEnd = (event: React.TouchEvent<HTMLElement>) => {
+      const start = settingsSwipeStart.current;
+      const touch = event.changedTouches[0];
+      settingsSwipeStart.current = null;
+      if (!start || !touch) return;
+      const deltaX = touch.clientX - start.x;
+      const deltaY = touch.clientY - start.y;
+      if (deltaX < -64 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) closeSettings();
     };
     useEffect(() => () => {
       if (settingsCloseTimer.current) window.clearTimeout(settingsCloseTimer.current);
@@ -401,7 +427,13 @@ export const App: React.FC = () => {
 
       {isSettingsOpen && (
         <div className={`settings-backdrop ${isSettingsClosing ? "is-closing" : ""}`} onClick={closeSettings}>
-          <aside className="settings-drawer" onClick={(event) => event.stopPropagation()}>
+          <aside
+            className="settings-drawer"
+            onClick={(event) => event.stopPropagation()}
+            onTouchStart={handleSettingsTouchStart}
+            onTouchEnd={handleSettingsTouchEnd}
+            onTouchCancel={() => { settingsSwipeStart.current = null; }}
+          >
             <div className="settings-drawer-top">
               <div className="settings-drawer-title"><strong>設定</strong><span className="settings-version">v{__APP_VERSION__}</span></div>
               <button type="button" onClick={closeSettings}>×</button>
@@ -484,11 +516,7 @@ export const App: React.FC = () => {
         } />
         </Routes>
       </main>
-      <nav className="mobile-bottom-nav" aria-label="メインナビゲーション">
-        <NavLink to="/add">入力</NavLink>
-        <NavLink to="/">カレンダー</NavLink>
-        <NavLink to="/graphs">グラフ</NavLink>
-      </nav>
+      <MobileBottomNav />
       <button className="mobile-settings-trigger" type="button" aria-label="設定" onClick={openSettings}>☰</button>
       {recentlyDeleted && (
         <div className="undo-toast" role="status">

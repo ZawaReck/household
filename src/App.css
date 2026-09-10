@@ -107,10 +107,24 @@ header {
     position: fixed; z-index: 40; left: 50%; bottom: 30px;
     width: min(333px, calc(100vw - 60px)); height: 51px; transform: translateX(-50%);
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; padding: 4px;
-    box-sizing: border-box; border-radius: 24px; background: #c6ffdd; box-shadow: none;
+    box-sizing: border-box; border-radius: 24px; background: #c6ffdd; box-shadow: none; overflow: hidden;
   }
-  .mobile-bottom-nav a { display: grid; place-items: center; height: 43px; padding: 0; border-radius: 22px; color: #006428; text-align: center; text-decoration: none; font-size: 15px; font-weight: 400; }
-  .mobile-bottom-nav a.active { color: #f9fffb; background: #006428; }
+  .mobile-bottom-nav::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    top: 4px;
+    left: 4px;
+    width: calc((100% - 8px) / 3);
+    height: 43px;
+    border-radius: 22px;
+    background: #006428;
+    transform: translateX(calc(var(--nav-index) * 100%));
+    transition: transform 240ms cubic-bezier(.2, .75, .25, 1);
+    will-change: transform;
+  }
+  .mobile-bottom-nav a { position: relative; z-index: 1; display: grid; place-items: center; height: 43px; padding: 0; border-radius: 22px; color: #006428; background: transparent; text-align: center; text-decoration: none; font-size: 15px; font-weight: 400; }
+  .mobile-bottom-nav a.active { color: #f9fffb; background: transparent; }
   .mobile-settings-trigger { position: fixed; z-index: 41; display: block; top: 8px; left: 10px; border: 0; background: transparent; color: #245e2d; font-size: 24px; }
 }
 
@@ -141,6 +155,7 @@ header {
   background: #fbfffb;
   box-shadow: 4px 0 20px rgba(0, 0, 0, .2);
   animation: settings-drawer-in 220ms cubic-bezier(.2, .75, .25, 1) both;
+  touch-action: pan-y;
 }
 
 .settings-backdrop.is-closing {
@@ -203,22 +218,13 @@ header {
   transition: color 160ms ease, background-color 200ms ease, transform 180ms ease;
 }
 
-.mobile-bottom-nav a.active {
-  animation: segmented-selection-in 220ms cubic-bezier(.2, .75, .25, 1);
-}
-
-@keyframes segmented-selection-in {
-  from { transform: scale(.94); }
-  to { transform: scale(1); }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .settings-backdrop,
   .settings-drawer,
   .settings-backdrop.is-closing,
   .settings-backdrop.is-closing .settings-drawer,
-  .mobile-bottom-nav a,
-  .mobile-bottom-nav a.active {
+  .mobile-bottom-nav::before,
+  .mobile-bottom-nav a {
     animation-duration: 1ms;
     transition-duration: 1ms;
   }
