@@ -853,8 +853,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   const BudgetProgress = ({ label, actual, budget }: { label: string; actual: number; budget?: number }) => {
     const rate = budget && budget > 0 ? (actual / budget) * 100 : null;
-    const remaining = budget != null ? budget - actual : null;
-    return <div className="input-budget-row"><div><span>{label}</span><span>{actual.toLocaleString()} / {budget ? budget.toLocaleString() : "未設定"}円</span></div>{rate != null && remaining != null && <><progress max={100} value={Math.min(rate, 100)} className={rate > 100 ? "is-over" : ""} /><small className={rate > 100 ? "is-over" : ""}>{rate.toFixed(1)}%・残り {remaining.toLocaleString()}円</small></>}</div>;
+    return <div className="input-budget-row"><span>{label}</span><span>{actual.toLocaleString()}/{budget ? budget.toLocaleString() : "未設定"}</span><progress max={100} value={rate == null ? 0 : Math.min(rate, 100)} className={rate != null && rate > 100 ? "is-over" : ""} /></div>;
   };
 
   if (editingTransaction?.system?.kind === "card_payment") {
@@ -885,27 +884,30 @@ export const InputForm: React.FC<InputFormProps> = ({
   return (
     <div className="input-form">
       {!editingTransaction && !activeGroupId && (
-        <div className="draft-controls">
-          <label>
-            下書き
-            <select value={activeDraftId} onChange={(event) => {
-              const selected = savedDrafts.find((draft) => draft.id === event.target.value);
-              if (selected) applySavedDraft(selected);
-            }}>
-              {!savedDrafts.some((draft) => draft.id === activeDraftId) && <option value={activeDraftId}>新規</option>}
-              {savedDrafts
-                .filter((draft) => draft.scope === draftScope)
-                .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-                .map((draft) => (
-                  <option key={draft.id} value={draft.id}>
-                    {draft.date}・{draft.type === "expense" ? "Out" : draft.type === "income" ? "In" : "Move"}・{draft.name || draft.memo || "入力途中"}
-                  </option>
-                ))}
-            </select>
-          </label>
-          <button type="button" onClick={() => startEmptyDraft(type)}>新規</button>
-          <button type="button" onClick={() => discardActiveDraft(true)}>破棄</button>
-        </div>
+        <details className="draft-controls">
+          <summary aria-label="下書き">•••</summary>
+          <div className="draft-controls-panel">
+            <label>
+              下書きを選択
+              <select value={activeDraftId} onChange={(event) => {
+                const selected = savedDrafts.find((draft) => draft.id === event.target.value);
+                if (selected) applySavedDraft(selected);
+              }}>
+                {!savedDrafts.some((draft) => draft.id === activeDraftId) && <option value={activeDraftId}>新規</option>}
+                {savedDrafts
+                  .filter((draft) => draft.scope === draftScope)
+                  .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+                  .map((draft) => (
+                    <option key={draft.id} value={draft.id}>
+                      {draft.date}・{draft.type === "expense" ? "Out" : draft.type === "income" ? "In" : "Move"}・{draft.name || draft.memo || "入力途中"}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <button type="button" onClick={() => startEmptyDraft(type)}>新規</button>
+            <button type="button" onClick={() => discardActiveDraft(true)}>破棄</button>
+          </div>
+        </details>
       )}
       <div className="tab-group" style={{ "--tab-index": tabIndex } as React.CSSProperties}>
         <button className={type === "expense" ? "active" : ""} onClick={() => handleTabClick("expense")} type="button">
@@ -920,24 +922,14 @@ export const InputForm: React.FC<InputFormProps> = ({
       </div>
 
       {type !== "move" && (
-        <div className="classification-control" role="radiogroup" aria-label="集計区分">
-          {([
-            ["normal", "通常"],
-            ["settled", "通算"],
-            ["special", "特別"],
-          ] as const).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={classification === value}
-              className={classification === value ? "active" : ""}
-              onClick={() => setClassification(value)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <label className="classification-control">
+          <span className="visually-hidden">集計区分</span>
+          <select value={classification} onChange={(event) => setClassification(event.target.value as TransactionClassification)}>
+            <option value="normal">通常</option>
+            <option value="settled">通算</option>
+            <option value="special">特別</option>
+          </select>
+        </label>
       )}
 
       <form onSubmit={handleSubmit}>
@@ -1112,73 +1104,61 @@ export const InputForm: React.FC<InputFormProps> = ({
           </div>
         )}
 
-        <input type="text" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Memo" />
+        <details className="memo-control" open={Boolean(memo)}>
+          <summary>メモ（任意）</summary>
+          <input type="text" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Memo" />
+        </details>
 
         <div className="form-buttons receipt-buttons">
-          <button type="button" onClick={commitAll}>
+          <button className="primary-action" type="button" onClick={commitAll}>
             {editingTransaction ? "更新" : "登録"}
           </button>
 
           {!editingTransaction && type === "expense" && entryMode !== "individual" && (
-            <button type="submit">{editingReceiptIndex != null ? "更新" : "追加"}</button>
+            <button className="add-action" type="submit">{editingReceiptIndex != null ? "更新" : "追加"}</button>
           )}
 
-          {editingTransaction && (
-            <button type="button" disabled={Boolean(editingTransaction.system)} onClick={copyEditingRecord}>
-              コピー
-            </button>
-          )}
-
-          {!editingTransaction && activeGroupId && committedGroupItems.length > 0 && (
-            <button type="button" onClick={() => {
-              if (!onDeleteReceipt(activeGroupId)) return;
-              setActiveGroupId(null);
-              setActiveGroupDate(null);
-              resetForm(type, { dateValue: selectedDate });
-            }}>
-              レシート全体を削除
-            </button>
-          )}
-
-          {editingTransaction && (
-            <button
-              type="button"
-              onClick={() => {
-                onDeleteTransaction(editingTransaction.id);
-                setEditingTransaction(null);
-                resetForm(type, { keepDate: true });
-              }}
-            >
-              削除
-            </button>
-          )}
-
-          {editingTransaction?.groupId && (
-            <button type="button" onClick={() => {
-              if (!onDeleteReceipt(editingTransaction.groupId!)) return;
-              setEditingTransaction(null);
-              setActiveGroupId(null);
-              setActiveGroupDate(null);
-              resetForm(type, { keepDate: true });
-            }}>
-              レシート全体を削除
-            </button>
-          )}
-
-          {editingTransaction && (
-            <button
-              type="button"
-              onClick={() => {
-                setEditingTransaction(null);
-                setReceiptItems([]);
-                setEditingReceiptIndex(null);
-                setActiveGroupId(null);
-                setActiveGroupDate(null);
-                resetForm(type, { dateValue: selectedDate });
-              }}
-            >
-              キャンセル
-            </button>
+          {(editingTransaction || (!editingTransaction && activeGroupId && committedGroupItems.length > 0)) && (
+            <details className="input-secondary-actions">
+              <summary aria-label="その他の操作">•••</summary>
+              <div>
+                {editingTransaction && <button type="button" disabled={Boolean(editingTransaction.system)} onClick={copyEditingRecord}>コピー</button>}
+                {!editingTransaction && activeGroupId && committedGroupItems.length > 0 && (
+                  <button type="button" onClick={() => {
+                    if (!onDeleteReceipt(activeGroupId)) return;
+                    setActiveGroupId(null);
+                    setActiveGroupDate(null);
+                    resetForm(type, { dateValue: selectedDate });
+                  }}>レシート全体を削除</button>
+                )}
+                {editingTransaction && (
+                  <button type="button" onClick={() => {
+                    onDeleteTransaction(editingTransaction.id);
+                    setEditingTransaction(null);
+                    resetForm(type, { keepDate: true });
+                  }}>削除</button>
+                )}
+                {editingTransaction?.groupId && (
+                  <button type="button" onClick={() => {
+                    if (!onDeleteReceipt(editingTransaction.groupId!)) return;
+                    setEditingTransaction(null);
+                    setActiveGroupId(null);
+                    setActiveGroupDate(null);
+                    resetForm(type, { keepDate: true });
+                  }}>レシート全体を削除</button>
+                )}
+                {editingTransaction && (
+                  <button type="button" onClick={() => {
+                    setEditingTransaction(null);
+                    setReceiptItems([]);
+                    setEditingReceiptIndex(null);
+                    setActiveGroupId(null);
+                    setActiveGroupDate(null);
+                    resetForm(type, { dateValue: selectedDate });
+                  }}>キャンセル</button>
+                )}
+              </div>
+            </details>
           )}
         </div>
 

@@ -39,8 +39,35 @@ export const DashboardPage: React.FC<Props> = (props) => {
 	const [isInputSheetOpen, setIsInputSheetOpen] = useState(false);
 	const [isInputSheetExpanded, setIsInputSheetExpanded] = useState(false);
 	const [isEditingDirty, setIsEditingDirty] = useState(false);
+	const [visualViewport, setVisualViewport] = useState(() => ({
+		height: typeof window === "undefined" ? 852 : window.visualViewport?.height ?? window.innerHeight,
+		offsetTop: typeof window === "undefined" ? 0 : window.visualViewport?.offsetTop ?? 0,
+		keyboardVisible: false,
+	}));
 	const sheetDragStartY = React.useRef<number | null>(null);
 	const sheetWasDragged = React.useRef(false);
+
+	React.useEffect(() => {
+		if (!isInputSheetOpen) return;
+		const viewport = window.visualViewport;
+		const updateViewport = () => {
+			const height = viewport?.height ?? window.innerHeight;
+			setVisualViewport({
+				height,
+				offsetTop: viewport?.offsetTop ?? 0,
+				keyboardVisible: height < window.innerHeight - 120,
+			});
+		};
+		updateViewport();
+		viewport?.addEventListener("resize", updateViewport);
+		viewport?.addEventListener("scroll", updateViewport);
+		window.addEventListener("orientationchange", updateViewport);
+		return () => {
+			viewport?.removeEventListener("resize", updateViewport);
+			viewport?.removeEventListener("scroll", updateViewport);
+			window.removeEventListener("orientationchange", updateViewport);
+		};
+	}, [isInputSheetOpen]);
 
 	const year = currentDate.getFullYear();
 	const month = currentDate.getMonth();
@@ -158,8 +185,17 @@ export const DashboardPage: React.FC<Props> = (props) => {
 		</section>
 		{isInputSheetOpen && <button className="input-sheet-backdrop" aria-label="入力画面を閉じる" onClick={closeInputSheet} />}
 		<section
-			className={`column input-section ${isInputSheetOpen ? "sheet-open" : ""} ${isInputSheetExpanded ? "sheet-expanded" : ""}`}
-			onFocusCapture={() => setIsInputSheetExpanded(true)}
+			className={`column input-section ${isInputSheetOpen ? "sheet-open" : ""} ${isInputSheetExpanded ? "sheet-expanded" : ""} ${visualViewport.keyboardVisible ? "keyboard-visible" : ""}`}
+			style={isInputSheetOpen ? {
+				"--visual-viewport-height": `${visualViewport.height}px`,
+				"--visual-viewport-offset": `${visualViewport.offsetTop}px`,
+			} as React.CSSProperties : undefined}
+			onFocusCapture={(event) => {
+				const target = event.target;
+				if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+					setIsInputSheetExpanded(true);
+				}
+			}}
 		>
 			<div className="input-sheet-toolbar">
 				<button

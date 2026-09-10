@@ -104,12 +104,13 @@ header {
   .settings-trigger { visibility: hidden; }
   main { padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
   .mobile-bottom-nav {
-    position: fixed; z-index: 40; left: 12px; right: 12px; bottom: max(8px, env(safe-area-inset-bottom));
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 4px;
-    border-radius: 14px; background: #245e2d; box-shadow: 0 6px 20px rgba(0,0,0,.2);
+    position: fixed; z-index: 40; left: 50%; bottom: 30px;
+    width: min(333px, calc(100vw - 60px)); height: 51px; transform: translateX(-50%);
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; padding: 4px;
+    box-sizing: border-box; border-radius: 24px; background: #c6ffdd; box-shadow: none;
   }
-  .mobile-bottom-nav a { padding: 10px 4px; border-radius: 10px; color: #fff; text-align: center; text-decoration: none; font-size: 13px; font-weight: 800; }
-  .mobile-bottom-nav a.active { color: #245e2d; background: #f9fffb; }
+  .mobile-bottom-nav a { display: grid; place-items: center; height: 43px; padding: 0; border-radius: 22px; color: #006428; text-align: center; text-decoration: none; font-size: 15px; font-weight: 400; }
+  .mobile-bottom-nav a.active { color: #f9fffb; background: #006428; }
   .mobile-settings-trigger { position: fixed; z-index: 41; display: block; top: 8px; left: 10px; border: 0; background: transparent; color: #245e2d; font-size: 24px; }
 }
 
