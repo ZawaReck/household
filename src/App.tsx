@@ -53,9 +53,9 @@ const MobileBottomNav: React.FC = () => {
       style={{ "--nav-index": activeIndex } as React.CSSProperties}
       {...drag.handlers}
     >
-      <NavLink to="/add">入力</NavLink>
-      <NavLink to="/" end>カレンダー</NavLink>
-      <NavLink to="/graphs">グラフ</NavLink>
+      <button type="button" className={activeIndex === 0 ? "active" : ""} aria-current={activeIndex === 0 ? "page" : undefined} onClick={() => navigate("/add")}>入力</button>
+      <button type="button" className={activeIndex === 1 ? "active" : ""} aria-current={activeIndex === 1 ? "page" : undefined} onClick={() => navigate("/")}>カレンダー</button>
+      <button type="button" className={activeIndex === 2 ? "active" : ""} aria-current={activeIndex === 2 ? "page" : undefined} onClick={() => navigate("/graphs")}>グラフ</button>
     </nav>
   );
 };
@@ -110,6 +110,7 @@ export const App: React.FC = () => {
 
 		const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isSettingsOpening, setIsSettingsOpening] = useState(false);
     const [isSettingsClosing, setIsSettingsClosing] = useState(false);
     const settingsCloseTimer = React.useRef<number | undefined>(undefined);
     const settingsDrawerRef = React.useRef<HTMLElement>(null);
@@ -132,11 +133,14 @@ export const App: React.FC = () => {
     const openSettings = () => {
       if (settingsCloseTimer.current) window.clearTimeout(settingsCloseTimer.current);
       setIsSettingsClosing(false);
+      setIsSettingsOpening(true);
       setIsSettingsOpen(true);
+      settingsCloseTimer.current = window.setTimeout(() => setIsSettingsOpening(false), 140);
     };
     const closeSettings = () => {
       if (!isSettingsOpen || isSettingsClosing) return;
       setIsSettingsClosing(true);
+      setIsSettingsOpening(false);
       settingsCloseTimer.current = window.setTimeout(() => {
         setIsSettingsOpen(false);
         setIsSettingsClosing(false);
@@ -483,7 +487,7 @@ export const App: React.FC = () => {
       </header>
 
       {isSettingsOpen && (
-        <div ref={settingsBackdropRef} className={`settings-backdrop ${isSettingsClosing ? "is-closing" : ""} ${isSettingsDragging ? "is-dragging" : ""}`} onClick={closeSettings}>
+        <div ref={settingsBackdropRef} className={`settings-backdrop ${isSettingsOpening ? "is-opening" : ""} ${isSettingsClosing ? "is-closing" : ""} ${isSettingsDragging ? "is-dragging" : ""}`} onClick={closeSettings}>
           <aside
             className="settings-drawer"
             ref={settingsDrawerRef}

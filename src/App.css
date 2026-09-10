@@ -124,8 +124,8 @@ header {
     will-change: transform;
   }
   .mobile-bottom-nav.is-dragging::before { transition: none; }
-  .mobile-bottom-nav a { position: relative; z-index: 1; display: grid; place-items: center; height: 43px; padding: 0; border-radius: 22px; color: #006428; background: transparent; text-align: center; text-decoration: none; font-size: 15px; font-weight: 400; }
-  .mobile-bottom-nav a.active { color: #f9fffb; background: transparent; }
+  .mobile-bottom-nav button { position: relative; z-index: 1; display: grid; place-items: center; height: 43px; padding: 0; border: 0; border-radius: 22px; color: #006428; background: transparent; text-align: center; font: inherit; font-size: 15px; font-weight: 400; -webkit-touch-callout: none; user-select: none; }
+  .mobile-bottom-nav button.active { color: #f9fffb; background: transparent; }
   .mobile-settings-trigger { position: fixed; z-index: 41; display: block; top: 8px; left: 10px; border: 0; background: transparent; color: #245e2d; font-size: 24px; }
 }
 
@@ -146,7 +146,6 @@ header {
   z-index: 50;
   inset: 0;
   background: rgba(16, 31, 20, calc(.32 * var(--drawer-drag-opacity, 1)));
-  animation: settings-backdrop-in 120ms ease-out both;
 }
 
 .settings-backdrop.is-dragging { animation: none; transition: none; }
@@ -162,9 +161,11 @@ header {
   overflow-y: auto;
   background: #fbfffb;
   box-shadow: 4px 0 20px rgba(0, 0, 0, .2);
-  animation: settings-drawer-in 140ms cubic-bezier(.2, .75, .25, 1) both;
   touch-action: pan-y;
 }
+
+.settings-backdrop.is-opening { animation: settings-backdrop-in 120ms ease-out both; }
+.settings-backdrop.is-opening .settings-drawer { animation: settings-drawer-in 140ms cubic-bezier(.2, .75, .25, 1) both; }
 
 .settings-backdrop.is-closing {
   pointer-events: none;
@@ -222,7 +223,7 @@ header {
   cursor: pointer;
 }
 
-.mobile-bottom-nav a {
+.mobile-bottom-nav button {
   transition: color 160ms ease, background-color 200ms ease, transform 180ms ease;
 }
 
@@ -232,7 +233,7 @@ header {
   .settings-backdrop.is-closing,
   .settings-backdrop.is-closing .settings-drawer,
   .mobile-bottom-nav::before,
-  .mobile-bottom-nav a {
+  .mobile-bottom-nav button {
     animation-duration: 1ms;
     transition-duration: 1ms;
   }
