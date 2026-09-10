@@ -1,7 +1,7 @@
 /* src/App.tsx */
 
 import React, {useState, useEffect} from "react";
-import { BrowserRouter as Router, Route, Routes, NavLink, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { InputForm } from "./components/InputForm";
 import { DashboardPage } from "./components/DashboardPage";
 import { AccountSettings } from "./components/AccountSettings";
@@ -30,14 +30,29 @@ import { reconcileMonthlyAdjustments } from "./utils/monthlyAdjustments";
 import { invalidateChangedCardConfirmations } from "./utils/cardConfirmations";
 import { loadInputDrafts, saveInputDrafts } from "./data/inputDraftStore";
 import './App.css';
+import { useSegmentedDrag } from "./hooks/useSegmentedDrag";
 
 const GraphsPage = React.lazy(() => import("./components/GraphsPage").then((module) => ({ default: module.GraphsPage })));
 
 const MobileBottomNav: React.FC = () => {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const activeIndex = pathname === "/add" ? 0 : pathname.startsWith("/graphs") ? 2 : 1;
+  const drag = useSegmentedDrag<HTMLElement>({
+    count: 3,
+    selectedIndex: activeIndex,
+    onSelect: (index) => navigate((["/add", "/", "/graphs"] as const)[index] ?? "/"),
+    cssVariable: "--nav-position",
+    horizontalPadding: 4,
+  });
   return (
-    <nav className="mobile-bottom-nav" aria-label="メインナビゲーション" style={{ "--nav-index": activeIndex } as React.CSSProperties}>
+    <nav
+      ref={drag.ref}
+      className={`mobile-bottom-nav ${drag.isDragging ? "is-dragging" : ""}`}
+      aria-label="メインナビゲーション"
+      style={{ "--nav-index": activeIndex } as React.CSSProperties}
+      {...drag.handlers}
+    >
       <NavLink to="/add">入力</NavLink>
       <NavLink to="/" end>カレンダー</NavLink>
       <NavLink to="/graphs">グラフ</NavLink>
@@ -97,7 +112,10 @@ export const App: React.FC = () => {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isSettingsClosing, setIsSettingsClosing] = useState(false);
     const settingsCloseTimer = React.useRef<number | undefined>(undefined);
-    const settingsSwipeStart = React.useRef<{ x: number; y: number } | null>(null);
+    const settingsDrawerRef = React.useRef<HTMLElement>(null);
+    const settingsBackdropRef = React.useRef<HTMLDivElement>(null);
+    const settingsSwipe = React.useRef<{ pointerId: number; startX: number; startY: number; direction: "pending" | "horizontal" | "vertical"; offset: number } | null>(null);
+    const [isSettingsDragging, setIsSettingsDragging] = useState(false);
     const [recentlyDeleted, setRecentlyDeleted] = useState<Transaction | null>(null);
     const [generatedMoveCount, setGeneratedMoveCount] = useState(0);
     const [showFutureTransactions, setShowFutureTransactions] = useState(() =>
@@ -124,18 +142,57 @@ export const App: React.FC = () => {
         setIsSettingsClosing(false);
       }, 140);
     };
-    const handleSettingsTouchStart = (event: React.TouchEvent<HTMLElement>) => {
-      const touch = event.touches[0];
-      if (touch) settingsSwipeStart.current = { x: touch.clientX, y: touch.clientY };
+    const handleSettingsPointerDown = (event: React.PointerEvent<HTMLElement>) => {
+      if (event.button !== 0) return;
+      settingsSwipe.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, direction: "pending", offset: 0 };
     };
-    const handleSettingsTouchEnd = (event: React.TouchEvent<HTMLElement>) => {
-      const start = settingsSwipeStart.current;
-      const touch = event.changedTouches[0];
-      settingsSwipeStart.current = null;
-      if (!start || !touch) return;
-      const deltaX = touch.clientX - start.x;
-      const deltaY = touch.clientY - start.y;
-      if (deltaX < -44 && Math.abs(deltaX) > Math.abs(deltaY) * 1.15) closeSettings();
+    const handleSettingsPointerMove = (event: React.PointerEvent<HTMLElement>) => {
+      const current = settingsSwipe.current;
+      if (!current || current.pointerId !== event.pointerId) return;
+      const deltaX = event.clientX - current.startX;
+      const deltaY = event.clientY - current.startY;
+      if (current.direction === "pending" && Math.max(Math.abs(deltaX), Math.abs(deltaY)) >= 5) {
+        current.direction = deltaX < 0 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1 ? "horizontal" : "vertical";
+        if (current.direction === "horizontal") event.currentTarget.setPointerCapture(event.pointerId);
+      }
+      if (current.direction !== "horizontal") return;
+      event.preventDefault();
+      current.offset = Math.max(-event.currentTarget.getBoundingClientRect().width, Math.min(0, deltaX));
+      event.currentTarget.style.setProperty("--drawer-drag-x", `${current.offset}px`);
+      settingsBackdropRef.current?.style.setProperty("--drawer-drag-opacity", String(Math.max(0, 1 + current.offset / event.currentTarget.getBoundingClientRect().width)));
+      if (!isSettingsDragging) setIsSettingsDragging(true);
+    };
+    const finishSettingsDrag = (cancelled = false) => {
+      const current = settingsSwipe.current;
+      const drawer = settingsDrawerRef.current;
+      settingsSwipe.current = null;
+      if (!current || !drawer) return;
+      if (drawer.hasPointerCapture(current.pointerId)) drawer.releasePointerCapture(current.pointerId);
+      const shouldClose = !cancelled && current.direction === "horizontal" && current.offset < -Math.min(72, drawer.getBoundingClientRect().width * .2);
+      drawer.style.transition = "transform 140ms cubic-bezier(.2, .75, .25, 1)";
+      if (settingsBackdropRef.current) settingsBackdropRef.current.style.transition = "background 140ms ease-out";
+      if (shouldClose) {
+        drawer.style.setProperty("--drawer-drag-x", "-100%");
+        settingsBackdropRef.current?.style.setProperty("--drawer-drag-opacity", "0");
+        settingsCloseTimer.current = window.setTimeout(() => {
+          setIsSettingsOpen(false);
+          setIsSettingsDragging(false);
+          drawer.style.removeProperty("--drawer-drag-x");
+          drawer.style.removeProperty("transition");
+          settingsBackdropRef.current?.style.removeProperty("--drawer-drag-opacity");
+          settingsBackdropRef.current?.style.removeProperty("transition");
+        }, 140);
+        return;
+      }
+      drawer.style.setProperty("--drawer-drag-x", "0px");
+      settingsBackdropRef.current?.style.setProperty("--drawer-drag-opacity", "1");
+      window.setTimeout(() => {
+        setIsSettingsDragging(false);
+        drawer.style.removeProperty("--drawer-drag-x");
+        drawer.style.removeProperty("transition");
+        settingsBackdropRef.current?.style.removeProperty("--drawer-drag-opacity");
+        settingsBackdropRef.current?.style.removeProperty("transition");
+      }, 140);
     };
     useEffect(() => () => {
       if (settingsCloseTimer.current) window.clearTimeout(settingsCloseTimer.current);
@@ -426,13 +483,15 @@ export const App: React.FC = () => {
       </header>
 
       {isSettingsOpen && (
-        <div className={`settings-backdrop ${isSettingsClosing ? "is-closing" : ""}`} onClick={closeSettings}>
+        <div ref={settingsBackdropRef} className={`settings-backdrop ${isSettingsClosing ? "is-closing" : ""} ${isSettingsDragging ? "is-dragging" : ""}`} onClick={closeSettings}>
           <aside
             className="settings-drawer"
+            ref={settingsDrawerRef}
             onClick={(event) => event.stopPropagation()}
-            onTouchStart={handleSettingsTouchStart}
-            onTouchEnd={handleSettingsTouchEnd}
-            onTouchCancel={() => { settingsSwipeStart.current = null; }}
+            onPointerDown={handleSettingsPointerDown}
+            onPointerMove={handleSettingsPointerMove}
+            onPointerUp={() => finishSettingsDrag()}
+            onPointerCancel={() => finishSettingsDrag(true)}
           >
             <div className="settings-drawer-top">
               <div className="settings-drawer-title"><strong>設定</strong><span className="settings-version">v{__APP_VERSION__}</span></div>

@@ -13,6 +13,7 @@ import { loadBudgets } from "../data/budgetStore";
 import { getMonthKey, isIncludedInRegularAnalytics, sumExpenseByCategoryAllocatedTax } from "../utils/analytics";
 import { WheelPickerInline } from "./WheelPickerInline";
 import { DateWheelPicker } from "./DateWheelPicker";
+import { useSegmentedDrag } from "../hooks/useSegmentedDrag";
 import "./InputForm.css";
 import "./TransactionHistory.css";
 
@@ -123,13 +124,31 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [isExternalTax, setIsExternalTax] = React.useState(false);
   const [taxRate, setTaxRate] = React.useState<TaxRate>(10);
   const [entryMode, setEntryMode] = React.useState<EntryMode>("individual");
-
+  const tabDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 3,
+    selectedIndex: type === "expense" ? 0 : type === "income" ? 1 : 2,
+    onSelect: (index) => handleTabClick((["expense", "income", "move"] as const)[index] ?? "expense"),
+    cssVariable: "--tab-position",
+    horizontalPadding: 4,
+  });
   // レシート仮置き
   const [receiptItems, setReceiptItems] = React.useState<DraftTx[]>([]);
   const [editingReceiptIndex, setEditingReceiptIndex] = React.useState<number | null>(null);
   const [savedDrafts, setSavedDrafts] = React.useState<InputDraft[]>(() => loadInputDrafts());
   const [activeDraftId, setActiveDraftId] = React.useState("");
   const isApplyingDraft = React.useRef(false);
+  const receiptModeDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 3,
+    selectedIndex: entryMode === "receipt_exclusive" ? 0 : entryMode === "receipt_inclusive" ? 1 : 2,
+    onSelect: (index) => {
+      const next = (["receipt_exclusive", "receipt_inclusive", "individual"] as const)[index] ?? "individual";
+      setEntryMode(next);
+      setIsExternalTax(next === "receipt_exclusive");
+    },
+    cssVariable: "--receipt-mode-position",
+    horizontalPadding: 2,
+    disabled: Boolean(activeGroupId || editingTransaction?.groupId || receiptItems.length > 0),
+  });
 
   const applySavedDraft = React.useCallback((draft: InputDraft) => {
     isApplyingDraft.current = true;
@@ -909,7 +928,12 @@ export const InputForm: React.FC<InputFormProps> = ({
           </div>
         </details>
       )}
-      <div className="tab-group" style={{ "--tab-index": tabIndex } as React.CSSProperties}>
+      <div
+        ref={tabDrag.ref}
+        className={`tab-group ${tabDrag.isDragging ? "is-dragging" : ""}`}
+        style={{ "--tab-index": tabIndex } as React.CSSProperties}
+        {...tabDrag.handlers}
+      >
         <button className={type === "expense" ? "active" : ""} onClick={() => handleTabClick("expense")} type="button">
           Out
         </button>
@@ -958,10 +982,12 @@ export const InputForm: React.FC<InputFormProps> = ({
         {type === "expense" && (
           <div className="tax-controls" aria-label="消費税設定">
             <div
-              className="receipt-mode-control"
+              ref={receiptModeDrag.ref}
+              className={`receipt-mode-control ${receiptModeDrag.isDragging ? "is-dragging" : ""}`}
               role="radiogroup"
               aria-label="入力モード"
               style={{ "--receipt-mode-index": entryMode === "receipt_exclusive" ? 0 : entryMode === "receipt_inclusive" ? 1 : 2 } as React.CSSProperties}
+              {...receiptModeDrag.handlers}
             >
               {([
                 ["receipt_exclusive", "一括外税"],

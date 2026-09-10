@@ -119,10 +119,11 @@ header {
     height: 43px;
     border-radius: 22px;
     background: #006428;
-    transform: translateX(calc(var(--nav-index) * 100%));
+    transform: translateX(calc(var(--nav-position, var(--nav-index)) * 100%));
     transition: transform 140ms cubic-bezier(.2, .75, .25, 1);
     will-change: transform;
   }
+  .mobile-bottom-nav.is-dragging::before { transition: none; }
   .mobile-bottom-nav a { position: relative; z-index: 1; display: grid; place-items: center; height: 43px; padding: 0; border-radius: 22px; color: #006428; background: transparent; text-align: center; text-decoration: none; font-size: 15px; font-weight: 400; }
   .mobile-bottom-nav a.active { color: #f9fffb; background: transparent; }
   .mobile-settings-trigger { position: fixed; z-index: 41; display: block; top: 8px; left: 10px; border: 0; background: transparent; color: #245e2d; font-size: 24px; }
@@ -144,8 +145,15 @@ header {
   position: fixed;
   z-index: 50;
   inset: 0;
-  background: rgba(16, 31, 20, .32);
+  background: rgba(16, 31, 20, calc(.32 * var(--drawer-drag-opacity, 1)));
   animation: settings-backdrop-in 120ms ease-out both;
+}
+
+.settings-backdrop.is-dragging { animation: none; transition: none; }
+.settings-backdrop.is-dragging .settings-drawer {
+  animation: none;
+  transform: translateX(var(--drawer-drag-x, 0px));
+  transition: none;
 }
 
 .settings-drawer {
