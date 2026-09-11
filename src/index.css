@@ -65,7 +65,7 @@ html[data-app-page="input"] .app-container {
 }
 
 html[data-app-page="input"] main {
-  height: calc(100dvh - 46px);
+  height: 100dvh;
   overflow: hidden;
 }
 

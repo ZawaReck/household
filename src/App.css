@@ -127,6 +127,19 @@ header {
   .mobile-bottom-nav button { position: relative; z-index: 1; display: grid; place-items: center; height: 43px; padding: 0; border: 0; border-radius: 22px; color: #006428; background: transparent; text-align: center; font: inherit; font-size: 15px; font-weight: 400; -webkit-touch-callout: none; user-select: none; }
   .mobile-bottom-nav button.active { color: #f9fffb; background: transparent; }
   .mobile-settings-trigger { position: fixed; z-index: 41; display: block; top: 8px; left: 10px; border: 0; background: transparent; color: #245e2d; font-size: 24px; }
+  .sync-status { display: none; }
+  html[data-app-page="input"] header { height: 0; }
+  html[data-app-page="input"] .mobile-settings-trigger {
+    top: 9px;
+    left: 8px;
+    display: grid;
+    width: 43px;
+    height: 25px;
+    padding: 0;
+    place-items: center;
+    font-size: 21px;
+    line-height: 25px;
+  }
 }
 
 .summary-card {
@@ -214,6 +227,18 @@ header {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
+
+.settings-sync-status {
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #fff;
+  background: #66736a;
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.settings-sync-status.sync-synced { background: #2f7d42; }
+.settings-sync-status.sync-error { background: #b23a3a; }
 
 .settings-drawer-top button, .nav-menu button {
   border: 0;

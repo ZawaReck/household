@@ -587,7 +587,14 @@
   flex-wrap: wrap;
 }
 
-.move-fee-row { display: none; }
+.move-fee-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+}
+
+.move-fee-row input { grid-column: 2; }
 
 .receipt-mode-control {
   display: grid;
@@ -944,9 +951,9 @@
     position: relative;
     align-self: center;
     width: calc(100% - 70px);
-    height: 23px;
-    min-height: 23px;
-    margin: 6px 35px;
+    height: 27px;
+    min-height: 27px;
+    margin: 4px 35px;
     padding: 0;
     display: block;
     border-radius: 0;
@@ -967,19 +974,19 @@
   .input-budget-value {
     position: absolute;
     top: 0;
+    right: 0;
     white-space: nowrap;
+    text-align: right;
   }
 
   .input-budget-value strong { font-weight: 400; }
   .input-budget-row.is-over .input-budget-value strong { color: #c62828; }
   .input-budget-row.is-category .input-budget-value {
-    left: 50%;
-    transform: translateX(-50%);
-    text-align: center;
+    top: 0;
   }
   .input-budget-row.is-total .input-budget-value {
+    top: 13px;
     right: 0;
-    text-align: right;
   }
 
   .input-budget-row progress {
@@ -1002,8 +1009,8 @@
   .input-budget-row progress.is-over::-webkit-progress-value { background: #c62828; }
   .input-budget-row progress.is-over::-moz-progress-bar { background: #c62828; }
 
-  .input-budget-row.is-category progress { top: 13px; }
-  .input-budget-row.is-total progress { top: 18px; }
+  .input-budget-row.is-category progress { top: 9px; }
+  .input-budget-row.is-total progress { top: 22px; }
 
   .input-form .row-2 {
     order: 4;
@@ -1169,49 +1176,44 @@
   }
 
   .tax-rate-group {
-    order: 7;
-    position: relative;
-    display: flex;
-    justify-content: flex-end;
-    width: 100%;
+    position: absolute;
+    z-index: 4;
+    top: 51px;
+    left: 72px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    width: 118px;
     height: 40px;
     min-height: 40px;
-    margin-top: 1px;
     gap: 0;
-    padding-right: 8px;
+    padding: 2px;
     box-sizing: border-box;
-    border-top: 1px solid #006428;
-    border-bottom: 1px solid #006428;
+    overflow: hidden;
+    border: 0;
+    border-radius: 19px;
+    background: #006428;
   }
 
-  .tax-rate-group::before {
-    content: "税率";
-    position: absolute;
-    left: 15px;
-    top: 9px;
-    color: #006428;
-    font-size: 15px;
-    font-weight: 400;
-  }
+  .tax-rate-group::before { content: none; }
 
   .tax-rate-btn {
-    width: 54.333px;
-    height: 40px;
+    width: auto;
+    height: 36px;
     padding: 0;
     border: 0;
     border-radius: 0;
-    background: #006428;
+    background: transparent;
     color: #f9fffb;
-    font-size: 15px;
+    font-size: 11px;
     line-height: 36px;
   }
 
   .tax-rate-btn:first-of-type { border-radius: 19px 0 0 19px; }
   .tax-rate-btn:last-child { border-radius: 0 19px 19px 0; }
   .tax-rate-btn.active {
-    width: 50.333px;
+    width: auto;
     height: 36px;
-    margin: 2px;
+    margin: 0;
     border-radius: 18px;
     background: #f9fffb;
     color: #006428;
@@ -1263,15 +1265,22 @@
   .input-secondary-actions > div { top: 38px; left: 0; right: auto; }
 
   .input-form form > .form-buttons:last-child {
-    order: 9;
+    order: 10;
     display: block;
     width: 100%;
-    margin: 15px 0 0;
+    max-height: 154px;
+    margin: 0;
+    overflow: hidden;
   }
 
   .receipt-queue {
     width: 100%;
+    max-height: 154px;
     margin: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     border-radius: 0;
   }
 
@@ -1281,7 +1290,7 @@
     width: 100%;
   }
 
-  .receipt-queue .receipt-total-bar {
+  .receipt-queue > .date-header.receipt-total-bar {
     height: 40px;
     min-height: 40px;
     padding: 0 16px;
@@ -1301,14 +1310,14 @@
     line-height: 10px;
   }
 
-  .receipt-queue .transaction-item {
+  .receipt-queue > .transaction-item {
     height: 36px;
     min-height: 36px;
     padding: 0 16px;
     font-size: 15px;
   }
 
-  .receipt-queue .row-layout {
+  .receipt-queue .transaction-item .row-layout {
     grid-template-columns: 90px minmax(0, 1fr) auto auto;
     column-gap: 0;
   }
@@ -1328,7 +1337,7 @@
   .receipt-del-btn { width: 24px; height: 34px; padding: 0; font-size: 14px; }
 
   .memo-control {
-    order: 10;
+    order: 9;
     box-sizing: border-box;
     padding: 0 7px 12px;
     color: #006428;

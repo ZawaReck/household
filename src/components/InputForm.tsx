@@ -980,6 +980,11 @@ export const InputForm: React.FC<InputFormProps> = ({
             required
           />
         </div>
+        {type === "move" && (
+          <div className="move-fee-row">
+            <input type="number" inputMode="numeric" min="0" step="1" value={moveFee} onChange={(event) => setMoveFee(event.target.value)} placeholder="手数料等" aria-label="手数料等" />
+          </div>
+        )}
         <DateWheelPicker value={date} onChange={setDate} />
 
         {/* 入力単位 + 外税時の税率（支出のみ） */}
@@ -1048,13 +1053,6 @@ export const InputForm: React.FC<InputFormProps> = ({
           <div className="input-budget-progress" aria-label="予算進捗">
             <BudgetProgress kind="category" actual={projectedCategoryActual} budget={categoryBudget} />
             <BudgetProgress kind="total" actual={projectedTotalActual} budget={totalBudget || undefined} />
-          </div>
-        )}
-
-        {type === "move" && (
-          <div className="move-fee-row">
-            <span>手数料</span>
-            <input type="number" inputMode="numeric" min="0" step="1" value={moveFee} onChange={(event) => setMoveFee(event.target.value)} placeholder="0" aria-label="手数料" />
           </div>
         )}
 

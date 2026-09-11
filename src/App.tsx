@@ -65,6 +65,16 @@ const MobileBottomNav: React.FC = () => {
 };
 
 export const App: React.FC = () => {
+	type SyncStatus = "offline" | "syncing" | "synced" | "error";
+	const syncLabels: Record<SyncStatus, string> = { offline: "オフライン", syncing: "同期中", synced: "同期済み", error: "同期失敗" };
+	const [syncStatus, setSyncStatus] = useState<SyncStatus>(() =>
+		(document.documentElement.dataset.syncStatus as SyncStatus | undefined) ?? "syncing"
+	);
+	useEffect(() => {
+		const handleSyncStatus = (event: Event) => setSyncStatus((event as CustomEvent<SyncStatus>).detail);
+		window.addEventListener("household-sync-status", handleSyncStatus);
+		return () => window.removeEventListener("household-sync-status", handleSyncStatus);
+	}, []);
 
 	const [transactions, setTransactions] = useState<Transaction[]>(() => {
 		return loadTransactions();
@@ -502,7 +512,7 @@ export const App: React.FC = () => {
             onPointerCancel={() => finishSettingsDrag(true)}
           >
             <div className="settings-drawer-top">
-              <div className="settings-drawer-title"><strong>設定</strong><span className="settings-version">v{__APP_VERSION__}</span></div>
+              <div className="settings-drawer-title"><strong>設定</strong><span className="settings-version">v{__APP_VERSION__}</span><span className={`settings-sync-status sync-${syncStatus}`}>{syncLabels[syncStatus]}</span></div>
               <button type="button" onClick={closeSettings}>×</button>
             </div>
             <AccountSettings accounts={accounts} transactions={transactions} onSave={handleSaveAccount} />
