@@ -1178,7 +1178,7 @@
   .tax-rate-group {
     position: absolute;
     z-index: 4;
-    top: 51px;
+    top: 49px;
     left: 72px;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -1268,14 +1268,14 @@
     order: 10;
     display: block;
     width: 100%;
-    max-height: 154px;
+    max-height: calc(100dvh - 456px);
     margin: 0;
     overflow: hidden;
   }
 
   .receipt-queue {
     width: 100%;
-    max-height: 154px;
+    max-height: calc(100dvh - 456px);
     margin: 0;
     overflow-x: hidden;
     overflow-y: auto;
@@ -1291,6 +1291,9 @@
   }
 
   .receipt-queue > .date-header.receipt-total-bar {
+    position: sticky;
+    z-index: 3;
+    top: 0;
     height: 40px;
     min-height: 40px;
     padding: 0 16px;
@@ -1322,6 +1325,35 @@
     column-gap: 0;
   }
 
+  .receipt-swipe-row {
+    position: relative;
+    flex: 0 0 35px;
+    width: 100%;
+    height: 35px;
+    overflow: hidden;
+    background: #b83232;
+  }
+
+  .receipt-swipe-delete-label {
+    position: absolute;
+    inset: 0 16px 0 auto;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .receipt-swipe-front {
+    position: relative;
+    z-index: 1;
+    touch-action: pan-y;
+    transition: transform 140ms ease-out;
+    will-change: transform;
+  }
+
+  .receipt-swipe-row.is-dragging .receipt-swipe-front { transition: none; }
+
   .receipt-queue .cat,
   .receipt-queue .nm,
   .receipt-queue .amt {
@@ -1334,8 +1366,6 @@
   }
 
   .receipt-queue .amt { font-size: 17px; }
-  .receipt-del-btn { width: 24px; height: 34px; padding: 0; font-size: 14px; }
-
   .memo-control {
     order: 9;
     box-sizing: border-box;

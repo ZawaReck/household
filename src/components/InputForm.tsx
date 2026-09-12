@@ -133,6 +133,18 @@ export const InputForm: React.FC<InputFormProps> = ({
   });
   // レシート仮置き
   const [receiptItems, setReceiptItems] = React.useState<DraftTx[]>([]);
+  const [receiptSwipeX, setReceiptSwipeX] = React.useState<Record<number, number>>({});
+  const [draggingReceiptIndex, setDraggingReceiptIndex] = React.useState<number | null>(null);
+  const receiptSwipe = React.useRef<{
+    index: number;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    width: number;
+    offset: number;
+    direction: "pending" | "horizontal" | "vertical";
+  } | null>(null);
+  const suppressReceiptClick = React.useRef(false);
   const [editingReceiptIndex, setEditingReceiptIndex] = React.useState<number | null>(null);
   const [savedDrafts, setSavedDrafts] = React.useState<InputDraft[]>(() => loadInputDrafts());
   const [activeDraftId, setActiveDraftId] = React.useState("");
@@ -149,6 +161,58 @@ export const InputForm: React.FC<InputFormProps> = ({
     horizontalPadding: 2,
     disabled: Boolean(activeGroupId || editingTransaction?.groupId || receiptItems.length > 0),
   });
+
+  const handleReceiptSwipeStart = (event: React.PointerEvent<HTMLDivElement>, index: number) => {
+    if (event.button !== 0) return;
+    receiptSwipe.current = {
+      index,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      width: event.currentTarget.getBoundingClientRect().width,
+      offset: 0,
+      direction: "pending",
+    };
+    suppressReceiptClick.current = false;
+  };
+
+  const handleReceiptSwipeMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const swipe = receiptSwipe.current;
+    if (!swipe || swipe.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - swipe.startX;
+    const deltaY = event.clientY - swipe.startY;
+    if (swipe.direction === "pending" && Math.max(Math.abs(deltaX), Math.abs(deltaY)) >= 6) {
+      swipe.direction = deltaX < 0 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1 ? "horizontal" : "vertical";
+      if (swipe.direction === "horizontal") {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setDraggingReceiptIndex(swipe.index);
+        suppressReceiptClick.current = true;
+      }
+    }
+    if (swipe.direction !== "horizontal") return;
+    event.preventDefault();
+    swipe.offset = Math.max(-swipe.width, Math.min(0, deltaX));
+    setReceiptSwipeX((current) => ({ ...current, [swipe.index]: swipe.offset }));
+  };
+
+  const finishReceiptSwipe = (event: React.PointerEvent<HTMLDivElement>, cancelled = false) => {
+    const swipe = receiptSwipe.current;
+    if (!swipe || swipe.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    const offset = swipe.offset;
+    receiptSwipe.current = null;
+    setDraggingReceiptIndex(null);
+    if (!cancelled && swipe.direction === "horizontal" && offset <= -72) {
+      setReceiptSwipeX((current) => ({ ...current, [swipe.index]: -swipe.width }));
+      window.setTimeout(() => {
+        deleteReceiptItem(swipe.index);
+        setReceiptSwipeX({});
+      }, 140);
+    } else {
+      setReceiptSwipeX((current) => ({ ...current, [swipe.index]: 0 }));
+    }
+    window.setTimeout(() => { suppressReceiptClick.current = false; }, 0);
+  };
 
   const applySavedDraft = React.useCallback((draft: InputDraft) => {
     isApplyingDraft.current = true;
@@ -1220,30 +1284,27 @@ export const InputForm: React.FC<InputFormProps> = ({
                 {receiptItems.map((t, idx) => {
                   const displayAmount = getReceiptDisplayAmount(t);
                   return (
-                    <div
-                      key={`draft-${idx}`}
-                      className={`transaction-item type-${t.type} receipt-row ${editingReceiptIndex === idx ? "is-editing" : ""}`}
-                      onClick={() => loadDraftToForm(t, idx)}
-                    >
-                      <div className="row-layout">
-                        {renderRowContent(t)}
-                        <div className={`amt ${String(displayAmount).length >= 7 ? "amt-small" : ""}`}>
-                          {renderTaxBadge(t)}
-                          {displayAmount.toLocaleString()}円
+                    <div key={`draft-${idx}`} className={`receipt-swipe-row ${draggingReceiptIndex === idx ? "is-dragging" : ""}`}>
+                      <span className="receipt-swipe-delete-label" aria-hidden="true">削除</span>
+                      <div
+                        className={`transaction-item type-${t.type} receipt-row receipt-swipe-front ${editingReceiptIndex === idx ? "is-editing" : ""}`}
+                        style={{ transform: `translateX(${receiptSwipeX[idx] ?? 0}px)` }}
+                        onPointerDown={(event) => handleReceiptSwipeStart(event, idx)}
+                        onPointerMove={handleReceiptSwipeMove}
+                        onPointerUp={(event) => finishReceiptSwipe(event)}
+                        onPointerCancel={(event) => finishReceiptSwipe(event, true)}
+                        onClick={() => {
+                          if (!suppressReceiptClick.current) loadDraftToForm(t, idx);
+                        }}
+                      >
+                        <div className="row-layout">
+                          {renderRowContent(t)}
+                          <div className={`amt ${String(displayAmount).length >= 7 ? "amt-small" : ""}`}>
+                            {renderTaxBadge(t)}
+                            {displayAmount.toLocaleString()}円
+                          </div>
+                          <span aria-hidden="true" />
                         </div>
-
-                        {/* 4列目（auto）に削除ボタン */}
-                        <button
-                          type="button"
-                          className="receipt-del-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteReceiptItem(idx);
-                          }}
-                          aria-label="delete"
-                        >
-                          ✕
-                        </button>
                       </div>
                     </div>
                   );

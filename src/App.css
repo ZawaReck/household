@@ -126,10 +126,9 @@ header {
   .mobile-bottom-nav.is-dragging::before { transition: none; }
   .mobile-bottom-nav button { position: relative; z-index: 1; display: grid; place-items: center; height: 43px; padding: 0; border: 0; border-radius: 22px; color: #006428; background: transparent; text-align: center; font: inherit; font-size: 15px; font-weight: 400; -webkit-touch-callout: none; user-select: none; }
   .mobile-bottom-nav button.active { color: #f9fffb; background: transparent; }
-  .mobile-settings-trigger { position: fixed; z-index: 41; display: block; top: 8px; left: 10px; border: 0; background: transparent; color: #245e2d; font-size: 24px; }
-  .sync-status { display: none; }
-  html[data-app-page="input"] header { height: 0; }
-  html[data-app-page="input"] .mobile-settings-trigger {
+  .mobile-settings-trigger {
+    position: fixed;
+    z-index: 41;
     top: 9px;
     left: 8px;
     display: grid;
@@ -137,9 +136,14 @@ header {
     height: 25px;
     padding: 0;
     place-items: center;
+    border: 0;
+    background: transparent;
+    color: #245e2d;
     font-size: 21px;
     line-height: 25px;
   }
+  .sync-status { display: none; }
+  html[data-app-page="input"] header { height: 0; }
 }
 
 .summary-card {
