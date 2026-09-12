@@ -161,6 +161,20 @@ export const InputForm: React.FC<InputFormProps> = ({
     horizontalPadding: 2,
     disabled: Boolean(activeGroupId || editingTransaction?.groupId || receiptItems.length > 0),
   });
+  const taxRateDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 3,
+    selectedIndex: taxRate === 0 ? 0 : taxRate === 8 ? 1 : 2,
+    onSelect: (index) => setTaxRate(([0, 8, 10] as const)[index] ?? 10),
+    cssVariable: "--tax-rate-position",
+    horizontalPadding: 2,
+  });
+  const receiptQueueRef = React.useRef<HTMLDivElement>(null);
+  const previousReceiptCount = React.useRef(0);
+
+  React.useEffect(() => {
+    if (receiptItems.length > previousReceiptCount.current) receiptQueueRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    previousReceiptCount.current = receiptItems.length;
+  }, [receiptItems.length]);
 
   const handleReceiptSwipeStart = (event: React.PointerEvent<HTMLDivElement>, index: number) => {
     if (event.button !== 0) return;
@@ -1080,7 +1094,14 @@ export const InputForm: React.FC<InputFormProps> = ({
             </div>
 
             {isExternalTax && (
-              <div className="tax-rate-group" role="radiogroup" aria-label="税率">
+              <div
+                ref={taxRateDrag.ref}
+                className={`tax-rate-group ${taxRateDrag.isDragging ? "is-dragging" : ""}`}
+                role="radiogroup"
+                aria-label="税率"
+                style={{ "--tax-rate-index": taxRate === 0 ? 0 : taxRate === 8 ? 1 : 2 } as React.CSSProperties}
+                {...taxRateDrag.handlers}
+              >
                 <button
                   type="button"
                   role="radio"
@@ -1265,7 +1286,7 @@ export const InputForm: React.FC<InputFormProps> = ({
         </div>
 
         <div className="form-buttons">
-          <div className="history-list receipt-queue">
+          <div ref={receiptQueueRef} className="history-list receipt-queue">
             {(receiptItems.length > 0 || showCommittedGroup) && (
               <>
             {showTotalBar && (
@@ -1281,7 +1302,7 @@ export const InputForm: React.FC<InputFormProps> = ({
             {receiptItems.length > 0 && (
               <>
                 <div className="date-header">仮登録</div>
-                {receiptItems.map((t, idx) => {
+                {receiptItems.map((t, idx) => ({ item: t, originalIndex: idx })).reverse().map(({ item: t, originalIndex: idx }) => {
                   const displayAmount = getReceiptDisplayAmount(t);
                   return (
                     <div key={`draft-${idx}`} className={`receipt-swipe-row ${draggingReceiptIndex === idx ? "is-dragging" : ""}`}>
