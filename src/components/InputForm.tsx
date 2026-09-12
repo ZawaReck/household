@@ -1286,7 +1286,7 @@ export const InputForm: React.FC<InputFormProps> = ({
         </div>
 
         <div className="form-buttons">
-          <div ref={receiptQueueRef} className="history-list receipt-queue">
+          <div className="receipt-queue">
             {(receiptItems.length > 0 || showCommittedGroup) && (
               <>
             {showTotalBar && (
@@ -1297,6 +1297,8 @@ export const InputForm: React.FC<InputFormProps> = ({
                 <span>{displayTotal.toLocaleString()}円</span>
               </div>
             )}
+
+            <div ref={receiptQueueRef} className="history-list receipt-items-scroll">
 
             {/* 仮登録 */}
             {receiptItems.length > 0 && (
@@ -1365,6 +1367,7 @@ export const InputForm: React.FC<InputFormProps> = ({
             )}
             </>
             )}
+            </div>
             </>
             )}
           </div>
