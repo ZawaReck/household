@@ -1347,7 +1347,7 @@ export const InputForm: React.FC<InputFormProps> = ({
                       key={`draft-${idx}`}
                       className={`receipt-swipe-row ${draggingReceiptIndex === idx ? "is-dragging" : ""} ${openReceiptIndex === idx ? "is-open" : ""} ${isFullSwipe ? "is-full-swipe" : ""}`}
                       style={{
-                        "--receipt-swipe-width": `${swipeWidth}px`,
+                        "--receipt-swipe-offset": `${receiptSwipeX[idx] ?? 0}px`,
                         "--receipt-swipe-half-width": `${swipeWidth / 2}px`,
                         "--receipt-delete-label-scale": Math.max(0.18, Math.min(1, swipeWidth / 48)),
                       } as React.CSSProperties}
@@ -1371,7 +1371,6 @@ export const InputForm: React.FC<InputFormProps> = ({
                       ><span>削除</span></button>
                       <div
                         className={`transaction-item type-${t.type} receipt-row receipt-swipe-front ${editingReceiptIndex === idx ? "is-editing" : ""}`}
-                        style={{ transform: `translateX(${receiptSwipeX[idx] ?? 0}px)` }}
                         onPointerDown={(event) => handleReceiptSwipeStart(event, idx)}
                         onPointerMove={handleReceiptSwipeMove}
                         onPointerUp={(event) => finishReceiptSwipe(event)}
