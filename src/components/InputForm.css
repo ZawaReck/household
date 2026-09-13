@@ -1359,24 +1359,37 @@
     width: 100%;
     height: 35px;
     overflow: hidden;
-    background: #b83232;
+    background: #f9fffb;
   }
 
-  .receipt-swipe-delete-label {
+  .receipt-swipe-delete-action {
     position: absolute;
-    inset: 0 16px 0 auto;
+    z-index: 0;
+    top: 0;
+    right: 0;
     display: grid;
+    width: 72px;
+    height: 35px;
+    padding: 0;
     place-items: center;
+    border: 0;
+    border-radius: 0;
+    background: #b83232;
     color: #fff;
     font-size: 13px;
     font-weight: 700;
+    opacity: var(--receipt-swipe-reveal, 0);
+    pointer-events: none;
+    transition: opacity 100ms linear;
   }
+
+  .receipt-swipe-row.is-open .receipt-swipe-delete-action { pointer-events: auto; }
 
   .receipt-swipe-front {
     position: relative;
     z-index: 1;
     touch-action: pan-y;
-    transition: transform 140ms ease-out;
+    transition: transform 180ms cubic-bezier(.2, .72, .25, 1);
     will-change: transform;
   }
 
@@ -1451,8 +1464,13 @@
   }
 
   html[data-app-page="input"] .input-form {
-    height: calc(100dvh - 81px);
+    height: 100dvh;
     overflow: hidden;
+  }
+
+  html[data-app-page="input"] .receipt-items-scroll {
+    box-sizing: border-box;
+    padding-bottom: 81px;
   }
 
   .input-section.sheet-open .sticky-input,

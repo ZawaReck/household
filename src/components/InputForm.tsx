@@ -135,12 +135,13 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [receiptItems, setReceiptItems] = React.useState<DraftTx[]>([]);
   const [receiptSwipeX, setReceiptSwipeX] = React.useState<Record<number, number>>({});
   const [draggingReceiptIndex, setDraggingReceiptIndex] = React.useState<number | null>(null);
+  const [openReceiptIndex, setOpenReceiptIndex] = React.useState<number | null>(null);
   const receiptSwipe = React.useRef<{
     index: number;
     pointerId: number;
     startX: number;
     startY: number;
-    width: number;
+    baseOffset: number;
     offset: number;
     direction: "pending" | "horizontal" | "vertical";
   } | null>(null);
@@ -178,13 +179,18 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   const handleReceiptSwipeStart = (event: React.PointerEvent<HTMLDivElement>, index: number) => {
     if (event.button !== 0) return;
+    if (openReceiptIndex != null && openReceiptIndex !== index) {
+      setReceiptSwipeX((current) => ({ ...current, [openReceiptIndex]: 0 }));
+      setOpenReceiptIndex(null);
+    }
+    const baseOffset = openReceiptIndex === index ? -72 : 0;
     receiptSwipe.current = {
       index,
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      width: event.currentTarget.getBoundingClientRect().width,
-      offset: 0,
+      baseOffset,
+      offset: baseOffset,
       direction: "pending",
     };
     suppressReceiptClick.current = false;
@@ -195,8 +201,9 @@ export const InputForm: React.FC<InputFormProps> = ({
     if (!swipe || swipe.pointerId !== event.pointerId) return;
     const deltaX = event.clientX - swipe.startX;
     const deltaY = event.clientY - swipe.startY;
-    if (swipe.direction === "pending" && Math.max(Math.abs(deltaX), Math.abs(deltaY)) >= 6) {
-      swipe.direction = deltaX < 0 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1 ? "horizontal" : "vertical";
+    if (swipe.direction === "pending" && Math.max(Math.abs(deltaX), Math.abs(deltaY)) >= 10) {
+      const isAllowedHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 1.35 && (swipe.baseOffset < 0 || deltaX < 0);
+      swipe.direction = isAllowedHorizontal ? "horizontal" : "vertical";
       if (swipe.direction === "horizontal") {
         event.currentTarget.setPointerCapture(event.pointerId);
         setDraggingReceiptIndex(swipe.index);
@@ -205,7 +212,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     }
     if (swipe.direction !== "horizontal") return;
     event.preventDefault();
-    swipe.offset = Math.max(-swipe.width, Math.min(0, deltaX));
+    swipe.offset = Math.max(-72, Math.min(0, swipe.baseOffset + deltaX));
     setReceiptSwipeX((current) => ({ ...current, [swipe.index]: swipe.offset }));
   };
 
@@ -216,15 +223,9 @@ export const InputForm: React.FC<InputFormProps> = ({
     const offset = swipe.offset;
     receiptSwipe.current = null;
     setDraggingReceiptIndex(null);
-    if (!cancelled && swipe.direction === "horizontal" && offset <= -72) {
-      setReceiptSwipeX((current) => ({ ...current, [swipe.index]: -swipe.width }));
-      window.setTimeout(() => {
-        deleteReceiptItem(swipe.index);
-        setReceiptSwipeX({});
-      }, 140);
-    } else {
-      setReceiptSwipeX((current) => ({ ...current, [swipe.index]: 0 }));
-    }
+    const shouldOpen = !cancelled && swipe.direction === "horizontal" && offset <= -36;
+    setReceiptSwipeX((current) => ({ ...current, [swipe.index]: shouldOpen ? -72 : 0 }));
+    setOpenReceiptIndex(shouldOpen ? swipe.index : null);
     window.setTimeout(() => { suppressReceiptClick.current = false; }, 0);
   };
 
@@ -1298,7 +1299,15 @@ export const InputForm: React.FC<InputFormProps> = ({
               </div>
             )}
 
-            <div ref={receiptQueueRef} className="history-list receipt-items-scroll">
+            <div
+              ref={receiptQueueRef}
+              className="history-list receipt-items-scroll"
+              onScroll={() => {
+                if (openReceiptIndex == null || draggingReceiptIndex != null) return;
+                setReceiptSwipeX((current) => ({ ...current, [openReceiptIndex]: 0 }));
+                setOpenReceiptIndex(null);
+              }}
+            >
 
             {/* 仮登録 */}
             {receiptItems.length > 0 && (
@@ -1307,8 +1316,23 @@ export const InputForm: React.FC<InputFormProps> = ({
                 {receiptItems.map((t, idx) => ({ item: t, originalIndex: idx })).reverse().map(({ item: t, originalIndex: idx }) => {
                   const displayAmount = getReceiptDisplayAmount(t);
                   return (
-                    <div key={`draft-${idx}`} className={`receipt-swipe-row ${draggingReceiptIndex === idx ? "is-dragging" : ""}`}>
-                      <span className="receipt-swipe-delete-label" aria-hidden="true">削除</span>
+                    <div
+                      key={`draft-${idx}`}
+                      className={`receipt-swipe-row ${draggingReceiptIndex === idx ? "is-dragging" : ""} ${openReceiptIndex === idx ? "is-open" : ""}`}
+                      style={{ "--receipt-swipe-reveal": Math.min(1, Math.abs(receiptSwipeX[idx] ?? 0) / 72) } as React.CSSProperties}
+                    >
+                      <button
+                        type="button"
+                        className="receipt-swipe-delete-action"
+                        aria-hidden={openReceiptIndex !== idx}
+                        tabIndex={openReceiptIndex === idx ? 0 : -1}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          deleteReceiptItem(idx);
+                          setOpenReceiptIndex(null);
+                          setReceiptSwipeX({});
+                        }}
+                      >削除</button>
                       <div
                         className={`transaction-item type-${t.type} receipt-row receipt-swipe-front ${editingReceiptIndex === idx ? "is-editing" : ""}`}
                         style={{ transform: `translateX(${receiptSwipeX[idx] ?? 0}px)` }}
@@ -1317,7 +1341,13 @@ export const InputForm: React.FC<InputFormProps> = ({
                         onPointerUp={(event) => finishReceiptSwipe(event)}
                         onPointerCancel={(event) => finishReceiptSwipe(event, true)}
                         onClick={() => {
-                          if (!suppressReceiptClick.current) loadDraftToForm(t, idx);
+                          if (suppressReceiptClick.current) return;
+                          if (openReceiptIndex === idx) {
+                            setReceiptSwipeX((current) => ({ ...current, [idx]: 0 }));
+                            setOpenReceiptIndex(null);
+                            return;
+                          }
+                          loadDraftToForm(t, idx);
                         }}
                       >
                         <div className="row-layout">
