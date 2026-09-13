@@ -1370,8 +1370,7 @@ export const InputForm: React.FC<InputFormProps> = ({
                           setOpenReceiptIndex(null);
                           setReceiptSwipeX({});
                         }}
-                      />
-                      <span className="receipt-swipe-delete-label" aria-hidden="true">削除</span>
+                      ><span className="receipt-swipe-delete-label" aria-hidden="true">削除</span></button>
                       <div
                         className={`transaction-item type-${t.type} receipt-row receipt-swipe-front ${editingReceiptIndex === idx ? "is-editing" : ""}`}
                         onPointerDown={(event) => handleReceiptSwipeStart(event, idx)}

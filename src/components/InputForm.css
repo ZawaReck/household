@@ -1385,13 +1385,14 @@
     content: "";
     position: absolute;
     z-index: 1;
-    top: 0;
+    top: 3px;
     right: 0;
-    width: 8px;
-    height: 100%;
+    width: 11px;
+    height: calc(100% - 6px);
     background:
-      radial-gradient(circle at 0 8px, transparent 7.5px, var(--receipt-swipe-row-bg) 8px) top right / 8px 8px no-repeat,
-      radial-gradient(circle at 0 0, transparent 7.5px, var(--receipt-swipe-row-bg) 8px) bottom right / 8px 8px no-repeat;
+      linear-gradient(var(--receipt-swipe-row-bg), var(--receipt-swipe-row-bg)) right / 3px 100% no-repeat,
+      radial-gradient(circle at 0 8px, transparent 7.5px, var(--receipt-swipe-row-bg) 8px) top 0 right 3px / 8px 8px no-repeat,
+      radial-gradient(circle at 0 0, transparent 7.5px, var(--receipt-swipe-row-bg) 8px) bottom 0 right 3px / 8px 8px no-repeat;
     pointer-events: none;
   }
 
@@ -1410,10 +1411,10 @@
   .input-form .receipt-swipe-delete-action {
     position: absolute;
     z-index: 0;
-    top: 0;
-    left: 100%;
+    top: 3px;
+    left: calc(100% + 3px);
     width: 100%;
-    height: 100%;
+    height: calc(100% - 6px);
     min-height: 0;
     max-height: 100%;
     box-sizing: border-box;
@@ -1434,9 +1435,8 @@
 
   .receipt-swipe-delete-label {
     position: absolute;
-    z-index: 1;
     top: 50%;
-    left: calc(100% - var(--receipt-swipe-half-width, 0px));
+    left: calc(var(--receipt-swipe-half-width, 0px) - 3px);
     transform: translate(-50%, -50%) scale(var(--receipt-delete-label-scale, .18));
     transform-origin: center;
     color: #fff;
@@ -1444,23 +1444,19 @@
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;
-    opacity: 0;
     pointer-events: none;
     transition:
       left 320ms cubic-bezier(.25, .8, .25, 1),
-      transform 320ms cubic-bezier(.25, .8, .25, 1),
-      opacity 60ms linear;
+      transform 320ms cubic-bezier(.25, .8, .25, 1);
   }
-
-  .receipt-swipe-row.has-swipe .receipt-swipe-delete-label { opacity: 1; }
 
   .receipt-swipe-row.is-dragging:not(.is-full-swipe) .receipt-swipe-delete-label {
     transition: none;
   }
 
   .receipt-swipe-row.is-full-swipe .receipt-swipe-delete-label {
-    left: calc(100% - 16px);
-    transform: translate(-100%, -50%) scale(1);
+    left: 13px;
+    transform: translate(0, -50%) scale(1);
   }
 
   .receipt-swipe-row.is-open .receipt-swipe-delete-action { pointer-events: auto; }
