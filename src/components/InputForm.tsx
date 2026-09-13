@@ -262,7 +262,11 @@ export const InputForm: React.FC<InputFormProps> = ({
     setIsExternalTax(draft.entryMode === "receipt_exclusive");
     setTaxRate(draft.taxRate);
     setReceiptItems(draft.receiptItems);
-    setEditingReceiptIndex(null);
+    setEditingReceiptIndex(
+      draft.editingReceiptIndex != null && draft.editingReceiptIndex >= 0 && draft.editingReceiptIndex < draft.receiptItems.length
+        ? draft.editingReceiptIndex
+        : null
+    );
     queueMicrotask(() => { isApplyingDraft.current = false; });
   }, []);
 
@@ -310,7 +314,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     const nextDraft: InputDraft = {
       id: activeDraftId, scope: draftScope, type, amount, date, name, category, source,
       sourceMove, destination, memo, classification, moveFee, entryMode, taxRate,
-      receiptItems, updatedAt: new Date().toISOString(),
+      receiptItems, editingReceiptIndex, updatedAt: new Date().toISOString(),
     };
     setSavedDrafts((current) => {
       const next = current.some((draft) => draft.id === activeDraftId)
@@ -319,7 +323,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       saveInputDrafts(next);
       return next;
     });
-  }, [activeDraftId, activeGroupId, amount, category, classification, date, destination, draftScope, editingTransaction, entryMode, memo, moveFee, name, receiptItems, source, sourceMove, taxRate, type]);
+  }, [activeDraftId, activeGroupId, amount, category, classification, date, destination, draftScope, editingReceiptIndex, editingTransaction, entryMode, memo, moveFee, name, receiptItems, source, sourceMove, taxRate, type]);
 
   const discardActiveDraft = (ask = true) => {
     if (ask && savedDrafts.some((draft) => draft.id === activeDraftId) && !window.confirm("この下書きを破棄しますか？")) return false;
@@ -1318,6 +1322,7 @@ export const InputForm: React.FC<InputFormProps> = ({
                 <span>{displayTotal.toLocaleString()}円</span>
               </div>
             )}
+            {receiptItems.length > 0 && <div className="date-header receipt-draft-header">仮登録</div>}
 
             <div
               ref={receiptQueueRef}
@@ -1332,7 +1337,6 @@ export const InputForm: React.FC<InputFormProps> = ({
             {/* 仮登録 */}
             {receiptItems.length > 0 && (
               <>
-                <div className="date-header">仮登録</div>
                 {receiptItems.map((t, idx) => ({ item: t, originalIndex: idx })).reverse().map(({ item: t, originalIndex: idx }) => {
                   const displayAmount = getReceiptDisplayAmount(t);
                   const swipeWidth = Math.abs(receiptSwipeX[idx] ?? 0);

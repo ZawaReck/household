@@ -18,5 +18,6 @@ export type InputDraft = {
   entryMode: "individual" | "receipt_inclusive" | "receipt_exclusive";
   taxRate: TaxRate;
   receiptItems: Array<Omit<Transaction, "id">>;
+  editingReceiptIndex?: number | null;
   updatedAt: string;
 };
