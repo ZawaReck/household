@@ -1411,7 +1411,7 @@
     font-weight: 700;
     white-space: nowrap;
     pointer-events: none;
-    transition: width 180ms cubic-bezier(.2, .72, .25, 1);
+    transition: width 320ms cubic-bezier(.25, .8, .25, 1);
   }
 
   .receipt-swipe-delete-action > span {
@@ -1421,8 +1421,8 @@
     transform: translate(-50%, -50%) scale(var(--receipt-delete-label-scale, .18));
     transform-origin: center;
     transition:
-      left 180ms cubic-bezier(.2, .72, .25, 1),
-      transform 180ms cubic-bezier(.2, .72, .25, 1);
+      left 320ms cubic-bezier(.25, .8, .25, 1),
+      transform 320ms cubic-bezier(.25, .8, .25, 1);
   }
 
   .receipt-swipe-row.is-full-swipe .receipt-swipe-delete-action > span {
@@ -1438,7 +1438,7 @@
     z-index: 1;
     border-bottom: 0 !important;
     touch-action: pan-y;
-    transition: transform 180ms cubic-bezier(.2, .72, .25, 1);
+    transition: transform 320ms cubic-bezier(.25, .8, .25, 1);
     will-change: transform;
   }
 

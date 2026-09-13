@@ -40,6 +40,7 @@ type DraftTx = Omit<Transaction, "id">;
 type EntryMode = "individual" | "receipt_inclusive" | "receipt_exclusive";
 
 const FULL_RECEIPT_SWIPE_RATIO = 0.8;
+const RECEIPT_SWIPE_SETTLE_MS = 320;
 const normalizeTaxRate = (v: unknown): TaxRate => (v === 0 || v === 8 ? v : 10);
 const normalizeTaxMode = (v: unknown): TaxMode => (v === "exclusive" ? "exclusive" : "inclusive");
 
@@ -236,7 +237,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       window.setTimeout(() => {
         deleteReceiptItem(swipe.index);
         setReceiptSwipeX({});
-      }, 180);
+      }, RECEIPT_SWIPE_SETTLE_MS);
     } else {
       setReceiptSwipeX((current) => ({ ...current, [swipe.index]: shouldOpen ? -72 : 0 }));
       setOpenReceiptIndex(shouldOpen ? swipe.index : null);
