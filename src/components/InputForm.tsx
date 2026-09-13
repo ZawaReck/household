@@ -1332,8 +1332,7 @@ export const InputForm: React.FC<InputFormProps> = ({
                       key={`draft-${idx}`}
                       className={`receipt-swipe-row ${draggingReceiptIndex === idx ? "is-dragging" : ""} ${openReceiptIndex === idx ? "is-open" : ""}`}
                       style={{
-                        "--receipt-swipe-reveal": Math.min(1, Math.abs(receiptSwipeX[idx] ?? 0) / 72),
-                        "--receipt-swipe-width": `${Math.max(72, Math.abs(receiptSwipeX[idx] ?? 0))}px`,
+                        "--receipt-swipe-width": `${Math.abs(receiptSwipeX[idx] ?? 0)}px`,
                       } as React.CSSProperties}
                     >
                       <button

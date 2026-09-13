@@ -1258,7 +1258,7 @@
   .input-form .receipt-buttons > .add-action {
     position: absolute;
     right: 21px;
-    width: var(--receipt-swipe-width, 72px);
+    width: 72px;
     height: 40px;
     border-radius: 4px;
     background: #006428;
@@ -1368,8 +1368,12 @@
     top: 0;
     right: 0;
     display: grid;
-    width: 72px;
-    height: 35px;
+    width: var(--receipt-swipe-width, 0px);
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
     padding: 0;
     place-items: center;
     border: 0;
@@ -1378,9 +1382,9 @@
     color: #fff;
     font-size: 13px;
     font-weight: 700;
-    opacity: var(--receipt-swipe-reveal, 0);
+    white-space: nowrap;
     pointer-events: none;
-    transition: opacity 100ms linear;
+    transition: width 180ms cubic-bezier(.2, .72, .25, 1);
   }
 
   .receipt-swipe-row.is-open .receipt-swipe-delete-action { pointer-events: auto; }
@@ -1394,6 +1398,7 @@
   }
 
   .receipt-swipe-row.is-dragging .receipt-swipe-front { transition: none; }
+  .receipt-swipe-row.is-dragging .receipt-swipe-delete-action { transition: none; }
 
   .receipt-queue .cat,
   .receipt-queue .nm,
@@ -1470,7 +1475,13 @@
 
   html[data-app-page="input"] .receipt-items-scroll {
     box-sizing: border-box;
-    padding-bottom: 81px;
+  }
+
+  html[data-app-page="input"] .receipt-items-scroll::after {
+    content: "";
+    flex: 0 0 81px;
+    width: 100%;
+    pointer-events: none;
   }
 
   .input-section.sheet-open .sticky-input,
