@@ -1362,12 +1362,14 @@
     background: #f9fffb;
   }
 
-  .receipt-swipe-delete-action {
+  .receipt-swipe-row.is-dragging,
+  .receipt-swipe-row.is-open { background: #ecf9f0; }
+
+  .input-form .receipt-swipe-delete-action {
     position: absolute;
     z-index: 0;
     top: 0;
     right: 0;
-    display: grid;
     width: var(--receipt-swipe-width, 0px);
     height: 100%;
     min-height: 0;
@@ -1375,16 +1377,32 @@
     box-sizing: border-box;
     overflow: hidden;
     padding: 0;
-    place-items: center;
     border: 0;
+    border-bottom: 1px solid #006428;
     border-radius: 0;
-    background: #b83232;
+    background: #cc0000;
     color: #fff;
     font-size: 13px;
     font-weight: 700;
     white-space: nowrap;
     pointer-events: none;
     transition: width 180ms cubic-bezier(.2, .72, .25, 1);
+  }
+
+  .receipt-swipe-delete-action > span {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(var(--receipt-delete-label-scale, .18));
+    transform-origin: center;
+    transition:
+      left 180ms cubic-bezier(.2, .72, .25, 1),
+      transform 180ms cubic-bezier(.2, .72, .25, 1);
+  }
+
+  .receipt-swipe-row.is-full-swipe .receipt-swipe-delete-action > span {
+    left: 16px;
+    transform: translate(0, -50%) scale(1);
   }
 
   .receipt-swipe-row.is-open .receipt-swipe-delete-action { pointer-events: auto; }

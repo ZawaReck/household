@@ -1327,12 +1327,15 @@ export const InputForm: React.FC<InputFormProps> = ({
                 <div className="date-header">仮登録</div>
                 {receiptItems.map((t, idx) => ({ item: t, originalIndex: idx })).reverse().map(({ item: t, originalIndex: idx }) => {
                   const displayAmount = getReceiptDisplayAmount(t);
+                  const swipeWidth = Math.abs(receiptSwipeX[idx] ?? 0);
+                  const isFullSwipe = swipeWidth >= (receiptQueueRef.current?.clientWidth ?? 393) * 0.72;
                   return (
                     <div
                       key={`draft-${idx}`}
-                      className={`receipt-swipe-row ${draggingReceiptIndex === idx ? "is-dragging" : ""} ${openReceiptIndex === idx ? "is-open" : ""}`}
+                      className={`receipt-swipe-row ${draggingReceiptIndex === idx ? "is-dragging" : ""} ${openReceiptIndex === idx ? "is-open" : ""} ${isFullSwipe ? "is-full-swipe" : ""}`}
                       style={{
-                        "--receipt-swipe-width": `${Math.abs(receiptSwipeX[idx] ?? 0)}px`,
+                        "--receipt-swipe-width": `${swipeWidth}px`,
+                        "--receipt-delete-label-scale": Math.max(0.18, Math.min(1, swipeWidth / 48)),
                       } as React.CSSProperties}
                     >
                       <button
@@ -1346,7 +1349,7 @@ export const InputForm: React.FC<InputFormProps> = ({
                           setOpenReceiptIndex(null);
                           setReceiptSwipeX({});
                         }}
-                      >削除</button>
+                      ><span>削除</span></button>
                       <div
                         className={`transaction-item type-${t.type} receipt-row receipt-swipe-front ${editingReceiptIndex === idx ? "is-editing" : ""}`}
                         style={{ transform: `translateX(${receiptSwipeX[idx] ?? 0}px)` }}
