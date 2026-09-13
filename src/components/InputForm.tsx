@@ -39,6 +39,7 @@ interface InputFormProps {
 type DraftTx = Omit<Transaction, "id">;
 type EntryMode = "individual" | "receipt_inclusive" | "receipt_exclusive";
 
+const FULL_RECEIPT_SWIPE_RATIO = 0.65;
 const normalizeTaxRate = (v: unknown): TaxRate => (v === 0 || v === 8 ? v : 10);
 const normalizeTaxMode = (v: unknown): TaxMode => (v === "exclusive" ? "exclusive" : "inclusive");
 
@@ -225,7 +226,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     const offset = swipe.offset;
     receiptSwipe.current = null;
     setDraggingReceiptIndex(null);
-    const shouldDelete = !cancelled && swipe.direction === "horizontal" && offset <= -(swipe.width * 0.72);
+    const shouldDelete = !cancelled && swipe.direction === "horizontal" && offset <= -(swipe.width * FULL_RECEIPT_SWIPE_RATIO);
     const shouldOpen = !shouldDelete && !cancelled && swipe.direction === "horizontal" && offset <= -36;
     if (shouldDelete) {
       setReceiptSwipeX((current) => ({ ...current, [swipe.index]: -swipe.width }));
@@ -1328,7 +1329,7 @@ export const InputForm: React.FC<InputFormProps> = ({
                 {receiptItems.map((t, idx) => ({ item: t, originalIndex: idx })).reverse().map(({ item: t, originalIndex: idx }) => {
                   const displayAmount = getReceiptDisplayAmount(t);
                   const swipeWidth = Math.abs(receiptSwipeX[idx] ?? 0);
-                  const isFullSwipe = swipeWidth >= (receiptQueueRef.current?.clientWidth ?? 393) * 0.72;
+                  const isFullSwipe = swipeWidth >= (receiptQueueRef.current?.clientWidth ?? 393) * FULL_RECEIPT_SWIPE_RATIO;
                   return (
                     <div
                       key={`draft-${idx}`}
