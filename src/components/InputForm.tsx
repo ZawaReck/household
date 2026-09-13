@@ -1345,9 +1345,10 @@ export const InputForm: React.FC<InputFormProps> = ({
                   return (
                     <div
                       key={`draft-${idx}`}
-                      className={`receipt-swipe-row ${draggingReceiptIndex === idx ? "is-dragging" : ""} ${openReceiptIndex === idx ? "is-open" : ""} ${isFullSwipe ? "is-full-swipe" : ""}`}
+                      className={`receipt-swipe-row ${draggingReceiptIndex === idx ? "is-dragging" : ""} ${openReceiptIndex === idx ? "is-open" : ""} ${swipeWidth > 0 ? "has-swipe" : ""} ${isFullSwipe ? "is-full-swipe" : ""}`}
                       style={{
                         "--receipt-swipe-offset": `${receiptSwipeX[idx] ?? 0}px`,
+                        "--receipt-swipe-width": `${swipeWidth}px`,
                         "--receipt-swipe-half-width": `${swipeWidth / 2}px`,
                         "--receipt-delete-label-scale": Math.max(0.18, Math.min(1, swipeWidth / 48)),
                       } as React.CSSProperties}
@@ -1355,6 +1356,7 @@ export const InputForm: React.FC<InputFormProps> = ({
                       <button
                         type="button"
                         className="receipt-swipe-delete-action"
+                        aria-label="削除"
                         aria-hidden={openReceiptIndex !== idx}
                         tabIndex={openReceiptIndex === idx ? 0 : -1}
                         onPointerDown={(event) => handleReceiptSwipeStart(event, idx)}
@@ -1368,7 +1370,8 @@ export const InputForm: React.FC<InputFormProps> = ({
                           setOpenReceiptIndex(null);
                           setReceiptSwipeX({});
                         }}
-                      ><span>削除</span></button>
+                      />
+                      <span className="receipt-swipe-delete-label" aria-hidden="true">削除</span>
                       <div
                         className={`transaction-item type-${t.type} receipt-row receipt-swipe-front ${editingReceiptIndex === idx ? "is-editing" : ""}`}
                         onPointerDown={(event) => handleReceiptSwipeStart(event, idx)}
