@@ -1348,6 +1348,7 @@ export const InputForm: React.FC<InputFormProps> = ({
                       className={`receipt-swipe-row ${draggingReceiptIndex === idx ? "is-dragging" : ""} ${openReceiptIndex === idx ? "is-open" : ""} ${isFullSwipe ? "is-full-swipe" : ""}`}
                       style={{
                         "--receipt-swipe-width": `${swipeWidth}px`,
+                        "--receipt-swipe-half-width": `${swipeWidth / 2}px`,
                         "--receipt-delete-label-scale": Math.max(0.18, Math.min(1, swipeWidth / 48)),
                       } as React.CSSProperties}
                     >

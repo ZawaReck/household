@@ -1396,7 +1396,7 @@
     z-index: 0;
     top: 0;
     right: 0;
-    width: var(--receipt-swipe-width, 0px);
+    width: 100%;
     height: 100%;
     min-height: 0;
     max-height: 100%;
@@ -1410,14 +1410,16 @@
     font-size: 13px;
     font-weight: 700;
     white-space: nowrap;
+    clip-path: inset(0 0 0 calc(100% - var(--receipt-swipe-width, 0px)) round 8px);
     pointer-events: none;
-    transition: width 320ms cubic-bezier(.25, .8, .25, 1);
+    transition: clip-path 320ms cubic-bezier(.25, .8, .25, 1);
+    will-change: clip-path;
   }
 
   .receipt-swipe-delete-action > span {
     position: absolute;
     top: 50%;
-    left: 50%;
+    left: calc(100% - var(--receipt-swipe-half-width, 0px));
     transform: translate(-50%, -50%) scale(var(--receipt-delete-label-scale, .18));
     transform-origin: center;
     transition:
@@ -1426,7 +1428,7 @@
   }
 
   .receipt-swipe-row.is-full-swipe .receipt-swipe-delete-action > span {
-    left: 16px;
+    left: calc(100% - var(--receipt-swipe-width, 0px) + 16px);
     transform: translate(0, -50%) scale(1);
   }
 
