@@ -39,7 +39,7 @@ interface InputFormProps {
 type DraftTx = Omit<Transaction, "id">;
 type EntryMode = "individual" | "receipt_inclusive" | "receipt_exclusive";
 
-const FULL_RECEIPT_SWIPE_RATIO = 0.65;
+const FULL_RECEIPT_SWIPE_RATIO = 0.85;
 const normalizeTaxRate = (v: unknown): TaxRate => (v === 0 || v === 8 ? v : 10);
 const normalizeTaxMode = (v: unknown): TaxMode => (v === "exclusive" ? "exclusive" : "inclusive");
 

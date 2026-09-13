@@ -1365,6 +1365,18 @@
   .receipt-swipe-row.is-dragging,
   .receipt-swipe-row.is-open { background: #ecf9f0; }
 
+  .receipt-swipe-row::after {
+    content: "";
+    position: absolute;
+    z-index: 3;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 1px;
+    background: #006428;
+    pointer-events: none;
+  }
+
   .input-form .receipt-swipe-delete-action {
     position: absolute;
     z-index: 0;
@@ -1378,7 +1390,6 @@
     overflow: hidden;
     padding: 0;
     border: 0;
-    border-bottom: 1px solid #006428;
     border-radius: 4px;
     background: #cc0000;
     color: #fff;
@@ -1410,6 +1421,7 @@
   .receipt-swipe-front {
     position: relative;
     z-index: 1;
+    border-bottom: 0 !important;
     touch-action: pan-y;
     transition: transform 180ms cubic-bezier(.2, .72, .25, 1);
     will-change: transform;
