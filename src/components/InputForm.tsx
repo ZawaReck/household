@@ -179,19 +179,21 @@ export const InputForm: React.FC<InputFormProps> = ({
     previousReceiptCount.current = receiptItems.length;
   }, [receiptItems.length]);
 
-  const handleReceiptSwipeStart = (event: React.PointerEvent<HTMLDivElement>, index: number) => {
+  const handleReceiptSwipeStart = (event: React.PointerEvent<HTMLElement>, index: number) => {
     if (event.button !== 0) return;
     if (openReceiptIndex != null && openReceiptIndex !== index) {
       setReceiptSwipeX((current) => ({ ...current, [openReceiptIndex]: 0 }));
       setOpenReceiptIndex(null);
     }
     const baseOffset = openReceiptIndex === index ? -72 : 0;
+    const rowWidth = event.currentTarget.closest<HTMLElement>(".receipt-swipe-row")?.getBoundingClientRect().width
+      ?? event.currentTarget.getBoundingClientRect().width;
     receiptSwipe.current = {
       index,
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
-      width: event.currentTarget.getBoundingClientRect().width,
+      width: rowWidth,
       baseOffset,
       offset: baseOffset,
       direction: "pending",
@@ -199,7 +201,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     suppressReceiptClick.current = false;
   };
 
-  const handleReceiptSwipeMove = (event: React.PointerEvent<HTMLDivElement>) => {
+  const handleReceiptSwipeMove = (event: React.PointerEvent<HTMLElement>) => {
     const swipe = receiptSwipe.current;
     if (!swipe || swipe.pointerId !== event.pointerId) return;
     const deltaX = event.clientX - swipe.startX;
@@ -219,7 +221,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     setReceiptSwipeX((current) => ({ ...current, [swipe.index]: swipe.offset }));
   };
 
-  const finishReceiptSwipe = (event: React.PointerEvent<HTMLDivElement>, cancelled = false) => {
+  const finishReceiptSwipe = (event: React.PointerEvent<HTMLElement>, cancelled = false) => {
     const swipe = receiptSwipe.current;
     if (!swipe || swipe.pointerId !== event.pointerId) return;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
@@ -878,6 +880,11 @@ export const InputForm: React.FC<InputFormProps> = ({
     return <span className="tax-badge">{r}%</span>;
   };
 
+  const receiptAmountStyle = (value: number) => {
+    const digits = String(Math.trunc(Math.abs(value))).length;
+    return { "--receipt-amount-font-size": `${Math.max(10, 17 - Math.max(0, digits - 5) * 2)}px` } as React.CSSProperties;
+  };
+
   const getReceiptDisplayAmount = (t: DraftTx) => {
     if (!isExternalTax || t.type !== "expense") return t.amount;
     const r = normalizeTaxRate((t as any).taxRate);
@@ -1344,8 +1351,13 @@ export const InputForm: React.FC<InputFormProps> = ({
                         className="receipt-swipe-delete-action"
                         aria-hidden={openReceiptIndex !== idx}
                         tabIndex={openReceiptIndex === idx ? 0 : -1}
+                        onPointerDown={(event) => handleReceiptSwipeStart(event, idx)}
+                        onPointerMove={handleReceiptSwipeMove}
+                        onPointerUp={(event) => finishReceiptSwipe(event)}
+                        onPointerCancel={(event) => finishReceiptSwipe(event, true)}
                         onClick={(event) => {
                           event.stopPropagation();
+                          if (suppressReceiptClick.current) return;
                           deleteReceiptItem(idx);
                           setOpenReceiptIndex(null);
                           setReceiptSwipeX({});
@@ -1370,9 +1382,9 @@ export const InputForm: React.FC<InputFormProps> = ({
                       >
                         <div className="row-layout">
                           {renderRowContent(t)}
-                          <div className={`amt ${String(displayAmount).length >= 7 ? "amt-small" : ""}`}>
+                          <div className="amt" style={receiptAmountStyle(displayAmount)}>
                             {renderTaxBadge(t)}
-                            {displayAmount.toLocaleString()}円
+                            <span className="receipt-amount-value">{displayAmount.toLocaleString()}円</span>
                           </div>
                           <span aria-hidden="true" />
                         </div>
@@ -1402,8 +1414,8 @@ export const InputForm: React.FC<InputFormProps> = ({
                     >
                       <div className="row-layout">
                         {renderRowContent(t)}
-                        <div className={`amt ${String(displayAmount).length >= 7 ? "amt-small" : ""}`}>
-                          {displayAmount.toLocaleString()}円
+                        <div className="amt" style={receiptAmountStyle(displayAmount)}>
+                          <span className="receipt-amount-value">{displayAmount.toLocaleString()}円</span>
                         </div>
                         {/* 登録済み側は削除ボタン無し（必要なら付ける） */}
                         <span />

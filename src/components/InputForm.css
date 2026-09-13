@@ -1349,7 +1349,7 @@
   }
 
   .receipt-queue .transaction-item .row-layout {
-    grid-template-columns: 90px minmax(0, 1fr) auto auto;
+    grid-template-columns: 90px minmax(0, 1fr) 106px auto;
     column-gap: 0;
   }
 
@@ -1417,6 +1417,7 @@
   }
 
   .receipt-swipe-row.is-open .receipt-swipe-delete-action { pointer-events: auto; }
+  .receipt-swipe-delete-action { touch-action: pan-y; }
 
   .receipt-swipe-front {
     position: relative;
@@ -1441,7 +1442,43 @@
     line-height: 20px;
   }
 
-  .receipt-queue .amt { font-size: 17px; }
+  .receipt-queue .amt {
+    display: grid;
+    grid-template-columns: 30px 76px;
+    align-items: center;
+    width: 106px;
+    font-size: 17px;
+  }
+
+  .receipt-queue .tax-badge {
+    grid-column: 1;
+    justify-self: end;
+    margin-right: 6px;
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .receipt-queue .receipt-amount-value {
+    grid-column: 2;
+    justify-self: end;
+    font-size: var(--receipt-amount-font-size, 17px);
+    line-height: 1;
+    white-space: nowrap;
+    transition: font-size 120ms ease-out;
+  }
+
+  .receipt-queue .nm.nm-small {
+    display: -webkit-box;
+    align-self: center;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
+    font-size: 11px;
+    line-height: 12px;
+  }
   .memo-control {
     order: 9;
     box-sizing: border-box;
