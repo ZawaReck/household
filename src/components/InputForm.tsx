@@ -38,11 +38,17 @@ interface InputFormProps {
 
 type DraftTx = Omit<Transaction, "id">;
 type EntryMode = "individual" | "receipt_inclusive" | "receipt_exclusive";
+type CalculatorTarget = "amount" | "moveFee";
+type CalculatorOperator = "+" | "-" | "×";
 
 const FULL_RECEIPT_SWIPE_RATIO = 0.8;
 const RECEIPT_SWIPE_SETTLE_MS = 320;
 const normalizeTaxRate = (v: unknown): TaxRate => (v === 0 || v === 8 ? v : 10);
 const normalizeTaxMode = (v: unknown): TaxMode => (v === "exclusive" ? "exclusive" : "inclusive");
+const calculateNumericInput = (left: number, right: number, operator: CalculatorOperator) => {
+  const result = operator === "+" ? left + right : operator === "-" ? left - right : left * right;
+  return Math.round((result + Number.EPSILON) * 1e10) / 1e10;
+};
 
 export const InputForm: React.FC<InputFormProps> = ({
   onAddTransaction,
@@ -113,6 +119,65 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [classification, setClassification] = React.useState<TransactionClassification>("normal");
   const [destination, setDestination] = React.useState(defaultMoveDestination); // 移動先（move）
   const [moveFee, setMoveFee] = React.useState("");
+  const [calculatorTarget, setCalculatorTarget] = React.useState<CalculatorTarget | null>(null);
+  const [calculatorLeft, setCalculatorLeft] = React.useState<number | null>(null);
+  const [calculatorOperator, setCalculatorOperator] = React.useState<CalculatorOperator | null>(null);
+  const [keyboardInset, setKeyboardInset] = React.useState(0);
+
+  const resetCalculator = React.useCallback(() => {
+    setCalculatorLeft(null);
+    setCalculatorOperator(null);
+  }, []);
+
+  const activateCalculator = (target: CalculatorTarget) => {
+    if (calculatorTarget !== target) resetCalculator();
+    setCalculatorTarget(target);
+  };
+
+  const setCalculatorValue = React.useCallback((value: string) => {
+    if (calculatorTarget === "amount") setAmount(value);
+    if (calculatorTarget === "moveFee") setMoveFee(value);
+  }, [calculatorTarget]);
+
+  const runCalculatorKey = React.useCallback((key: CalculatorOperator | "=") => {
+    const rawValue = calculatorTarget === "amount" ? amount : calculatorTarget === "moveFee" ? moveFee : "";
+    const currentValue = rawValue.trim() === "" ? null : Number(rawValue);
+    if (key === "=") {
+      if (calculatorLeft == null || calculatorOperator == null || currentValue == null || !Number.isFinite(currentValue)) return;
+      setCalculatorValue(String(calculateNumericInput(calculatorLeft, currentValue, calculatorOperator)));
+      resetCalculator();
+      return;
+    }
+    if (currentValue == null || !Number.isFinite(currentValue)) {
+      if (calculatorLeft != null) setCalculatorOperator(key);
+      return;
+    }
+    const nextLeft = calculatorLeft != null && calculatorOperator != null
+      ? calculateNumericInput(calculatorLeft, currentValue, calculatorOperator)
+      : currentValue;
+    setCalculatorLeft(nextLeft);
+    setCalculatorOperator(key);
+    setCalculatorValue("");
+  }, [amount, calculatorLeft, calculatorOperator, calculatorTarget, moveFee, resetCalculator, setCalculatorValue]);
+
+  React.useEffect(() => {
+    if (!calculatorTarget) {
+      setKeyboardInset(0);
+      return;
+    }
+    const viewport = window.visualViewport;
+    const updateKeyboardInset = () => {
+      const viewportBottom = (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight);
+      setKeyboardInset(Math.max(0, Math.round(window.innerHeight - viewportBottom)));
+    };
+    updateKeyboardInset();
+    viewport?.addEventListener("resize", updateKeyboardInset);
+    viewport?.addEventListener("scroll", updateKeyboardInset);
+    return () => {
+      viewport?.removeEventListener("resize", updateKeyboardInset);
+      viewport?.removeEventListener("scroll", updateKeyboardInset);
+    };
+  }, [calculatorTarget]);
 
   useEffect(() => {
     if (!activeAccountNames.includes(source)) setSource(defaultSource);
@@ -1080,13 +1145,15 @@ export const InputForm: React.FC<InputFormProps> = ({
             step={type === "expense" ? "1" : "any"}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
+            onFocus={() => activateCalculator("amount")}
+            onBlur={() => setCalculatorTarget(null)}
             placeholder="金額"
             required
           />
         </div>
         {type === "move" && (
           <div className="move-fee-row">
-            <input type="number" inputMode="numeric" min="0" step="1" value={moveFee} onChange={(event) => setMoveFee(event.target.value)} placeholder="手数料等" aria-label="手数料等" />
+            <input type="number" inputMode="numeric" min="0" step="1" value={moveFee} onChange={(event) => setMoveFee(event.target.value)} onFocus={() => activateCalculator("moveFee")} onBlur={() => setCalculatorTarget(null)} placeholder="手数料等" aria-label="手数料等" />
           </div>
         )}
         <DateWheelPicker value={date} onChange={setDate} />
@@ -1440,6 +1507,30 @@ export const InputForm: React.FC<InputFormProps> = ({
           </div>
         </div>
       </form>
+      {calculatorTarget && (
+        <div
+          className="numeric-calculator-bar"
+          style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
+          role="group"
+          aria-label="金額の計算"
+        >
+          {(["+", "-", "×", "="] as const).map((key) => (
+            <button
+              key={key}
+              type="button"
+              className={calculatorOperator === key ? "is-pending" : ""}
+              aria-label={key === "+" ? "足す" : key === "-" ? "引く" : key === "×" ? "掛ける" : "計算する"}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                runCalculatorKey(key);
+              }}
+              onClick={(event) => {
+                if (event.detail === 0) runCalculatorKey(key);
+              }}
+            >{key === "-" ? "−" : key}</button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
