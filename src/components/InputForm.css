@@ -622,7 +622,7 @@
     bottom: 0;
     left: 0;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     grid-template-rows: repeat(4, 1fr);
     gap: 7px;
     height: var(--numeric-keypad-height);
@@ -656,25 +656,11 @@
   .numeric-keypad-key.key--,
   .numeric-keypad-key.key-×,
   .numeric-keypad-key.key-00,
-  .numeric-keypad-key.key-delete,
-  .numeric-keypad-key.key-done {
+  .numeric-keypad-key.key-delete {
     background: #aeb5b0;
   }
 
-  .numeric-keypad-key.key-0 {
-    grid-column: 1 / span 3;
-  }
-
-  .numeric-keypad-key.key-done {
-    grid-column: 4;
-    grid-row: 4;
-    font-size: 13px;
-    font-weight: 700;
-  }
-
   .numeric-keypad-key.key-\= {
-    grid-column: 5;
-    grid-row: 3 / span 2;
     background: #245e2d;
     color: #f9fffb;
   }

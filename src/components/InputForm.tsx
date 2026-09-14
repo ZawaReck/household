@@ -184,11 +184,6 @@ export const InputForm: React.FC<InputFormProps> = ({
     setCalculatorTarget(null);
   };
 
-  const closeCalculator = (target: CalculatorTarget) => {
-    deactivateCalculator(target);
-    (target === "amount" ? amountInputRef.current : moveFeeInputRef.current)?.blur();
-  };
-
   const runCalculatorKey = React.useCallback((key: CalculatorOperator | "=") => {
     const rawValue = calculatorTarget === "amount" ? amount : calculatorTarget === "moveFee" ? moveFee : "";
     const currentValue = rawValue.trim() === "" ? null : Number(rawValue);
@@ -1572,27 +1567,25 @@ export const InputForm: React.FC<InputFormProps> = ({
           role="group"
           aria-label="金額入力テンキー"
         >
-          {(["1", "2", "3", "+", "×", "4", "5", "6", "-", "00", "7", "8", "9", "delete", "=", "0", "done"] as const).map((key) => (
+          {(["1", "2", "3", "+", "4", "5", "6", "-", "7", "8", "9", "×", "0", "00", "delete", "="] as const).map((key) => (
             <button
               key={key}
               type="button"
               className={`numeric-keypad-key key-${key} ${calculatorOperator === key ? "is-pending" : ""}`}
-              aria-label={key === "+" ? "足す" : key === "-" ? "引く" : key === "×" ? "掛ける" : key === "=" ? "計算する" : key === "delete" ? "一文字削除" : key === "done" ? "テンキーを閉じる" : key}
+              aria-label={key === "+" ? "足す" : key === "-" ? "引く" : key === "×" ? "掛ける" : key === "=" ? "計算する" : key === "delete" ? "一文字削除" : key}
               onPointerDown={(event) => {
                 event.preventDefault();
                 if (/^\d+$/.test(key)) appendCalculatorDigits(key);
                 else if (key === "delete") deleteCalculatorDigit();
-                else if (key === "done") closeCalculator(calculatorTarget);
                 else runCalculatorKey(key as CalculatorOperator | "=");
               }}
               onClick={(event) => {
                 if (event.detail !== 0) return;
                 if (/^\d+$/.test(key)) appendCalculatorDigits(key);
                 else if (key === "delete") deleteCalculatorDigit();
-                else if (key === "done") closeCalculator(calculatorTarget);
                 else runCalculatorKey(key as CalculatorOperator | "=");
               }}
-            >{key === "-" ? "−" : key === "delete" ? "⌫" : key === "done" ? "完了" : key}</button>
+            >{key === "-" ? "−" : key === "delete" ? "⌫" : key}</button>
           ))}
         </div>
       )}
