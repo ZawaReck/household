@@ -47,6 +47,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 	}));
 	const sheetDragStartY = React.useRef<number | null>(null);
 	const sheetWasDragged = React.useRef(false);
+	const historySectionRef = React.useRef<HTMLElement | null>(null);
 
 	React.useEffect(() => {
 		if (!isInputSheetOpen) return;
@@ -95,14 +96,34 @@ export const DashboardPage: React.FC<Props> = (props) => {
 		};
 	}, [isInputSheetOpen]);
 
+	React.useEffect(() => {
+		if (!lastCalendarTapDate) return;
+		const resetUnlessSameDate = (event: PointerEvent) => {
+			const dateCell = event.target instanceof Element
+				? event.target.closest<HTMLElement>("[data-calendar-date]")
+				: null;
+			if (dateCell?.dataset.calendarDate === lastCalendarTapDate) return;
+			setLastCalendarTapDate(null);
+		};
+		const reset = () => setLastCalendarTapDate(null);
+		document.addEventListener("pointerdown", resetUnlessSameDate, true);
+		document.addEventListener("wheel", reset, true);
+		document.addEventListener("keydown", reset, true);
+		return () => {
+			document.removeEventListener("pointerdown", resetUnlessSameDate, true);
+			document.removeEventListener("wheel", reset, true);
+			document.removeEventListener("keydown", reset, true);
+		};
+	}, [lastCalendarTapDate]);
+
 	const year = currentDate.getFullYear();
 	const month = currentDate.getMonth();
 
 	//１．今月のデータ抽出
-	const monthlyData = props.transactions.filter((transaction) => {
+	const monthlyData = React.useMemo(() => props.transactions.filter((transaction) => {
 		const transactionDate = new Date(transaction.date);
 		return transactionDate.getFullYear() === year && transactionDate.getMonth() === month;
-	});
+	}), [props.transactions, year, month]);
 
 	//2. 繰越金計算
 	const openingBalance = props.transactions
@@ -150,9 +171,14 @@ export const DashboardPage: React.FC<Props> = (props) => {
 		setLastCalendarTapDate(date);
 		if (!monthlyData.some((transaction) => transaction.date === date)) return;
 		window.requestAnimationFrame(() => {
-			document.getElementById(`history-date-${date}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+			const scroller = historySectionRef.current;
+			const target = document.getElementById(`history-date-${date}`);
+			if (!scroller || !target) return;
+			const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+			scroller.scrollTo({ top, behavior: "smooth" });
 		});
 	};
+	const resetCalendarTap = () => setLastCalendarTapDate(null);
 	const handleSheetPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
 		sheetDragStartY.current = event.clientY;
 		sheetWasDragged.current = false;
@@ -187,10 +213,19 @@ export const DashboardPage: React.FC<Props> = (props) => {
 							setCurrentDate(new Date(year, month + offset, 1));
 						}}
 						onDateClick={handleDateClick}
-						onOpenSearch={() => setIsSearchOpen(true)}
-						onToggleFuture={() => props.onShowFutureTransactionsChange(!props.showFutureTransactions)}
+						onOpenSearch={() => {
+							resetCalendarTap();
+							setIsSearchOpen(true);
+						}}
+						onToggleFuture={() => {
+							resetCalendarTap();
+							props.onShowFutureTransactionsChange(!props.showFutureTransactions);
+						}}
 						showFutureTransactions={props.showFutureTransactions}
-						onToggleExcluded={() => props.onIncludeExcludedAnalyticsChange(!props.includeExcludedAnalytics)}
+						onToggleExcluded={() => {
+							resetCalendarTap();
+							props.onIncludeExcludedAnalyticsChange(!props.includeExcludedAnalytics);
+						}}
 						includeExcludedAnalytics={props.includeExcludedAnalytics}
 						/>
 						<SummaryView
@@ -200,7 +235,10 @@ export const DashboardPage: React.FC<Props> = (props) => {
 					/>
 				</div>
 			</section>
-			<section className="column history-section">
+			<section
+				ref={historySectionRef}
+				className="column history-section"
+			>
 				<TransactionHistory
 					key={`${year}-${month}`}
 					monthlyData={monthlyData}

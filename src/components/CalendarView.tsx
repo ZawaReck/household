@@ -78,6 +78,7 @@ const weeksToRender = weeksNeeded === 6 ? 6 : weeksNeeded === 4 ? 4 : 5;
         return (
           <div key={index}
             className={`cell ${isCurrentMonth ? "" : "other-month"} ${dateStr === today ? "today" : ""} ${isHoliday ? "holiday" : ""}`}
+            data-calendar-date={dateStr ?? undefined}
             onClick={() => {
               if (!dateStr) return;
               onDateClick(dateStr);

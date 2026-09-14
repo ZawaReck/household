@@ -86,10 +86,6 @@
   }
 
   .input-section {
-    display: none;
-  }
-
-  .input-section.sheet-open {
     position: fixed;
     z-index: 61;
     left: 0;
@@ -104,8 +100,25 @@
     border-radius: 15px 15px 0 0;
     background: #f9fffb;
     box-shadow: none;
-    transition: height 220ms ease;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translate3d(0, calc(100% + 2px), 0);
+    transition:
+      transform 340ms cubic-bezier(.22, .75, .25, 1),
+      height 300ms cubic-bezier(.22, .75, .25, 1),
+      visibility 0s linear 340ms;
+    will-change: transform, height;
     overscroll-behavior: contain;
+  }
+
+  .input-section.sheet-open {
+    visibility: visible;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0);
+    transition:
+      transform 340ms cubic-bezier(.22, .75, .25, 1),
+      height 300ms cubic-bezier(.22, .75, .25, 1),
+      visibility 0s;
   }
 
   .input-section.sheet-open.sheet-expanded {
