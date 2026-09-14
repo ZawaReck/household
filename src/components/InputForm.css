@@ -612,7 +612,7 @@
 
 @media (max-width: 767px) {
   :root {
-    --numeric-keypad-height: calc(244px + env(safe-area-inset-bottom));
+    --numeric-keypad-height: calc(296px + env(safe-area-inset-bottom));
   }
 
   .numeric-keypad {
@@ -623,7 +623,8 @@
     left: 0;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(4, 1fr);
+    grid-template-rows: repeat(5, 47px);
+    align-content: start;
     gap: 6px;
     height: var(--numeric-keypad-height);
     padding: 7px 8px calc(7px + env(safe-area-inset-bottom));
@@ -633,6 +634,8 @@
     box-shadow: 0 -2px 8px rgb(0 46 18 / 10%);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+    animation: numeric-keypad-enter 240ms cubic-bezier(.22, .72, .2, 1) both;
+    will-change: transform;
   }
 
   .numeric-keypad-key {
@@ -671,6 +674,15 @@
     bottom: calc(var(--numeric-keypad-height) + 8px);
     background: #f9fffb;
   }
+}
+
+@keyframes numeric-keypad-enter {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .numeric-keypad { animation: none; }
 }
 .receipt-mode-control::before {
   content: "";
