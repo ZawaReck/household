@@ -185,7 +185,8 @@
   }
 
   .calendar-nav {
-    height: 37px;
+    box-sizing: border-box;
+    height: 43px;
     padding: 0;
     gap: 0;
     border: 0;
@@ -194,44 +195,45 @@
 
   .calendar-nav > span {
     width: 124px;
+    height: 25px;
     color: #006428;
     font-size: 21px;
     font-weight: 700;
-    line-height: 29px;
+    line-height: 25px;
     text-align: center;
   }
 
   .calendar-nav > button:not(.calendar-search-trigger) {
     width: 24px;
-    height: 30px;
+    height: 25px;
     padding: 0;
     border: 0;
     background: transparent;
     color: #006428;
     font-size: 20px;
-    line-height: 30px;
+    line-height: 25px;
   }
 
   .calendar-search-trigger {
-    top: 4px;
+    top: 8px;
     right: 7px;
     width: 28px;
-    height: 28px;
+    height: 25px;
     padding: 0;
     border: 0;
     background: transparent;
     color: #006428;
     font-size: 18px;
-    line-height: 28px;
+    line-height: 25px;
   }
 
   .calendar-view-options {
     position: absolute;
     z-index: 8;
-    top: 5px;
+    top: 8px;
     right: 37px;
     width: 26px;
-    height: 27px;
+    height: 25px;
     padding: 0;
     border: 0;
     background: transparent;
@@ -239,10 +241,10 @@
 
   .calendar-view-options > summary {
     width: 26px;
-    height: 27px;
+    height: 25px;
     color: #789081;
     font-size: 11px;
-    line-height: 25px;
+    line-height: 23px;
     text-align: center;
   }
 

@@ -193,9 +193,13 @@
   .history-list {
     width: 100%;
     background: #f9fffb;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
   }
 
   .history-list > .date-header {
+    position: sticky;
+    z-index: 8;
+    top: 0;
     box-sizing: border-box;
     width: 100%;
     height: 10px;
@@ -211,10 +215,91 @@
   }
 
   .history-list .swipe-row {
+    --history-row-bg: #f9fffb;
+    position: relative;
     width: 100%;
-    height: 36px;
-    min-height: 36px;
+    height: 35px;
+    min-height: 35px;
+    overflow: hidden;
+    background: var(--history-row-bg);
   }
+
+  .history-list .swipe-row.is-dragging,
+  .history-list .swipe-row.is-open,
+  .history-list .swipe-row.has-swipe { --history-row-bg: #ecf9f0; }
+
+  .history-list .swipe-row:has(.type-income) { --history-row-bg: #c6ffdd; }
+  .history-list .swipe-row:has(.type-move) { --history-row-bg: #e6f0ec; }
+  .history-list .swipe-row.is-dragging:has(.type-income),
+  .history-list .swipe-row.is-open:has(.type-income),
+  .history-list .swipe-row.has-swipe:has(.type-income) { --history-row-bg: #b6f5cf; }
+
+  .history-list .swipe-row::before {
+    content: "";
+    position: absolute;
+    z-index: 1;
+    top: 3px;
+    right: 0;
+    width: 11px;
+    height: calc(100% - 6px);
+    background:
+      linear-gradient(var(--history-row-bg), var(--history-row-bg)) right / 3px 100% no-repeat,
+      radial-gradient(circle at 0 8px, transparent 7.5px, var(--history-row-bg) 8px) top 0 right 3px / 8px 8px no-repeat,
+      radial-gradient(circle at 0 0, transparent 7.5px, var(--history-row-bg) 8px) bottom 0 right 3px / 8px 8px no-repeat;
+    pointer-events: none;
+  }
+
+  .history-list .swipe-row::after {
+    content: "";
+    position: absolute;
+    z-index: 3;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 1px;
+    background: #006428;
+    pointer-events: none;
+  }
+
+  .history-list .swipe-delete {
+    position: absolute;
+    z-index: 0;
+    top: 3px;
+    left: calc(100% + 3px);
+    right: auto;
+    width: 100%;
+    height: calc(100% - 6px);
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+    border: 0;
+    border-radius: 8px !important;
+    background: #cc0000;
+    transform: translateX(var(--history-swipe-offset, 0px));
+    transition: transform 320ms cubic-bezier(.25, .8, .25, 1);
+    will-change: transform;
+    pointer-events: none;
+    touch-action: pan-y;
+  }
+
+  .history-list .swipe-delete-label {
+    position: absolute;
+    top: 50%;
+    left: -3px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    transform: translate(calc(var(--history-swipe-half-width, 0px) - 50%), -50%) scale(var(--history-delete-label-scale, .18));
+    transform-origin: center;
+    transition: transform 320ms cubic-bezier(.25, .8, .25, 1);
+    pointer-events: none;
+  }
+
+  .history-list .swipe-row.is-dragging:not(.is-full-swipe) .swipe-delete-label { transition: none; }
+  .history-list .swipe-row.is-full-swipe .swipe-delete-label { transform: translate(16px, -50%) scale(1); }
+  .history-list .swipe-row.is-open .swipe-delete { pointer-events: auto; }
 
   .history-list .transaction-item {
     box-sizing: border-box;
@@ -222,13 +307,13 @@
     height: 35px;
     min-height: 35px;
     padding: 0 16px;
-    border-bottom: 1px solid #006428;
+    border-bottom: 0;
     font-size: 15px;
   }
 
   .history-list .row-layout,
   .history-list .group-total-row .row-layout {
-    grid-template-columns: 90px minmax(0, 1fr) auto;
+    grid-template-columns: 90px minmax(0, 1fr) 106px;
     column-gap: 0;
   }
 
@@ -243,21 +328,50 @@
     line-height: 20px;
   }
 
-  .history-list .cat,
-  .history-list .nm {
+  .history-list .cat {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
   }
 
+  .history-list .nm {
+    display: -webkit-box;
+    align-self: center;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
+  }
+
   .history-list .amt {
-    justify-self: end;
+    display: grid;
+    grid-template-columns: 30px 76px;
+    align-items: center;
+    width: 106px;
     font-size: 17px;
   }
 
-  .history-list .nm-small,
-  .history-list .amt-small {
-    font-size: 13px;
+  .history-list .tax-badge {
+    grid-column: 1;
+    justify-self: end;
+    margin-right: 6px;
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .history-list .history-amount-value {
+    grid-column: 2;
+    justify-self: end;
+    font-size: var(--history-amount-font-size, 17px);
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .history-list .nm-small {
+    font-size: 11px;
+    line-height: 12px;
   }
 
   .history-list .move-arrow {
@@ -276,4 +390,15 @@
     font-size: 15px;
     line-height: 34px;
   }
+
+  .history-list .swipe-front {
+    position: relative;
+    z-index: 2;
+    touch-action: pan-y;
+    transition: transform 320ms cubic-bezier(.25, .8, .25, 1), background 200ms ease;
+    will-change: transform;
+  }
+
+  .history-list .swipe-row.is-dragging .swipe-front,
+  .history-list .swipe-row.is-dragging .swipe-delete { transition: none; }
 }

@@ -12,11 +12,6 @@ type Props = {
 };
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
-const easeOutBack = (x: number) => {
-  const c1 = 1.70158;
-  const c3 = c1 + 1;
-  return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
-};
 const normalizeTaxRate = (v: unknown) => (v === 0 || v === 8 ? v : 10);
 const calcExternalGross = (items: Array<Pick<Transaction, "type" | "amount" | "taxRate" | "isTaxAdjustment">>) => {
   let sum10 = 0;
@@ -47,7 +42,7 @@ export const TransactionHistory: React.FC<Props> = ({
 }) => {
   const listRef = useRef<HTMLDivElement | null>(null);
   // ✕ボタンの露出幅（px）
-  const ACTION_W = 64;
+  const ACTION_W = 72;
   const OPEN_X = -ACTION_W;
 
   // “今どの行が開いているか” を保持（離しても戻らない）
@@ -69,20 +64,30 @@ export const TransactionHistory: React.FC<Props> = ({
 
   // ドラッグ中の追従（行ごと）
   const [dragXById, setDragXById] = useState<Record<string, number>>({});
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const suppressRowClick = useRef(false);
 
   // ドラッグ開始点
   const dragStart = useRef<{
     id: string;
+    pointerId: number;
     startX: number;
+    startY: number;
     baseX: number; // 開いてたら -ACTION_W, 閉じてたら 0
+    offset: number;
     deleteX: number;
     deleteThreshold: number;
-    active: boolean;
+    direction: "pending" | "horizontal" | "vertical";
   } | null>(null);
 
   const wheelXById = useRef<Record<string, number>>({});
   const wheelTimerById = useRef<Record<string, number>>({});
   const settleAnimById = useRef<Record<string, number>>({});
+
+  useEffect(() => () => {
+    Object.values(wheelTimerById.current).forEach((timer) => window.clearTimeout(timer));
+    Object.values(settleAnimById.current).forEach((timer) => window.clearTimeout(timer));
+  }, []);
 
   const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"] as const;
 
@@ -119,37 +124,25 @@ export const TransactionHistory: React.FC<Props> = ({
   };
 
   const cancelSettleAnim = (id: string) => {
-    const frame = settleAnimById.current[id];
-    if (frame) {
-      window.cancelAnimationFrame(frame);
+    const timer = settleAnimById.current[id];
+    if (timer) {
+      window.clearTimeout(timer);
       delete settleAnimById.current[id];
     }
   };
 
   const animateSettle = (
     id: string,
-    fromX: number,
+    _fromX: number,
     toX: number,
     openAfter: boolean,
     minX: number,
     onDone?: () => void
   ) => {
     cancelSettleAnim(id);
-    const start = performance.now();
-    const duration = 220;
-
-    const step = (now: number) => {
-      const t = clamp((now - start) / duration, 0, 1);
-      const eased = easeOutBack(t);
-      const nextX = clamp(fromX + (toX - fromX) * eased, minX, 0);
-
-      setDragXById((prev) => ({ ...prev, [id]: nextX }));
-
-      if (t < 1) {
-        settleAnimById.current[id] = window.requestAnimationFrame(step);
-        return;
-      }
-
+    const duration = 320;
+    setDragXById((prev) => ({ ...prev, [id]: clamp(toX, minX, 0) }));
+    settleAnimById.current[id] = window.setTimeout(() => {
       setDragXById((prev) => {
         const { [id]: _, ...rest } = prev;
         return rest;
@@ -157,50 +150,68 @@ export const TransactionHistory: React.FC<Props> = ({
       setOpenId(openAfter ? id : null);
       delete settleAnimById.current[id];
       if (onDone) onDone();
-    };
-
-    settleAnimById.current[id] = window.requestAnimationFrame(step);
+    }, duration);
   };
 
   const onPointerDownRow = (e: React.PointerEvent, id: string) => {
+    if (e.button !== 0) return;
     // 別の行が開いていたら閉じる（タップした瞬間に）
     if (openId && openId !== id) setOpenId(null);
 
     cancelSettleAnim(id);
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-
     const baseX = openId === id ? OPEN_X : 0;
-    const width = (e.currentTarget as HTMLElement).getBoundingClientRect().width;
+    const width = (e.currentTarget as HTMLElement).closest<HTMLElement>(".swipe-row")?.getBoundingClientRect().width
+      ?? (e.currentTarget as HTMLElement).getBoundingClientRect().width;
     const deleteX = -width;
 
     dragStart.current = {
       id,
+      pointerId: e.pointerId,
       startX: e.clientX,
+      startY: e.clientY,
       baseX,
+      offset: baseX,
       deleteX,
-      deleteThreshold: deleteX * 0.7,
-      active: true,
+      deleteThreshold: deleteX * 0.8,
+      direction: "pending",
     };
+    suppressRowClick.current = false;
   };
 
   const onPointerMoveRow = (e: React.PointerEvent) => {
     const s = dragStart.current;
-    if (!s?.active) return;
+    if (!s || s.pointerId !== e.pointerId) return;
 
     const dx = e.clientX - s.startX;
+    const dy = e.clientY - s.startY;
+    if (s.direction === "pending" && Math.max(Math.abs(dx), Math.abs(dy)) >= 10) {
+      const horizontal = Math.abs(dx) > Math.abs(dy) * 1.35 && (s.baseX < 0 || dx < 0);
+      s.direction = horizontal ? "horizontal" : "vertical";
+      if (horizontal) {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        setDraggingId(s.id);
+        suppressRowClick.current = true;
+      }
+    }
+    if (s.direction !== "horizontal") return;
+    e.preventDefault();
     // 左スワイプのみ（右に引っ張っても 0 まで）
     const nextX = clamp(s.baseX + dx, s.deleteX, 0);
-
+    s.offset = nextX;
     setDragXById((prev) => ({ ...prev, [s.id]: nextX }));
   };
 
-  const onPointerUpRow = () => {
+  const onPointerUpRow = (e: React.PointerEvent, cancelled = false) => {
     const s = dragStart.current;
-    if (!s?.active) return;
+    if (!s || s.pointerId !== e.pointerId) return;
+    if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    }
+    setDraggingId(null);
 
-    const x = dragXById[s.id] ?? (openId === s.id ? OPEN_X : 0);
+    const x = s.offset;
 
-    if (x <= s.deleteThreshold) {
+    if (!cancelled && s.direction === "horizontal" && x <= s.deleteThreshold) {
       cancelSettleAnim(s.id);
       animateSettle(s.id, x, s.deleteX, false, s.deleteX, () => {
         onDeleteTransaction(s.id);
@@ -211,15 +222,17 @@ export const TransactionHistory: React.FC<Props> = ({
         delete wheelTimerById.current[s.id];
       });
       dragStart.current = null;
+      window.setTimeout(() => { suppressRowClick.current = false; }, 0);
       return;
     }
 
     // どの程度開いたら固定で開くか
-    const shouldOpen = x < OPEN_X / 2; // 例：-32pxより左なら open
+    const shouldOpen = s.direction === "horizontal" && x < OPEN_X / 2;
 
     animateSettle(s.id, x, shouldOpen ? OPEN_X : 0, shouldOpen, s.deleteX);
 
     dragStart.current = null;
+    window.setTimeout(() => { suppressRowClick.current = false; }, 0);
   };
 
   const onClickDelete = (id: string) => {
@@ -299,6 +312,10 @@ export const TransactionHistory: React.FC<Props> = ({
               const displayAmount = meta?.isExternal
                 ? Math.floor(Number(t.taxBaseAmount ?? t.amount) * (1 + normalizeTaxRate(t.taxRate) / 100))
                 : t.amount;
+              const swipeWidth = Math.abs(x);
+              const isFullSwipe = swipeWidth >= (listRef.current?.clientWidth ?? 393) * 0.8;
+              const amountDigits = String(Math.trunc(Math.abs(displayAmount))).length;
+              const amountStyle = { "--history-amount-font-size": `${Math.max(10, 17 - Math.max(0, amountDigits - 5) * 2)}px` } as React.CSSProperties;
               const showGroupTotal =
                 gid && meta && meta.items.length >= 2 && groupLastId.get(gid) === t.id;
               const isGrouped = Boolean(gid && meta && meta.items.length >= 2);
@@ -313,7 +330,12 @@ export const TransactionHistory: React.FC<Props> = ({
               return (
                 <React.Fragment key={t.id}>
                   <div
-                    className="swipe-row"
+                    className={`swipe-row ${draggingId === t.id ? "is-dragging" : ""} ${openId === t.id ? "is-open" : ""} ${swipeWidth > 0 ? "has-swipe" : ""} ${isFullSwipe ? "is-full-swipe" : ""}`}
+                    style={{
+                      "--history-swipe-offset": `${x}px`,
+                      "--history-swipe-half-width": `${swipeWidth / 2}px`,
+                      "--history-delete-label-scale": Math.max(0.18, Math.min(1, swipeWidth / 48)),
+                    } as React.CSSProperties}
                     onWheel={(e) => {
                       if (!isDeletable) return;
                       const raw =
@@ -342,7 +364,7 @@ export const TransactionHistory: React.FC<Props> = ({
                       cancelSettleAnim(t.id);
                       const width = (e.currentTarget as HTMLElement).getBoundingClientRect().width;
                       const deleteX = -width;
-                      const deleteThreshold = deleteX * 0.7;
+                      const deleteThreshold = deleteX * 0.8;
                       const allowDeleteSwipe = openId === t.id;
                       const rawNextX = base - dx; // dx の向きに合わせて -dx（自然な体感になりやすい）
                       const gatedNextX = allowDeleteSwipe ? rawNextX : Math.max(rawNextX, OPEN_X);
@@ -385,10 +407,17 @@ export const TransactionHistory: React.FC<Props> = ({
                     {isDeletable && (
                       <button
                         className="swipe-delete"
-                        onClick={() => onClickDelete(t.id)}
-                        aria-label="delete"
+                        onPointerDown={(e) => onPointerDownRow(e, t.id)}
+                        onPointerMove={onPointerMoveRow}
+                        onPointerUp={onPointerUpRow}
+                        onPointerCancel={(e) => onPointerUpRow(e, true)}
+                        onClick={() => {
+                          if (suppressRowClick.current) return;
+                          onClickDelete(t.id);
+                        }}
+                        aria-label="削除"
                       >
-                        ✕
+                        <span className="swipe-delete-label" aria-hidden="true">削除</span>
                       </button>
                     )}
 
@@ -399,9 +428,13 @@ export const TransactionHistory: React.FC<Props> = ({
                       onPointerDown={isDeletable ? (e) => onPointerDownRow(e, t.id) : undefined}
                       onPointerMove={isDeletable ? onPointerMoveRow : undefined}
                       onPointerUp={isDeletable ? onPointerUpRow : undefined}
-                      onPointerCancel={isDeletable ? onPointerUpRow : undefined}
+                      onPointerCancel={isDeletable ? (e) => onPointerUpRow(e, true) : undefined}
                       onClick={() => {
-                        // 開いている時の誤タップ編集を防ぐ
+                        if (suppressRowClick.current) return;
+                        if (openId === t.id) {
+                          animateSettle(t.id, x, 0, false, -Math.max(1, listRef.current?.clientWidth ?? 393));
+                          return;
+                        }
                         if (openId) return;
                         onEditTransaction(t);
                       }}
@@ -429,8 +462,9 @@ export const TransactionHistory: React.FC<Props> = ({
                             </div>
                           </>
                         )}
-                        <div className={`amt ${String(displayAmount).length >= 7 ? "amt-small" : ""}`}>
-                          {displayAmount.toLocaleString()}円
+                        <div className="amt" style={amountStyle}>
+                          {meta?.isExternal && t.type === "expense" && <span className="tax-badge">{normalizeTaxRate(t.taxRate)}%</span>}
+                          <span className="history-amount-value">{displayAmount.toLocaleString()}円</span>
                         </div>
                       </div>
                     </div>
@@ -449,8 +483,8 @@ export const TransactionHistory: React.FC<Props> = ({
                           <span className="category-text">合計</span>
                         </div>
                         <div className="nm" />
-                        <div className={`amt ${String(meta.total).length >= 7 ? "amt-small" : ""}`}>
-                          {meta.total.toLocaleString()}円
+                        <div className="amt" style={{ "--history-amount-font-size": `${Math.max(10, 17 - Math.max(0, String(Math.trunc(Math.abs(meta.total))).length - 5) * 2)}px` } as React.CSSProperties}>
+                          <span className="history-amount-value">{meta.total.toLocaleString()}円</span>
                         </div>
                       </div>
                     </div>

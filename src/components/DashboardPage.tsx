@@ -196,6 +196,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 			</section>
 			<section className="column history-section">
 				<TransactionHistory
+					key={`${year}-${month}`}
 					monthlyData={monthlyData}
 					onDeleteTransaction={props.onDeleteTransaction}
 					onEditTransaction={openEditSheet}

@@ -144,6 +144,13 @@ header {
   }
   .sync-status { display: none; }
   html[data-app-page="input"] header { height: 0; }
+  html[data-app-page="calendar"] header { height: 0; }
+  html[data-app-page="calendar"] main {
+    box-sizing: border-box;
+    height: 100dvh;
+    padding-bottom: 0;
+    overflow: hidden;
+  }
 }
 
 .summary-card {
