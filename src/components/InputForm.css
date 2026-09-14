@@ -612,7 +612,7 @@
 
 @media (max-width: 767px) {
   :root {
-    --numeric-keypad-height: calc(280px + env(safe-area-inset-bottom));
+    --numeric-keypad-height: calc(244px + env(safe-area-inset-bottom));
   }
 
   .numeric-keypad {
@@ -624,9 +624,9 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     grid-template-rows: repeat(4, 1fr);
-    gap: 7px;
+    gap: 6px;
     height: var(--numeric-keypad-height);
-    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    padding: 7px 8px calc(7px + env(safe-area-inset-bottom));
     box-sizing: border-box;
     border-top: 1px solid #9db7a6;
     background: rgb(224 228 225 / 97%);
@@ -642,11 +642,11 @@
     padding: 0;
     place-items: center;
     border: 0;
-    border-radius: 12px;
+    border-radius: 10px;
     background: #fff;
     color: #26302a;
     box-shadow: 0 1px 1px rgb(0 42 16 / 8%);
-    font-size: 26px;
+    font-size: 21px;
     font-weight: 500;
     line-height: 1;
     touch-action: manipulation;
@@ -655,14 +655,9 @@
   .numeric-keypad-key.key-\+,
   .numeric-keypad-key.key--,
   .numeric-keypad-key.key-×,
-  .numeric-keypad-key.key-00,
-  .numeric-keypad-key.key-delete {
-    background: #aeb5b0;
-  }
-
+  .numeric-keypad-key.key-delete,
   .numeric-keypad-key.key-\= {
-    background: #245e2d;
-    color: #f9fffb;
+    background: #aeb5b0;
   }
 
   .numeric-keypad-key.is-pending {

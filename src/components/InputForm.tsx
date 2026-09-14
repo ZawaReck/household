@@ -1567,7 +1567,7 @@ export const InputForm: React.FC<InputFormProps> = ({
           role="group"
           aria-label="金額入力テンキー"
         >
-          {(["1", "2", "3", "+", "4", "5", "6", "-", "7", "8", "9", "×", "0", "00", "delete", "="] as const).map((key) => (
+          {(["1", "2", "3", "+", "4", "5", "6", "-", "7", "8", "9", "×", "00", "0", "delete", "="] as const).map((key) => (
             <button
               key={key}
               type="button"
