@@ -122,7 +122,16 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [calculatorTarget, setCalculatorTarget] = React.useState<CalculatorTarget | null>(null);
   const [calculatorLeft, setCalculatorLeft] = React.useState<number | null>(null);
   const [calculatorOperator, setCalculatorOperator] = React.useState<CalculatorOperator | null>(null);
-  const [keyboardInset, setKeyboardInset] = React.useState(0);
+  const [usesCustomKeypad, setUsesCustomKeypad] = React.useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
+  const amountInputRef = React.useRef<HTMLInputElement>(null);
+  const moveFeeInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    const query = window.matchMedia("(max-width: 767px)");
+    const update = () => setUsesCustomKeypad(query.matches);
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
 
   const resetCalculator = React.useCallback(() => {
     setCalculatorLeft(null);
@@ -138,6 +147,47 @@ export const InputForm: React.FC<InputFormProps> = ({
     if (calculatorTarget === "amount") setAmount(value);
     if (calculatorTarget === "moveFee") setMoveFee(value);
   }, [calculatorTarget]);
+
+  const calculatorSymbol = calculatorOperator === "-" ? "−" : calculatorOperator;
+  const calculatorPrefix = calculatorLeft != null && calculatorSymbol ? `${calculatorLeft} ${calculatorSymbol} ` : "";
+  const displayedNumericValue = (target: CalculatorTarget, value: string) => (
+    calculatorTarget === target && calculatorPrefix ? `${calculatorPrefix}${value}` : value
+  );
+
+  const updateNumericValue = (target: CalculatorTarget, displayedValue: string) => {
+    const setter = target === "amount" ? setAmount : setMoveFee;
+    if (calculatorTarget !== target || !calculatorPrefix) {
+      if (/^-?\d*$/.test(displayedValue)) setter(displayedValue);
+      return;
+    }
+    if (displayedValue.startsWith(calculatorPrefix)) {
+      setter(displayedValue.slice(calculatorPrefix.length));
+      return;
+    }
+    const fallback = /^-?\d*$/.test(displayedValue) ? displayedValue : String(calculatorLeft ?? "");
+    resetCalculator();
+    setter(fallback);
+  };
+
+  const deactivateCalculator = (target: CalculatorTarget) => {
+    if (calculatorTarget !== target) return;
+    const rawValue = target === "amount" ? amount : moveFee;
+    const currentValue = rawValue.trim() === "" ? null : Number(rawValue);
+    if (calculatorLeft != null && calculatorOperator != null) {
+      const settledValue = currentValue != null && Number.isFinite(currentValue)
+        ? calculateNumericInput(calculatorLeft, currentValue, calculatorOperator)
+        : calculatorLeft;
+      if (target === "amount") setAmount(String(settledValue));
+      else setMoveFee(String(settledValue));
+    }
+    resetCalculator();
+    setCalculatorTarget(null);
+  };
+
+  const closeCalculator = (target: CalculatorTarget) => {
+    deactivateCalculator(target);
+    (target === "amount" ? amountInputRef.current : moveFeeInputRef.current)?.blur();
+  };
 
   const runCalculatorKey = React.useCallback((key: CalculatorOperator | "=") => {
     const rawValue = calculatorTarget === "amount" ? amount : calculatorTarget === "moveFee" ? moveFee : "";
@@ -160,24 +210,32 @@ export const InputForm: React.FC<InputFormProps> = ({
     setCalculatorValue("");
   }, [amount, calculatorLeft, calculatorOperator, calculatorTarget, moveFee, resetCalculator, setCalculatorValue]);
 
-  React.useEffect(() => {
-    if (!calculatorTarget) {
-      setKeyboardInset(0);
+  const appendCalculatorDigits = (digits: string) => {
+    const currentValue = calculatorTarget === "amount" ? amount : calculatorTarget === "moveFee" ? moveFee : "";
+    const nextValue = currentValue === "0"
+      ? (digits === "00" ? "0" : digits)
+      : currentValue === "" && digits === "00" ? "0" : `${currentValue}${digits}`;
+    setCalculatorValue(nextValue);
+  };
+
+  const deleteCalculatorDigit = () => {
+    const currentValue = calculatorTarget === "amount" ? amount : calculatorTarget === "moveFee" ? moveFee : "";
+    if (currentValue !== "") {
+      setCalculatorValue(currentValue.slice(0, -1));
       return;
     }
-    const viewport = window.visualViewport;
-    const updateKeyboardInset = () => {
-      const viewportBottom = (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight);
-      setKeyboardInset(Math.max(0, Math.round(window.innerHeight - viewportBottom)));
-    };
-    updateKeyboardInset();
-    viewport?.addEventListener("resize", updateKeyboardInset);
-    viewport?.addEventListener("scroll", updateKeyboardInset);
-    return () => {
-      viewport?.removeEventListener("resize", updateKeyboardInset);
-      viewport?.removeEventListener("scroll", updateKeyboardInset);
-    };
-  }, [calculatorTarget]);
+    if (calculatorLeft != null) {
+      setCalculatorValue(String(calculatorLeft));
+      resetCalculator();
+    }
+  };
+
+  React.useLayoutEffect(() => {
+    if (!calculatorPrefix || !calculatorTarget) return;
+    const input = calculatorTarget === "amount" ? amountInputRef.current : moveFeeInputRef.current;
+    const end = input?.value.length ?? 0;
+    input?.setSelectionRange(end, end);
+  }, [amount, calculatorPrefix, calculatorTarget, moveFee]);
 
   useEffect(() => {
     if (!activeAccountNames.includes(source)) setSource(defaultSource);
@@ -1139,21 +1197,22 @@ export const InputForm: React.FC<InputFormProps> = ({
             required={type !== "move"}
           />
           <input
-            type="number"
-            inputMode="numeric"
-            min="1"
-            step={type === "expense" ? "1" : "any"}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            ref={amountInputRef}
+            type="text"
+            inputMode="none"
+            autoComplete="off"
+            readOnly={usesCustomKeypad}
+            value={displayedNumericValue("amount", amount)}
+            onChange={(e) => updateNumericValue("amount", e.target.value)}
             onFocus={() => activateCalculator("amount")}
-            onBlur={() => setCalculatorTarget(null)}
+            onBlur={() => deactivateCalculator("amount")}
             placeholder="金額"
             required
           />
         </div>
         {type === "move" && (
           <div className="move-fee-row">
-            <input type="number" inputMode="numeric" min="0" step="1" value={moveFee} onChange={(event) => setMoveFee(event.target.value)} onFocus={() => activateCalculator("moveFee")} onBlur={() => setCalculatorTarget(null)} placeholder="手数料等" aria-label="手数料等" />
+            <input ref={moveFeeInputRef} type="text" inputMode="none" autoComplete="off" readOnly={usesCustomKeypad} value={displayedNumericValue("moveFee", moveFee)} onChange={(event) => updateNumericValue("moveFee", event.target.value)} onFocus={() => activateCalculator("moveFee")} onBlur={() => deactivateCalculator("moveFee")} placeholder="手数料等" aria-label="手数料等" />
           </div>
         )}
         <DateWheelPicker value={date} onChange={setDate} />
@@ -1507,27 +1566,33 @@ export const InputForm: React.FC<InputFormProps> = ({
           </div>
         </div>
       </form>
-      {calculatorTarget && (
+      {calculatorTarget && usesCustomKeypad && (
         <div
-          className="numeric-calculator-bar"
-          style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
+          className="numeric-keypad"
           role="group"
-          aria-label="金額の計算"
+          aria-label="金額入力テンキー"
         >
-          {(["+", "-", "×", "="] as const).map((key) => (
+          {(["1", "2", "3", "+", "×", "4", "5", "6", "-", "00", "7", "8", "9", "delete", "=", "0", "done"] as const).map((key) => (
             <button
               key={key}
               type="button"
-              className={calculatorOperator === key ? "is-pending" : ""}
-              aria-label={key === "+" ? "足す" : key === "-" ? "引く" : key === "×" ? "掛ける" : "計算する"}
+              className={`numeric-keypad-key key-${key} ${calculatorOperator === key ? "is-pending" : ""}`}
+              aria-label={key === "+" ? "足す" : key === "-" ? "引く" : key === "×" ? "掛ける" : key === "=" ? "計算する" : key === "delete" ? "一文字削除" : key === "done" ? "テンキーを閉じる" : key}
               onPointerDown={(event) => {
                 event.preventDefault();
-                runCalculatorKey(key);
+                if (/^\d+$/.test(key)) appendCalculatorDigits(key);
+                else if (key === "delete") deleteCalculatorDigit();
+                else if (key === "done") closeCalculator(calculatorTarget);
+                else runCalculatorKey(key as CalculatorOperator | "=");
               }}
               onClick={(event) => {
-                if (event.detail === 0) runCalculatorKey(key);
+                if (event.detail !== 0) return;
+                if (/^\d+$/.test(key)) appendCalculatorDigits(key);
+                else if (key === "delete") deleteCalculatorDigit();
+                else if (key === "done") closeCalculator(calculatorTarget);
+                else runCalculatorKey(key as CalculatorOperator | "=");
               }}
-            >{key === "-" ? "−" : key}</button>
+            >{key === "-" ? "−" : key === "delete" ? "⌫" : key === "done" ? "完了" : key}</button>
           ))}
         </div>
       )}
