@@ -39,6 +39,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 	const [isInputSheetOpen, setIsInputSheetOpen] = useState(false);
 	const [isInputSheetExpanded, setIsInputSheetExpanded] = useState(false);
 	const [isEditingDirty, setIsEditingDirty] = useState(false);
+	const [lastCalendarTapDate, setLastCalendarTapDate] = useState<string | null>(null);
 	const [visualViewport, setVisualViewport] = useState(() => ({
 		height: typeof window === "undefined" ? 852 : window.visualViewport?.height ?? window.innerHeight,
 		offsetTop: typeof window === "undefined" ? 0 : window.visualViewport?.offsetTop ?? 0,
@@ -135,16 +136,19 @@ export const DashboardPage: React.FC<Props> = (props) => {
 	};
 
 	const handleDateClick = (date: string) => {
-		if (date === selectedDate) {
+		if (date === lastCalendarTapDate) {
 			if (!confirmDiscardEdit()) return;
 			props.setEditingTransaction(null);
 			setActiveGroupId(null);
 			setActiveGroupDate(null);
 			setIsInputSheetOpen(true);
 			setIsInputSheetExpanded(false);
+			setLastCalendarTapDate(null);
 			return;
 		}
 		setSelectedDate(date);
+		setLastCalendarTapDate(date);
+		if (!monthlyData.some((transaction) => transaction.date === date)) return;
 		window.requestAnimationFrame(() => {
 			document.getElementById(`history-date-${date}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 		});
@@ -178,14 +182,16 @@ export const DashboardPage: React.FC<Props> = (props) => {
 						year={year}
 						month={month}
 						monthlyData={monthlyData}
-						onMonthChange={(offset: number) => setCurrentDate(new Date(year, month + offset, 1))}
+						onMonthChange={(offset: number) => {
+							setLastCalendarTapDate(null);
+							setCurrentDate(new Date(year, month + offset, 1));
+						}}
 						onDateClick={handleDateClick}
 						onOpenSearch={() => setIsSearchOpen(true)}
 						onToggleFuture={() => props.onShowFutureTransactionsChange(!props.showFutureTransactions)}
 						showFutureTransactions={props.showFutureTransactions}
 						onToggleExcluded={() => props.onIncludeExcludedAnalyticsChange(!props.includeExcludedAnalytics)}
 						includeExcludedAnalytics={props.includeExcludedAnalytics}
-						selectedDate={selectedDate}
 						/>
 						<SummaryView
 							monthlyData={monthlyData}

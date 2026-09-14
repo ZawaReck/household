@@ -1,8 +1,10 @@
 /* src/components/CalendarView.tsx */
 
 import React from "react";
+import { isNationalHoliday } from "@modelgeek/japanese-holidays";
 import type { Transaction } from "../types/Transaction";
 import { isIncludedInRegularAnalytics } from "../utils/analytics";
+import { localDateISO } from "../utils/date";
 import "./CalendarView.css";
 
 interface CalendarViewProps {
@@ -16,11 +18,11 @@ interface CalendarViewProps {
   showFutureTransactions?: boolean;
   onToggleExcluded?: () => void;
   includeExcludedAnalytics?: boolean;
-  selectedDate?: string;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange, onDateClick, onOpenSearch, onToggleFuture, showFutureTransactions = true, onToggleExcluded, includeExcludedAnalytics = false, selectedDate }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange, onDateClick, onOpenSearch, onToggleFuture, showFutureTransactions = true, onToggleExcluded, includeExcludedAnalytics = false }) => {
 	const firstDayOfMonth = new Date(year, month, 1);
+	const today = localDateISO();
 	const start = new Date (year, month, 1 - firstDayOfMonth.getDay()); // 週の始まりの日曜日
 
 	const lastDayOfMonth = new Date(year, month + 1, 0);
@@ -67,6 +69,7 @@ const weeksToRender = weeksNeeded === 6 ? 6 : weeksNeeded === 4 ? 4 : 5;
         const dateStr = isCurrentMonth
           ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
           : null;
+		const isHoliday = Boolean(dateStr && isNationalHoliday(dateStr));
 
         const dayTransactions = isCurrentMonth ? monthlyData.filter(t => t.date === dateStr) : [];
         const income = dayTransactions.filter(t => t.type === "income" && isIncludedInRegularAnalytics(t, includeExcludedAnalytics)).reduce((sum, t) => sum + t.amount, 0);
@@ -74,7 +77,7 @@ const weeksToRender = weeksNeeded === 6 ? 6 : weeksNeeded === 4 ? 4 : 5;
 
         return (
           <div key={index}
-            className={`cell ${isCurrentMonth ? "" : "other-month"} ${dateStr === selectedDate ? "selected" : ""}`}
+            className={`cell ${isCurrentMonth ? "" : "other-month"} ${dateStr === today ? "today" : ""} ${isHoliday ? "holiday" : ""}`}
             onClick={() => {
               if (!dateStr) return;
               onDateClick(dateStr);

@@ -472,7 +472,7 @@ export const TransactionHistory: React.FC<Props> = ({
 
                   {showGroupTotal && gid && meta && (
                     <div
-                      className="transaction-item group-total-row"
+                      className={`transaction-item group-total-row type-${meta.items[0]?.type ?? "expense"}`}
                       onClick={() => {
                         setOpenId(null);
                         onSelectGroup(gid, date);
