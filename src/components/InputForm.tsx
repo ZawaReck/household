@@ -1295,6 +1295,8 @@ export const InputForm: React.FC<InputFormProps> = ({
                 type="button"
                 className="kv-value-btn"
                 onClick={() => setOpenMovePicker((v) => (v === "sourceMove" ? null : "sourceMove"))}
+                aria-haspopup="dialog"
+                aria-expanded={openMovePicker === "sourceMove"}
               >
                 <span className="kv-label">移動元</span>
                 <span className="kv-value-text">{sourceMove}</span>
@@ -1304,6 +1306,7 @@ export const InputForm: React.FC<InputFormProps> = ({
                 <WheelPickerInline
                   options={paymentAccountNames}
                   value={sourceMove}
+                  title="移動元"
                   onChange={(v) => setSourceMove(v)}
                   onClose={() => setOpenMovePicker(null)}
                 />
@@ -1315,6 +1318,8 @@ export const InputForm: React.FC<InputFormProps> = ({
                 type="button"
                 className="kv-value-btn"
                 onClick={() => setOpenMovePicker((v) => (v === "destination" ? null : "destination"))}
+                aria-haspopup="dialog"
+                aria-expanded={openMovePicker === "destination"}
               >
                 <span className="kv-label">移動先</span>
                 <span className="kv-value-text">{destination}</span>
@@ -1324,6 +1329,7 @@ export const InputForm: React.FC<InputFormProps> = ({
                 <WheelPickerInline
                   options={paymentAccountNames}
                   value={destination}
+                  title="移動先"
                   onChange={(v) => setDestination(v)}
                   onClose={() => setOpenMovePicker(null)}
                 />
@@ -1357,6 +1363,7 @@ export const InputForm: React.FC<InputFormProps> = ({
                 className="kv-value-btn"
                 onClick={() => setIsSourcePickerOpen((v) => !v)}
                 aria-expanded={isSourcePickerOpen}
+                aria-haspopup="dialog"
               >
                 <span className="kv-label">{type === "income" ? "入金先" : "拠出元"}</span>
                 <span className="kv-value-text">{source}</span>
@@ -1365,6 +1372,7 @@ export const InputForm: React.FC<InputFormProps> = ({
               {isSourcePickerOpen && (
                 <WheelPickerInline
                   options={sourceOptions}
+                  title={type === "income" ? "入金先" : "拠出元"}
                   value={source}
                   onChange={(v) => setSource(v)}
                   onClose={() => setIsSourcePickerOpen(false)}
