@@ -116,6 +116,18 @@ export const DashboardPage: React.FC<Props> = (props) => {
 		};
 	}, [lastCalendarTapDate]);
 
+	React.useEffect(() => {
+		const returnToCurrentMonth = () => {
+			const now = new Date();
+			if (currentDate.getFullYear() === now.getFullYear() && currentDate.getMonth() === now.getMonth()) return;
+			setLastCalendarTapDate(null);
+			setSelectedDate(localDateISO(now));
+			setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1));
+		};
+		window.addEventListener("household:reselect-calendar", returnToCurrentMonth);
+		return () => window.removeEventListener("household:reselect-calendar", returnToCurrentMonth);
+	}, [currentDate]);
+
 	const year = currentDate.getFullYear();
 	const month = currentDate.getMonth();
 
@@ -174,8 +186,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 			const scroller = historySectionRef.current;
 			const target = document.getElementById(`history-date-${date}`);
 			if (!scroller || !target) return;
-			const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
-			scroller.scrollTo({ top, behavior: "smooth" });
+			scroller.scrollTo({ top: target.offsetTop, behavior: "smooth" });
 		});
 	};
 	const resetCalendarTap = () => setLastCalendarTapDate(null);
@@ -211,6 +222,10 @@ export const DashboardPage: React.FC<Props> = (props) => {
 						onMonthChange={(offset: number) => {
 							setLastCalendarTapDate(null);
 							setCurrentDate(new Date(year, month + offset, 1));
+						}}
+						onMonthSelect={(nextYear, nextMonth) => {
+							setLastCalendarTapDate(null);
+							setCurrentDate(new Date(nextYear, nextMonth, 1));
 						}}
 						onDateClick={handleDateClick}
 						onOpenSearch={() => {

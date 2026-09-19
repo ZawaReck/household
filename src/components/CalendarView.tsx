@@ -5,6 +5,7 @@ import { isNationalHoliday } from "@modelgeek/japanese-holidays";
 import type { Transaction } from "../types/Transaction";
 import { isIncludedInRegularAnalytics } from "../utils/analytics";
 import { localDateISO } from "../utils/date";
+import { PickerPanel, SelectionWheel } from "./PickerPanel";
 import "./CalendarView.css";
 
 interface CalendarViewProps {
@@ -12,6 +13,7 @@ interface CalendarViewProps {
 	month: number;
 	monthlyData: Transaction[];
 	onMonthChange: (offset: number) => void;
+  onMonthSelect: (year: number, month: number) => void;
   onDateClick: (dateStr: string) => void;
   onOpenSearch?: () => void;
   onToggleFuture?: () => void;
@@ -20,9 +22,18 @@ interface CalendarViewProps {
   includeExcludedAnalytics?: boolean;
 }
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange, onDateClick, onOpenSearch, onToggleFuture, showFutureTransactions = true, onToggleExcluded, includeExcludedAnalytics = false }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ year, month, monthlyData, onMonthChange, onMonthSelect, onDateClick, onOpenSearch, onToggleFuture, showFutureTransactions = true, onToggleExcluded, includeExcludedAnalytics = false }) => {
+	const [isMonthPickerOpen, setIsMonthPickerOpen] = React.useState(false);
 	const firstDayOfMonth = new Date(year, month, 1);
 	const today = localDateISO();
+	const now = new Date();
+	const currentYear = now.getFullYear();
+	const years = React.useMemo(() => {
+		const min = Math.min(currentYear - 100, year);
+		const max = Math.max(currentYear + 20, year);
+		return Array.from({ length: max - min + 1 }, (_, index) => min + index);
+	}, [currentYear, year]);
+	const months = React.useMemo(() => Array.from({ length: 12 }, (_, index) => index + 1), []);
 	const start = new Date (year, month, 1 - firstDayOfMonth.getDay()); // 週の始まりの日曜日
 
 	const lastDayOfMonth = new Date(year, month + 1, 0);
@@ -41,7 +52,37 @@ const weeksToRender = weeksNeeded === 6 ? 6 : weeksNeeded === 4 ? 4 : 5;
 		<div className="calendar-view">
 			<div className="calendar-nav">
 				<button onClick={() => onMonthChange(-1)}>◁</button>
-				<span>{year}年{month + 1}月</span>
+				<div className="calendar-month-picker">
+					<button
+						type="button"
+						className="calendar-month-trigger"
+						aria-haspopup="dialog"
+						aria-expanded={isMonthPickerOpen}
+						onClick={() => setIsMonthPickerOpen((open) => !open)}
+					>{year}年{month + 1}月</button>
+					{isMonthPickerOpen && (
+						<PickerPanel
+							title="年月を選択"
+							onClose={() => setIsMonthPickerOpen(false)}
+							action={<button type="button" onClick={() => onMonthSelect(currentYear, now.getMonth())}>今月</button>}
+						>
+							<div className="selection-wheel-columns">
+								<SelectionWheel
+									label="年"
+									options={years.map((value) => `${value}年`)}
+									selectedIndex={Math.max(0, years.indexOf(year))}
+									onSelect={(index) => onMonthSelect(years[index], month)}
+								/>
+								<SelectionWheel
+									label="月"
+									options={months.map((value) => `${value}月`)}
+									selectedIndex={month}
+									onSelect={(index) => onMonthSelect(year, index)}
+								/>
+							</div>
+						</PickerPanel>
+					)}
+				</div>
 				<button onClick={() => onMonthChange(1)}>▷</button>
 				{onOpenSearch && (
 					<button className="calendar-search-trigger" type="button" aria-label="履歴検索" onClick={onOpenSearch}>⌕</button>

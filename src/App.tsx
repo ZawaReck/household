@@ -38,6 +38,14 @@ const MobileBottomNav: React.FC = () => {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const activeIndex = pathname === "/add" ? 0 : pathname.startsWith("/graphs") ? 2 : 1;
+  const selectPage = React.useCallback((index: number) => {
+    if (index === activeIndex) {
+      if (index === 0) window.dispatchEvent(new Event("household:reselect-input"));
+      if (index === 1) window.dispatchEvent(new Event("household:reselect-calendar"));
+      return;
+    }
+    navigate((["/add", "/", "/graphs"] as const)[index] ?? "/", { replace: true });
+  }, [activeIndex, navigate]);
   React.useEffect(() => {
     document.documentElement.dataset.appPage = activeIndex === 0 ? "input" : activeIndex === 1 ? "calendar" : "graphs";
     return () => { delete document.documentElement.dataset.appPage; };
@@ -45,7 +53,7 @@ const MobileBottomNav: React.FC = () => {
   const drag = useSegmentedDrag<HTMLElement>({
     count: 3,
     selectedIndex: activeIndex,
-    onSelect: (index) => navigate((["/add", "/", "/graphs"] as const)[index] ?? "/", { replace: true }),
+    onSelect: selectPage,
     cssVariable: "--nav-position",
     horizontalPadding: 4,
   });
@@ -57,9 +65,9 @@ const MobileBottomNav: React.FC = () => {
       style={{ "--nav-index": activeIndex } as React.CSSProperties}
       {...drag.handlers}
     >
-      <button type="button" className={activeIndex === 0 ? "active" : ""} aria-current={activeIndex === 0 ? "page" : undefined} onClick={() => navigate("/add", { replace: true })}>入力</button>
-      <button type="button" className={activeIndex === 1 ? "active" : ""} aria-current={activeIndex === 1 ? "page" : undefined} onClick={() => navigate("/", { replace: true })}>カレンダー</button>
-      <button type="button" className={activeIndex === 2 ? "active" : ""} aria-current={activeIndex === 2 ? "page" : undefined} onClick={() => navigate("/graphs", { replace: true })}>グラフ</button>
+      <button type="button" className={activeIndex === 0 ? "active" : ""} aria-current={activeIndex === 0 ? "page" : undefined} onClick={() => selectPage(0)}>入力</button>
+      <button type="button" className={activeIndex === 1 ? "active" : ""} aria-current={activeIndex === 1 ? "page" : undefined} onClick={() => selectPage(1)}>カレンダー</button>
+      <button type="button" className={activeIndex === 2 ? "active" : ""} aria-current={activeIndex === 2 ? "page" : undefined} onClick={() => selectPage(2)}>グラフ</button>
     </nav>
   );
 };

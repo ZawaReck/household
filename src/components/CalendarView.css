@@ -25,6 +25,20 @@
   font-size: 1.35rem;
 }
 
+.calendar-month-picker {
+  display: grid;
+  place-items: center;
+}
+
+.calendar-month-trigger {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 .calendar-view-options {
   padding: 5px 6px;
   border-bottom: 1px solid #b8d7c0;
@@ -197,9 +211,16 @@
     background: #f9fffb;
   }
 
-  .calendar-nav > span {
+  .calendar-month-picker,
+  .calendar-month-trigger {
     width: 124px;
     height: 25px;
+  }
+
+  .calendar-month-trigger {
+    padding: 0;
+    border: 0;
+    background: transparent;
     color: #006428;
     font-size: 21px;
     font-weight: 700;

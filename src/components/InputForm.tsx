@@ -133,6 +133,16 @@ export const InputForm: React.FC<InputFormProps> = ({
     return () => query.removeEventListener("change", update);
   }, []);
 
+  React.useEffect(() => {
+    const returnToTodayWhenEmpty = () => {
+      if (name.trim() || amount.trim()) return;
+      const currentDate = todayISO();
+      if (date !== currentDate) setDate(currentDate);
+    };
+    window.addEventListener("household:reselect-input", returnToTodayWhenEmpty);
+    return () => window.removeEventListener("household:reselect-input", returnToTodayWhenEmpty);
+  }, [amount, date, name]);
+
   const resetCalculator = React.useCallback(() => {
     setCalculatorLeft(null);
     setCalculatorOperator(null);
