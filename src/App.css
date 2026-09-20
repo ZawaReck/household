@@ -102,7 +102,10 @@ header {
   .nav-menu a { display: none; }
   .nav-menu { justify-content: flex-start; margin: 0; padding: 8px 12px; }
   .settings-trigger { visibility: hidden; }
-  main { padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
+  main {
+    padding-top: var(--pwa-top-clearance);
+    padding-bottom: calc(62px + env(safe-area-inset-bottom));
+  }
   .mobile-bottom-nav {
     position: fixed; z-index: 40; left: 50%; bottom: 30px;
     width: min(333px, calc(100vw - 60px)); height: 51px; transform: translateX(-50%);
@@ -129,7 +132,7 @@ header {
   .mobile-settings-trigger {
     position: fixed;
     z-index: 41;
-    top: 9px;
+    top: calc(9px + var(--pwa-top-clearance));
     left: 8px;
     display: grid;
     width: 43px;
@@ -180,8 +183,10 @@ header {
 }
 
 .settings-drawer {
+  box-sizing: border-box;
   width: min(390px, 90vw);
   height: 100%;
+  padding-top: var(--pwa-top-clearance);
   overflow-y: auto;
   background: #fbfffb;
   box-shadow: 4px 0 20px rgba(0, 0, 0, .2);

@@ -54,7 +54,7 @@
   .dashboard-page-root {
     display: flex;
     flex-direction: column;
-    height: 100dvh;
+    height: calc(100dvh - var(--pwa-top-clearance));
     min-height: 0;
     overflow: hidden;
   }
@@ -122,13 +122,13 @@
   }
 
   .input-section.sheet-open.sheet-expanded {
-    height: calc(100dvh - 83px);
+    height: calc(100dvh - 83px - var(--pwa-top-clearance));
   }
 
   .input-section.sheet-open.sheet-expanded.keyboard-visible {
-    top: var(--visual-viewport-offset, 0px);
+    top: calc(var(--visual-viewport-offset, 0px) + var(--pwa-top-clearance));
     bottom: auto;
-    height: var(--visual-viewport-height, 100dvh);
+    height: calc(var(--visual-viewport-height, 100dvh) - var(--pwa-top-clearance));
     transition: none;
   }
 

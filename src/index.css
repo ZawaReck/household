@@ -8,6 +8,16 @@ html, body, #root {
 }
 
 :root {
+  --pwa-top-clearance: 0px;
+}
+
+@media (max-width: 800px) {
+  html[data-standalone-pwa="true"] {
+    --pwa-top-clearance: 40px;
+  }
+}
+
+:root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -65,6 +75,7 @@ html[data-app-page="input"] .app-container {
 }
 
 html[data-app-page="input"] main {
+  box-sizing: border-box;
   height: 100dvh;
   overflow: hidden;
 }

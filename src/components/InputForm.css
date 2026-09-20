@@ -1658,7 +1658,7 @@
   }
 
   html[data-app-page="input"] .input-form {
-    height: 100dvh;
+    height: calc(100dvh - var(--pwa-top-clearance));
     overflow: hidden;
   }
 

@@ -8,8 +8,10 @@
 }
 
 .history-search-panel {
+  box-sizing: border-box;
   width: min(540px, 100%);
   height: 100dvh;
+  padding-top: var(--pwa-top-clearance);
   display: flex;
   flex-direction: column;
   background: #f9fffb;

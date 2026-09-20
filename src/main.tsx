@@ -12,6 +12,8 @@ import { backupKeys } from './utils/backup.ts'
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches
   || (navigator as Navigator & { standalone?: boolean }).standalone === true
 
+document.documentElement.dataset.standalonePwa = isStandalone ? 'true' : 'false'
+
 if (isStandalone && window.location.pathname !== '/add') {
   window.history.replaceState(null, '', '/add')
 }

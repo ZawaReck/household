@@ -1,7 +1,7 @@
 .month-end-banner {
   position: fixed;
   z-index: 35;
-  top: 8px;
+  top: calc(8px + var(--pwa-top-clearance));
   left: 50%;
   display: flex;
   align-items: center;
@@ -27,6 +27,6 @@
 .month-end-popup > div { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 .month-end-popup button { padding: 8px 11px; border: 1px solid #9db7a6; border-radius: 8px; background: white; color: #245e2d; }
 @media (max-width: 800px) {
-  .month-end-banner { top: 7px; left: 48px; right: 10px; max-width: none; transform: none; }
+  .month-end-banner { top: calc(7px + var(--pwa-top-clearance)); left: 48px; right: 10px; max-width: none; transform: none; }
   .month-end-banner span { display: none; }
 }
