@@ -52,6 +52,8 @@ import { PeriodFilter } from "./PeriodFilter";
 import type { PeriodValue } from "./PeriodFilter";
 import { accountBalanceAsOf, creditCardOutstandingAsOf } from "../utils/accountBalances";
 import { localDateISO } from "../utils/date";
+import { PickerPanel, SelectionWheel } from "./PickerPanel";
+import { useSegmentedDrag } from "../hooks/useSegmentedDrag";
 import "./GraphsPage.css";
 
 interface Props {
@@ -241,15 +243,77 @@ const resolvePresetRange = (preset: PeriodValue["preset"], endMonthKey: string) 
   return { startMonthKey, endMonthKey };
 };
 
-const TabPanel: React.FC<{ title: string; children: React.ReactNode }> = ({
+const TabPanel: React.FC<{ title: string; className?: string; children: React.ReactNode }> = ({
   title,
+  className,
   children,
 }) => (
-  <div className="graphs-section">
+  <div className={`graphs-section${className ? ` ${className}` : ""}`}>
     <div className="graphs-section-header">{title}</div>
     <div className="graphs-section-body">{children}</div>
   </div>
 );
+
+const shiftMonthKey = (monthKey: string, offset: number) => {
+  const [year, month] = monthKey.split("-").map(Number);
+  const shifted = new Date(year, month - 1 + offset, 1);
+  return `${shifted.getFullYear()}-${String(shifted.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const GraphMonthNavigation: React.FC<{
+  value: string;
+  onChange: (monthKey: string) => void;
+}> = ({ value, onChange }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [year, month] = value.split("-").map(Number);
+  const currentYear = new Date().getFullYear();
+  const years = React.useMemo(
+    () => Array.from({ length: 41 }, (_, index) => currentYear - 30 + index),
+    [currentYear]
+  );
+  const months = React.useMemo(() => Array.from({ length: 12 }, (_, index) => index + 1), []);
+  const emit = (nextYear: number, nextMonth: number) => {
+    onChange(`${nextYear}-${String(nextMonth).padStart(2, "0")}`);
+  };
+
+  return (
+    <div className="graphs-month-nav">
+      <button type="button" aria-label="前月" onClick={() => onChange(shiftMonthKey(value, -1))}>◁</button>
+      <div className="graphs-month-picker">
+        <button
+          type="button"
+          className="graphs-month-trigger"
+          aria-haspopup="dialog"
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen((open) => !open)}
+        >{year}年{month}月</button>
+        {isOpen && (
+          <PickerPanel
+            title="年月を選択"
+            onClose={() => setIsOpen(false)}
+            action={<button type="button" onClick={() => onChange(getMonthKey(localDateISO()))}>今月</button>}
+          >
+            <div className="selection-wheel-columns">
+              <SelectionWheel
+                label="年"
+                options={years.map((item) => `${item}年`)}
+                selectedIndex={Math.max(0, years.indexOf(year))}
+                onSelect={(index) => emit(years[index], month)}
+              />
+              <SelectionWheel
+                label="月"
+                options={months.map((item) => `${item}月`)}
+                selectedIndex={Math.max(0, month - 1)}
+                onSelect={(index) => emit(year, months[index])}
+              />
+            </div>
+          </PickerPanel>
+        )}
+      </div>
+      <button type="button" aria-label="翌月" onClick={() => onChange(shiftMonthKey(value, 1))}>▷</button>
+    </div>
+  );
+};
 
 const CategoryMonthlyTrendChart: React.FC<{
   data: Array<{ month: string; value: number }>;
@@ -410,13 +474,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const currentMonthKey = getMonthKey(todayISO);
   const allMonthKeys = getMonthKeysFromTransactions(transactions, currentMonthKey);
   const currentYear = currentMonthKey.slice(0, 4);
-  const allYears = Array.from(new Set(allMonthKeys.map((month) => month.slice(0, 4)))).sort();
 
   const [investmentState, setInvestmentState] = React.useState<InvestmentState>(() =>
     loadInvestmentState()
   );
   const [investmentChartMode, setInvestmentChartMode] = React.useState<"area" | "profit" | "pie">("area");
   const [investmentPeriodMonths, setInvestmentPeriodMonths] = React.useState<"3" | "6" | "12" | "all">("12");
+  const [investmentMonthKey, setInvestmentMonthKey] = React.useState(currentMonthKey);
 
   const [portfolioMonthKey, setPortfolioMonthKey] = React.useState(() => {
     const requested = new URLSearchParams(window.location.search).get("month") ?? "";
@@ -440,10 +504,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
 
   const [yearlyCategoryYear, setYearlyCategoryYear] = React.useState(currentYear);
   const [yearlyCategoryMode, setYearlyCategoryMode] =
-    React.useState<MonthlyCategoryMode>("expense");
+    React.useState<MonthlyCategoryMode>("net");
   const [selectedYearlyCategory, setSelectedYearlyCategory] = React.useState<string>("");
   const [yearlyOverviewMode, setYearlyOverviewMode] =
-    React.useState<OverviewChartMode>("pie");
+    React.useState<OverviewChartMode>("net");
   const [yearlyChartAnchorMonthKey, setYearlyChartAnchorMonthKey] = React.useState(currentMonthKey);
 
   const [budgetMonthKey, setBudgetMonthKey] = React.useState(currentMonthKey);
@@ -557,8 +621,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const investmentSnapshots = React.useMemo(() => [...investmentState.snapshots].sort((a, b) =>
     a.date.localeCompare(b.date)
   ), [investmentState.snapshots]);
-  const latestSnapshot = investmentSnapshots[investmentSnapshots.length - 1];
-  const snapshotDateForTable = latestSnapshot?.date ?? todayISO;
+  const investmentAsOf = investmentMonthKey === currentMonthKey ? todayISO : monthEndISO(investmentMonthKey);
+  const visibleInvestmentSnapshots = React.useMemo(
+    () => investmentSnapshots.filter((snapshot) => snapshot.date <= investmentAsOf),
+    [investmentAsOf, investmentSnapshots]
+  );
+  const latestSnapshot = visibleInvestmentSnapshots[visibleInvestmentSnapshots.length - 1];
+  const snapshotDateForTable = latestSnapshot?.date ?? investmentAsOf;
   const investmentValueAt = React.useCallback((account: Account, date: string) => {
     const snapshot = [...investmentSnapshots]
       .filter((item) => item.date <= date && item.values[account.id] != null)
@@ -579,7 +648,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     return { deposits, withdrawals, cumulativeDeposits: initialPrincipal + deposits };
   };
 
-  const investmentChartData = investmentSnapshots.map((snapshot) => {
+  const investmentChartData = visibleInvestmentSnapshots.map((snapshot) => {
     const point: Record<string, number | string> = { date: snapshot.date };
     historicalInvestmentAssets.forEach((asset) => {
       const account = historicalInvestmentAccounts.find((item) => item.id === asset.id);
@@ -590,7 +659,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     return point;
   });
 
-  const investmentProfitData = investmentSnapshots.map((snapshot) => {
+  const investmentProfitData = visibleInvestmentSnapshots.map((snapshot) => {
     const totalValue = historicalInvestmentAssets.reduce(
       (sum, asset) => {
         const account = historicalInvestmentAccounts.find((item) => item.id === asset.id);
@@ -1420,11 +1489,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       : [];
 
   const tabs = [
-    { id: "category", label: "1) 月毎収支" },
-    { id: "monthly", label: "2) 収支推移" },
-    { id: "portfolio", label: "3) ポートフォリオ" },
-    { id: "invest", label: "4) 投資損益" },
-    { id: "budget", label: "5) 予算&損得" },
+    { id: "category", label: "月次" },
+    { id: "monthly", label: "推移" },
+    { id: "portfolio", label: "資産" },
+    { id: "invest", label: "投資" },
+    { id: "budget", label: "予実" },
   ] as const;
   const [activeTab, setActiveTab] = React.useState<(typeof tabs)[number]["id"]>(
     () => {
@@ -1434,11 +1503,75 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
         : "category";
     }
   );
+  const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTab);
+  const graphTabDrag = useSegmentedDrag<HTMLElement>({
+    count: tabs.length,
+    selectedIndex: activeTabIndex,
+    onSelect: (index) => setActiveTab(tabs[index]?.id ?? "category"),
+    cssVariable: "--graphs-tab-position",
+    horizontalPadding: 3,
+  });
+  const activeMonthKey = activeTab === "category"
+    ? categoryMonthKey
+    : activeTab === "monthly"
+      ? yearlyChartAnchorMonthKey
+      : activeTab === "portfolio"
+        ? portfolioMonthKey
+        : activeTab === "invest"
+          ? investmentMonthKey
+          : budgetMonthKey;
+  const handleGraphMonthChange = React.useCallback((monthKey: string) => {
+    if (activeTab === "category") {
+      setCategoryMonthKey(monthKey);
+      return;
+    }
+    if (activeTab === "monthly") {
+      setYearlyCategoryYear(monthKey.slice(0, 4));
+      setYearlyChartAnchorMonthKey(monthKey);
+      return;
+    }
+    if (activeTab === "portfolio") {
+      setPortfolioMonthKey(monthKey);
+      return;
+    }
+    if (activeTab === "invest") {
+      setInvestmentMonthKey(monthKey);
+      return;
+    }
+    setBudgetMonthKey(monthKey);
+    setSontokuMonthKey(monthKey);
+  }, [activeTab]);
 
   return (
     <div className="graphs-page-root">
-      <div className="graphs-topbar">
-        <div className="graphs-tabs">
+      <div className="graphs-page-chrome">
+        <div className="graphs-page-header">
+          <GraphMonthNavigation value={activeMonthKey} onChange={handleGraphMonthChange} />
+          <details className="graphs-view-options">
+            <summary aria-label="グラフ表示設定">•••</summary>
+            <div>
+              <button
+                type="button"
+                className={showFutureTransactions ? "active" : ""}
+                aria-pressed={showFutureTransactions}
+                onClick={() => onShowFutureTransactionsChange(!showFutureTransactions)}
+              >未来の記録 {showFutureTransactions ? "ON" : "OFF"}</button>
+              <button
+                type="button"
+                className={includeExcludedAnalytics ? "active" : ""}
+                aria-pressed={includeExcludedAnalytics}
+                onClick={() => onIncludeExcludedAnalyticsChange(!includeExcludedAnalytics)}
+              >通算・特別 {includeExcludedAnalytics ? "含む" : "除外"}</button>
+            </div>
+          </details>
+        </div>
+        <nav
+          ref={graphTabDrag.ref}
+          className={`graphs-tabs ${graphTabDrag.isDragging ? "is-dragging" : ""}`}
+          aria-label="グラフモード"
+          style={{ "--graphs-tab-index": activeTabIndex } as React.CSSProperties}
+          {...graphTabDrag.handlers}
+        >
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -1449,27 +1582,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               {tab.label}
             </button>
           ))}
-        </div>
-        <button
-          type="button"
-          className={`future-toggle ${showFutureTransactions ? "active" : ""}`}
-          aria-pressed={showFutureTransactions}
-          onClick={() => onShowFutureTransactionsChange(!showFutureTransactions)}
-        >
-          未来の記録 {showFutureTransactions ? "ON" : "OFF"}
-        </button>
-        <button
-          type="button"
-          className={`future-toggle ${includeExcludedAnalytics ? "active" : ""}`}
-          aria-pressed={includeExcludedAnalytics}
-          onClick={() => onIncludeExcludedAnalyticsChange(!includeExcludedAnalytics)}
-        >
-          通算・特別 {includeExcludedAnalytics ? "含む" : "除外"}
-        </button>
+        </nav>
       </div>
+      <div className="graphs-page-content">
 
       {activeTab === "invest" && (
-      <TabPanel title="4) 投資損益">
+      <TabPanel title="4) 投資損益" className="graph-mode-invest">
         <div className="section-grid">
           <div className="card">
             <h3>資産一覧</h3>
@@ -1523,7 +1641,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             <h3>現在額更新</h3>
             <SnapshotForm
               assets={investmentAssets}
-              defaultDate={todayISO}
+              defaultDate={investmentAsOf}
               snapshots={investmentSnapshots}
               onSave={handleSaveSnapshot}
             />
@@ -1594,19 +1712,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       )}
 
       {activeTab === "portfolio" && (
-      <TabPanel title="3) ポートフォリオ（口座別）">
+      <TabPanel title="3) ポートフォリオ（口座別）" className="graph-mode-portfolio">
         <div className="section-grid">
           <div className="card">
             <div className="inline-controls">
-              <label>
-                対象月
-                <input
-                  type="month"
-                  max={currentMonthKey}
-                  value={portfolioMonthKey}
-                  onChange={(e) => setPortfolioMonthKey(e.target.value)}
-                />
-              </label>
               <label>
                 残高基準日
                 <input type="date" min={`${portfolioMonthKey}-01`} max={portfolioMonthKey === currentMonthKey ? todayISO : portfolioAsOf} value={portfolioBalanceDate} onChange={(event) => setPortfolioBalanceDate(event.target.value)} />
@@ -1736,32 +1845,23 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       )}
 
       {activeTab === "category" && (
-      <TabPanel title="1) 月毎収支（カテゴリ内訳 + 推移）">
+      <TabPanel title="1) 月毎収支（カテゴリ内訳 + 推移）" className="graph-mode-category">
+        <div className="graph-context-bar" aria-label="月次表示">
+          <div className="toggle-group graph-mode-toggle">
+            {(["expense", "income", "net"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={monthlyCategoryMode === mode ? "active" : ""}
+                onClick={() => setMonthlyCategoryMode(mode)}
+              >
+                {mode === "income" ? "収入" : mode === "expense" ? "支出" : "収支"}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="monthly-category-layout">
           <div className="card monthly-category-sidebar">
-            <div className="inline-controls monthly-category-toolbar">
-              <div className="toggle-group">
-                {(["income", "expense", "net"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className={monthlyCategoryMode === mode ? "active" : ""}
-                    onClick={() => setMonthlyCategoryMode(mode)}
-                  >
-                    {mode === "income" ? "収入" : mode === "expense" ? "支出" : "収支"}
-                  </button>
-                ))}
-              </div>
-              <label>
-                対象月
-                <input
-                  type="month"
-                  value={categoryMonthKey}
-                  onChange={(e) => setCategoryMonthKey(e.target.value)}
-                />
-              </label>
-            </div>
-
             <button
               type="button"
               className={`monthly-category-row monthly-category-total${
@@ -1937,41 +2037,27 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       )}
 
       {activeTab === "monthly" && (
-      <TabPanel title="2) 収支推移（年合計 + 月推移）">
+      <TabPanel title="2) 収支推移（年合計 + 月推移）" className="graph-mode-monthly">
+        <div className="graph-context-bar" aria-label="推移表示">
+          <div className="toggle-group graph-mode-toggle">
+            {(["expense", "income", "net"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                className={yearlyCategoryMode === mode ? "active" : ""}
+                onClick={() => {
+                  setYearlyCategoryMode(mode);
+                  setYearlyOverviewMode(mode);
+                  setSelectedYearlyCategory("");
+                }}
+              >
+                {mode === "income" ? "収入" : mode === "expense" ? "支出" : "収支"}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="monthly-category-layout">
           <div className="card monthly-category-sidebar">
-            <div className="inline-controls monthly-category-toolbar">
-              <div className="toggle-group">
-                {(["income", "expense", "net"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className={yearlyCategoryMode === mode ? "active" : ""}
-                    onClick={() => setYearlyCategoryMode(mode)}
-                  >
-                    {mode === "income" ? "収入" : mode === "expense" ? "支出" : "収支"}
-                  </button>
-                ))}
-              </div>
-              <label>
-                対象年
-                <select
-                  value={yearlyCategoryYear}
-                  onChange={(e) => {
-                    const nextYear = e.target.value;
-                    setYearlyCategoryYear(nextYear);
-                    setYearlyChartAnchorMonthKey(`${nextYear}-12`);
-                  }}
-                >
-                  {allYears.map((year) => (
-                    <option key={year} value={year}>
-                      {year}年
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
             <button
               type="button"
               className={`monthly-category-row monthly-category-total${
@@ -2251,19 +2337,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       )}
 
       {activeTab === "budget" && (
-      <TabPanel title="5) 予算&損得">
+      <TabPanel title="5) 予算&損得" className="graph-mode-budget">
         <div className="section-grid">
           <div className="card">
             <h3>予算（カテゴリ別）</h3>
             <div className="inline-controls">
-              <label>
-                対象月
-                <input
-                  type="month"
-                  value={budgetMonthKey}
-                  onChange={(e) => setBudgetMonthKey(e.target.value)}
-                />
-              </label>
               <button type="button" onClick={handleSaveBudget}>
                 この月だけ保存
               </button>
@@ -2350,13 +2428,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   累計
                 </button>
               </div>
-              {sontokuMode === "month" ? (
-                <input
-                  type="month"
-                  value={sontokuMonthKey}
-                  onChange={(e) => setSontokuMonthKey(e.target.value)}
-                />
-              ) : (
+              {sontokuMode === "total" && (
                 <PeriodFilter value={sontokuPeriod} onChange={setSontokuPeriod} />
               )}
             </div>
@@ -2491,6 +2563,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
         </div>
       </TabPanel>
       )}
+      </div>
     </div>
   );
 };

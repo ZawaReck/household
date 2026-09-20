@@ -147,13 +147,14 @@ header {
   }
   html[data-standalone-pwa="true"] .input-form .tab-group,
   html[data-standalone-pwa="true"] .calendar-nav,
-  html[data-standalone-pwa="true"] .graphs-topbar {
+  html[data-standalone-pwa="true"] .graphs-page-chrome {
     position: relative;
     z-index: 31;
   }
   .sync-status { display: none; }
   html[data-app-page="input"] header { height: 0; }
   html[data-app-page="calendar"] header { height: 0; }
+  html[data-app-page="graphs"] header { height: 0; }
   html[data-app-page="calendar"] main {
     box-sizing: border-box;
     height: 100dvh;
