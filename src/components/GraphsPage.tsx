@@ -86,6 +86,12 @@ const formatYen = (value: unknown) => {
   return `${Math.round(Number(resolved ?? 0)).toLocaleString()}円`;
 };
 const formatYenNumber = (value: number) => `${Math.round(value).toLocaleString()}円`;
+const formatCompactYen = (value: unknown) => {
+  const amount = Math.round(Number(value ?? 0));
+  if (Math.abs(amount) < 10_000) return amount.toLocaleString();
+  const man = amount / 10_000;
+  return `${Number.isInteger(man) ? man : man.toFixed(1)}万`;
+};
 const transactionDisplayAmount = (transaction: Transaction) => {
   if (transaction.taxMode !== "exclusive") return transaction.amount;
   const rate = transaction.taxRate === 8 || transaction.taxRate === 10 ? transaction.taxRate : 0;
@@ -191,7 +197,7 @@ const getNiceMonthlyTrendScale = (values: number[]) => {
   const rawMin = min < 0 ? min : 0;
   const rawMax = max > 0 ? max : 0;
   const range = Math.max(rawMax - rawMin, 1);
-  const step = getNiceStep(range / 4);
+  const step = getNiceStep(range / 5);
 
   const domainMin = Math.floor(rawMin / step) * step;
   let domainMax = Math.ceil(rawMax / step) * step;
@@ -386,17 +392,17 @@ const CategoryMonthlyTrendChart: React.FC<{
 
   const axisWidth = React.useMemo(() => {
     const longest = Math.max(
-      formatYenNumber(scale.domain[0]).length,
-      formatYenNumber(scale.domain[1]).length
+      formatCompactYen(scale.domain[0]).length,
+      formatCompactYen(scale.domain[1]).length
     );
-    return Math.max(88, longest * 9 + 20);
+    return Math.max(52, longest * 7 + 12);
   }, [scale.domain]);
 
   React.useEffect(() => {
     const viewport = viewportRef.current;
-    if (!viewport || !category || data.length === 0) return;
+    if (!viewport || !category || data.length === 0 || viewportWidth <= 0) return;
 
-    const autoAlignKey = `${category}:${focusMonthKey}:${data.length}`;
+    const autoAlignKey = `${category}:${focusMonthKey}:${data.length}:${Math.round(viewportWidth)}`;
     if (autoAlignKeyRef.current === autoAlignKey) return;
 
     const targetIndex = data.findIndex((item) => item.month === focusMonthKey);
@@ -433,7 +439,8 @@ const CategoryMonthlyTrendChart: React.FC<{
               domain={scale.domain}
               ticks={scale.ticks}
               allowDataOverflow
-              tickFormatter={(value) => formatYen(value)}
+              tick={{ fontSize: 10 }}
+              tickFormatter={formatCompactYen}
             />
             <Bar dataKey="value" fill="transparent" isAnimationActive={false} />
           </BarChart>
@@ -454,7 +461,7 @@ const CategoryMonthlyTrendChart: React.FC<{
               <XAxis dataKey="month" />
               <YAxis hide domain={scale.domain} ticks={scale.ticks} allowDataOverflow />
               <ReferenceLine y={0} stroke="#7a8b80" strokeWidth={1.5} ifOverflow="extendDomain" />
-              <Bar dataKey="value" name={category} barSize={48}>
+              <Bar dataKey="value" name={category} barSize={48} isAnimationActive={false}>
                 {data.map((entry) => (
                   <Cell
                     key={`${category}-${entry.month}`}
@@ -1287,25 +1294,46 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
         .sort((a, b) => b.date.localeCompare(a.date))
     : [];
 
-  const renderCategoryTransactions = (items: Transaction[], title: string) => (
-    <div className="card category-transaction-card">
-      <h3>{title}</h3>
-      {items.length === 0 ? <p className="muted">該当する取引はありません。</p> : <div className="table-wrap">
-        <table>
-          <thead><tr><th>日付</th><th>摘要</th><th>カテゴリ</th><th>口座</th><th>金額</th></tr></thead>
-          <tbody>{items.map((transaction) => <tr key={transaction.id}>
-            <td>{transaction.date}</td>
-            <td>{transaction.name}</td>
-            <td>{transaction.category}</td>
-            <td>{transaction.source}</td>
-            <td className={transaction.type === "income" ? "positive" : "negative"}>
-              {transaction.type === "income" ? "+" : "−"}{formatYen(transactionDisplayAmount(transaction))}
-            </td>
-          </tr>)}</tbody>
-        </table>
-      </div>}
-    </div>
-  );
+  const renderCategoryTransactions = (items: Transaction[], title: string, embedded = false) => {
+    const grouped = items.reduce<Array<{ date: string; items: Transaction[] }>>((groups, transaction) => {
+      const latest = groups.at(-1);
+      if (latest?.date === transaction.date) latest.items.push(transaction);
+      else groups.push({ date: transaction.date, items: [transaction] });
+      return groups;
+    }, []);
+    const formatTransactionDate = (date: string) => {
+      const parsed = new Date(`${date}T00:00:00`);
+      const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+      return `${parsed.getMonth() + 1}月${parsed.getDate()}日（${weekdays[parsed.getDay()]}）`;
+    };
+
+    return (
+      <section className={`category-transaction-card${embedded ? " embedded" : " card"}`}>
+        <h3>{title}</h3>
+        {items.length === 0 ? <p className="muted">該当する取引はありません。</p> : (
+          <div className="category-transaction-list">
+            {grouped.map((group) => (
+              <div className="category-transaction-day" key={group.date}>
+                <div className="category-transaction-date">{formatTransactionDate(group.date)}</div>
+                {group.items.map((transaction) => (
+                  <div className={`category-transaction-row type-${transaction.type}`} key={transaction.id}>
+                    <div className="category-transaction-category">{transaction.category}</div>
+                    <div className="category-transaction-description">
+                      <strong>{transaction.name || "（摘要なし）"}</strong>
+                      <span>{transaction.source}</span>
+                    </div>
+                    <div className={`category-transaction-amount ${transaction.type === "income" ? "positive" : "negative"}`}>
+                      {transaction.type === "income" ? "+" : "−"}{formatYen(transactionDisplayAmount(transaction))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  };
 
   React.useEffect(() => {
     if (monthlyCategoryMode !== "net") return;
@@ -1849,7 +1877,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       {activeTab === "category" && (
       <TabPanel title="1) 月毎収支（カテゴリ内訳 + 推移）" className="graph-mode-category">
         <div className="graph-context-bar" aria-label="月次表示">
-          <div className="toggle-group graph-mode-toggle">
+          <div
+            className="toggle-group graph-mode-toggle"
+            style={{ "--graph-mode-index": ["expense", "income", "net"].indexOf(monthlyCategoryMode) } as React.CSSProperties}
+          >
             {(["expense", "income", "net"] as const).map((mode) => (
               <button
                 key={mode}
@@ -1914,6 +1945,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 ))
               )}
             </div>
+            {selectedCategory && renderCategoryTransactions(
+              monthlyCategoryTransactions,
+              `${categoryMonthKey} ${selectedCategory} の取引明細`,
+              true,
+            )}
           </div>
 
           <div className="card chart-card monthly-category-chart">
@@ -1960,6 +1996,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                         endAngle={-270}
                         labelLine={false}
                         label={renderCategoryPieLabel}
+                        animationBegin={0}
+                        animationDuration={220}
+                        animationEasing="ease-out"
                       >
                         {categoryPieData.map((_, idx) => (
                           <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
@@ -2020,7 +2059,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     <XAxis type="number" />
                     <YAxis type="category" dataKey="category" width={96} />
                     <Tooltip formatter={(value) => formatYen(value)} />
-                    <Bar dataKey="value">
+                    <Bar dataKey="value" isAnimationActive={false}>
                       {monthlyCategorySummary.items.map((item) => (
                         <Cell
                           key={item.name}
@@ -2034,14 +2073,16 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             )}
           </div>
         </div>
-        {selectedCategory && renderCategoryTransactions(monthlyCategoryTransactions, `${categoryMonthKey} ${selectedCategory} の取引明細`)}
       </TabPanel>
       )}
 
       {activeTab === "monthly" && (
       <TabPanel title="2) 収支推移（年合計 + 月推移）" className="graph-mode-monthly">
         <div className="graph-context-bar" aria-label="推移表示">
-          <div className="toggle-group graph-mode-toggle">
+          <div
+            className="toggle-group graph-mode-toggle"
+            style={{ "--graph-mode-index": ["expense", "income", "net"].indexOf(yearlyCategoryMode) } as React.CSSProperties}
+          >
             {(["expense", "income", "net"] as const).map((mode) => (
               <button
                 key={mode}
