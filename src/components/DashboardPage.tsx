@@ -56,6 +56,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 		lastY: number;
 		lastAt: number;
 		velocityY: number;
+		startedExpanded: boolean;
 	} | null>(null);
 	const sheetSwipe = React.useRef<{
 		identifier: number;
@@ -169,10 +170,11 @@ export const DashboardPage: React.FC<Props> = (props) => {
 
 	const confirmDiscardEdit = () => !isEditingDirty || window.confirm("保存していない編集内容を破棄しますか？");
 	const closeInputSheet = () => {
-		if (!confirmDiscardEdit()) return;
+		if (!confirmDiscardEdit()) return false;
 		setIsInputSheetOpen(false);
 		props.setEditingTransaction(null);
 		setIsEditingDirty(false);
+		return true;
 	};
 
 	const openEditSheet = (transaction: Transaction) => {
@@ -220,17 +222,20 @@ export const DashboardPage: React.FC<Props> = (props) => {
 		const section = inputSectionRef.current;
 		if (!section) return;
 		const { minHeight, maxHeight } = sheetSnapHeights();
+		const startHeight = section.getBoundingClientRect().height;
 		sheetDrag.current = {
 			pointerId: event.pointerId,
 			startY: event.clientY,
-			startHeight: section.getBoundingClientRect().height,
+			startHeight,
 			minHeight,
 			maxHeight,
 			lastY: event.clientY,
 			lastAt: event.timeStamp,
 			velocityY: 0,
+			startedExpanded: isInputSheetExpanded,
 		};
 		sheetWasDragged.current = false;
+		section.style.setProperty("--sheet-drag-height", `${startHeight}px`);
 		section.classList.add("sheet-dragging");
 		event.currentTarget.setPointerCapture(event.pointerId);
 	};
@@ -240,7 +245,8 @@ export const DashboardPage: React.FC<Props> = (props) => {
 		if (!drag || drag.pointerId !== event.pointerId || !section) return;
 		const delta = event.clientY - drag.startY;
 		if (Math.abs(delta) >= 4) sheetWasDragged.current = true;
-		const nextHeight = Math.max(drag.minHeight, Math.min(drag.maxHeight, drag.startHeight - delta));
+		const dismissibleMinimum = drag.startedExpanded ? drag.minHeight : Math.max(0, drag.minHeight - 110);
+		const nextHeight = Math.max(dismissibleMinimum, Math.min(drag.maxHeight, drag.startHeight - delta));
 		const elapsed = Math.max(1, event.timeStamp - drag.lastAt);
 		drag.velocityY = (event.clientY - drag.lastY) / elapsed;
 		drag.lastY = event.clientY;
@@ -254,10 +260,17 @@ export const DashboardPage: React.FC<Props> = (props) => {
 		if (drag && section && drag.pointerId === event.pointerId && sheetWasDragged.current) {
 			const currentHeight = section.getBoundingClientRect().height;
 			const midpoint = (drag.minHeight + drag.maxHeight) / 2;
-			const nextExpanded = Math.abs(drag.velocityY) >= 0.35
-				? drag.velocityY < 0
-				: currentHeight >= midpoint;
-			setIsInputSheetExpanded(nextExpanded);
+			const shouldDismiss = !drag.startedExpanded && (
+				drag.velocityY >= 0.35 || currentHeight <= drag.minHeight - 48
+			);
+			if (shouldDismiss) {
+				closeInputSheet();
+			} else {
+				const nextExpanded = Math.abs(drag.velocityY) >= 0.35
+					? drag.velocityY < 0
+					: currentHeight >= midpoint;
+				setIsInputSheetExpanded(nextExpanded);
+			}
 			window.requestAnimationFrame(() => {
 				section.classList.remove("sheet-dragging");
 				section.style.removeProperty("--sheet-drag-height");
@@ -294,11 +307,15 @@ export const DashboardPage: React.FC<Props> = (props) => {
 		const deltaY = touch.clientY - swipe.startY;
 		const elapsed = event.timeStamp - swipe.startedAt;
 		if (elapsed > 550 || Math.abs(deltaY) < 48 || Math.abs(deltaY) <= Math.abs(deltaX) * 1.25) return;
-		const nextExpanded = deltaY < 0;
-		if (nextExpanded === isInputSheetExpanded) return;
 		event.preventDefault();
 		sheetWasDragged.current = true;
-		setIsInputSheetExpanded(nextExpanded);
+		if (deltaY < 0) {
+			if (!isInputSheetExpanded) setIsInputSheetExpanded(true);
+		} else if (isInputSheetExpanded) {
+			setIsInputSheetExpanded(false);
+		} else {
+			closeInputSheet();
+		}
 		window.setTimeout(() => { sheetWasDragged.current = false; }, 250);
 	};
 
