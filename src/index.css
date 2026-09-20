@@ -9,11 +9,25 @@ html, body, #root {
 
 :root {
   --pwa-top-clearance: 0px;
+  --pwa-top-shield-height: 0px;
 }
 
 @media (max-width: 800px) {
   html[data-standalone-pwa="true"] {
-    --pwa-top-clearance: 20px;
+    --pwa-top-clearance: 0px;
+    --pwa-top-shield-height: 43px;
+  }
+
+  html[data-standalone-pwa="true"] .app-container::before {
+    content: "";
+    position: fixed;
+    z-index: 30;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: var(--pwa-top-shield-height);
+    background: #f9fffb;
+    pointer-events: none;
   }
 }
 
