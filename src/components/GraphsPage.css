@@ -386,6 +386,10 @@
   order: 2;
 }
 
+.graph-mode-monthly .monthly-category-chart-header .toggle-group {
+  display: none;
+}
+
 .monthly-category-chart-header {
   display: flex;
   justify-content: space-between;

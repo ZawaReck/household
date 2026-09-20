@@ -146,11 +146,11 @@ header {
     line-height: 25px;
   }
   html[data-standalone-pwa="true"] .input-form .tab-group,
-  html[data-standalone-pwa="true"] .calendar-nav,
-  html[data-standalone-pwa="true"] .graphs-page-chrome {
+  html[data-standalone-pwa="true"] .calendar-nav {
     position: relative;
     z-index: 31;
   }
+  html[data-standalone-pwa="true"] .graphs-page-chrome { z-index: 31; }
   .sync-status { display: none; }
   html[data-app-page="input"] header { height: 0; }
   html[data-app-page="calendar"] header { height: 0; }
