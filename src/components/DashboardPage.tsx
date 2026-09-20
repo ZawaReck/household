@@ -12,6 +12,7 @@ import { HistorySearch } from "./HistorySearch";
 import { MonthEndReminder } from "./MonthEndReminder";
 import { isIncludedInRegularAnalytics } from "../utils/analytics";
 import { localDateISO } from "../utils/date";
+import { historyEntryFlowTop } from "../utils/historyScroll";
 import './DashboardPage.css';
 
 interface Props {
@@ -186,7 +187,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 			const scroller = historySectionRef.current;
 			const target = document.getElementById(`history-date-${date}`);
 			if (!scroller || !target) return;
-			scroller.scrollTo({ top: target.offsetTop, behavior: "smooth" });
+			scroller.scrollTo({ top: historyEntryFlowTop(target), behavior: "smooth" });
 		});
 	};
 	const resetCalendarTap = () => setLastCalendarTapDate(null);

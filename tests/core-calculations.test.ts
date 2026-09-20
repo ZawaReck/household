@@ -11,6 +11,7 @@ import { mergeValues } from "../src/utils/backup";
 import { applyDeletionTombstones } from "../src/data/deletionStore";
 import { invalidateChangedCardConfirmations } from "../src/utils/cardConfirmations";
 import { importHouseholdCsv } from "../src/utils/csvImport";
+import { historyEntryFlowTop } from "../src/utils/historyScroll";
 
 const transaction = (partial: Partial<Transaction> & Pick<Transaction, "id" | "type" | "amount" | "date">): Transaction => ({
   name: "test",
@@ -256,5 +257,26 @@ describe("CSV import", () => {
     const result = importHouseholdCsv("金額,日付,メモ,カテゴリ\n0,2026-09-01,zero,その他\n1.5,2026-09-02,fraction,その他");
     expect(result.transactions).toEqual([]);
     expect(result.invalidRows).toHaveLength(2);
+  });
+});
+
+describe("calendar history scrolling", () => {
+  it("uses the original list position even when a sticky header has moved visually", () => {
+    const first = {
+      previousElementSibling: null,
+      getBoundingClientRect: () => ({ height: 10 }),
+    } as unknown as Element;
+    const row = {
+      previousElementSibling: first,
+      getBoundingClientRect: () => ({ height: 35 }),
+    } as unknown as Element;
+    const target = {
+      previousElementSibling: row,
+      // sticky後の見かけの座標は使用しないため、対象自身の矩形は不要。
+      getBoundingClientRect: () => ({ height: 10 }),
+    } as unknown as Element;
+
+    expect(historyEntryFlowTop(first)).toBe(0);
+    expect(historyEntryFlowTop(target)).toBe(45);
   });
 });
