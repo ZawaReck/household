@@ -1,5 +1,5 @@
 import React from "react";
-import { clearLocalAuth } from "./AuthGate";
+import { clearLocalAuth } from "../data/authSession";
 import "./AccountSettings.css";
 
 export const LogoutSettings: React.FC = () => {

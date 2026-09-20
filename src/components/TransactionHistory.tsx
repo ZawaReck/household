@@ -20,8 +20,8 @@ const calcExternalGross = (items: Array<Pick<Transaction, "type" | "amount" | "t
 
   for (const t of items) {
     if (t.type !== "expense") continue;
-    if ((t as any).isTaxAdjustment) continue;
-    const r = normalizeTaxRate((t as any).taxRate);
+    if (t.isTaxAdjustment) continue;
+    const r = normalizeTaxRate(t.taxRate);
     if (r === 8) sum8 += t.amount || 0;
     else if (r === 0) sum0 += t.amount || 0;
     else sum10 += t.amount || 0;
@@ -133,7 +133,6 @@ export const TransactionHistory: React.FC<Props> = ({
 
   const animateSettle = (
     id: string,
-    _fromX: number,
     toX: number,
     openAfter: boolean,
     minX: number,
@@ -144,8 +143,9 @@ export const TransactionHistory: React.FC<Props> = ({
     setDragXById((prev) => ({ ...prev, [id]: clamp(toX, minX, 0) }));
     settleAnimById.current[id] = window.setTimeout(() => {
       setDragXById((prev) => {
-        const { [id]: _, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next[id];
+        return next;
       });
       setOpenId(openAfter ? id : null);
       delete settleAnimById.current[id];
@@ -213,7 +213,7 @@ export const TransactionHistory: React.FC<Props> = ({
 
     if (!cancelled && s.direction === "horizontal" && x <= s.deleteThreshold) {
       cancelSettleAnim(s.id);
-      animateSettle(s.id, x, s.deleteX, false, s.deleteX, () => {
+      animateSettle(s.id, s.deleteX, false, s.deleteX, () => {
         onDeleteTransaction(s.id);
         setOpenId(null);
         delete wheelXById.current[s.id];
@@ -229,7 +229,7 @@ export const TransactionHistory: React.FC<Props> = ({
     // どの程度開いたら固定で開くか
     const shouldOpen = s.direction === "horizontal" && x < OPEN_X / 2;
 
-    animateSettle(s.id, x, shouldOpen ? OPEN_X : 0, shouldOpen, s.deleteX);
+    animateSettle(s.id, shouldOpen ? OPEN_X : 0, shouldOpen, s.deleteX);
 
     dragStart.current = null;
     window.setTimeout(() => { suppressRowClick.current = false; }, 0);
@@ -243,7 +243,7 @@ export const TransactionHistory: React.FC<Props> = ({
   return (
     <div className="history-list" ref={listRef}>
       {grouped.map(([date, items]) => {
-        const visibleItems = items.filter((t: any) => t.isTaxAdjustment !== true);
+        const visibleItems = items.filter((t) => t.isTaxAdjustment !== true);
         if (visibleItems.length === 0) return null;
         const groupMeta = new Map<
           string,
@@ -257,10 +257,10 @@ export const TransactionHistory: React.FC<Props> = ({
         const groupLastId = new Map<string, string>();
 
         for (const t of items) {
-          const gid = (t as any).groupId as string | undefined;
+          const gid = t.groupId;
           if (!gid) continue;
           const current = groupMeta.get(gid) ?? { items: [], hasAdjustment: false, isExternal: false, total: 0 };
-          if ((t as any).isTaxAdjustment) {
+          if (t.isTaxAdjustment) {
             current.hasAdjustment = true;
           } else {
             current.items.push(t);
@@ -269,9 +269,9 @@ export const TransactionHistory: React.FC<Props> = ({
         }
 
         for (const [gid, meta] of groupMeta.entries()) {
-          const isExternal = meta.hasAdjustment || meta.items.some((t: any) => t.taxMode === "exclusive");
+          const isExternal = meta.hasAdjustment || meta.items.some((t) => t.taxMode === "exclusive");
           const total = isExternal
-            ? calcExternalGross(meta.items as any).gross
+            ? calcExternalGross(meta.items).gross
             : meta.items.reduce((sum, t) => sum + (t.amount || 0), 0);
           groupMeta.set(gid, { ...meta, isExternal, total });
         }
@@ -280,8 +280,8 @@ export const TransactionHistory: React.FC<Props> = ({
         const seenGroups = new Set<string>();
 
         for (const t of items) {
-          if ((t as any).isTaxAdjustment) continue;
-          const gid = (t as any).groupId as string | undefined;
+          if (t.isTaxAdjustment) continue;
+          const gid = t.groupId;
           const meta = gid ? groupMeta.get(gid) : null;
           const isGrouped = Boolean(gid && meta && meta.items.length >= 2);
 
@@ -296,7 +296,7 @@ export const TransactionHistory: React.FC<Props> = ({
         }
 
         orderedVisibleItems.forEach((t) => {
-          const gid = (t as any).groupId as string | undefined;
+          const gid = t.groupId;
           if (gid) groupLastId.set(gid, t.id);
         });
 
@@ -307,7 +307,7 @@ export const TransactionHistory: React.FC<Props> = ({
             {orderedVisibleItems.map((t, idx) => {
               const isDeletable = !t.system || t.system.kind === "scheduled_move";
               const x = getCurrentX(t.id);
-              const gid = (t as any).groupId as string | undefined;
+              const gid = t.groupId;
               const meta = gid ? groupMeta.get(gid) : null;
               const displayAmount = meta?.isExternal
                 ? Math.floor(Number(t.taxBaseAmount ?? t.amount) * (1 + normalizeTaxRate(t.taxRate) / 100))
@@ -320,7 +320,7 @@ export const TransactionHistory: React.FC<Props> = ({
                 gid && meta && meta.items.length >= 2 && groupLastId.get(gid) === t.id;
               const isGrouped = Boolean(gid && meta && meta.items.length >= 2);
               const prev = idx > 0 ? orderedVisibleItems[idx - 1] : null;
-              const prevGid = prev ? ((prev as any).groupId as string | undefined) : undefined;
+              const prevGid = prev?.groupId;
               const prevMeta = prevGid ? groupMeta.get(prevGid) : null;
               const prevIsGrouped = Boolean(prevGid && prevMeta && prevMeta.items.length >= 2);
               const boundaryTop =
@@ -381,7 +381,7 @@ export const TransactionHistory: React.FC<Props> = ({
                         const x = wheelXById.current[t.id] ?? 0;
                         if (x <= deleteThreshold) {
                           cancelSettleAnim(t.id);
-                          animateSettle(t.id, x, deleteX, false, deleteX, () => {
+                          animateSettle(t.id, deleteX, false, deleteX, () => {
                             onDeleteTransaction(t.id);
                             setOpenId(null);
                             delete wheelXById.current[t.id];
@@ -391,12 +391,13 @@ export const TransactionHistory: React.FC<Props> = ({
                         }
 
                         const shouldOpen = x < OPEN_X / 2;
-                        animateSettle(t.id, x, shouldOpen ? OPEN_X : 0, shouldOpen, deleteX);
+                        animateSettle(t.id, shouldOpen ? OPEN_X : 0, shouldOpen, deleteX);
 
                         // 一時値を掃除（以後は openId で固定）
                         setDragXById((prev) => {
-                          const { [t.id]: _, ...rest } = prev;
-                          return rest;
+                          const next = { ...prev };
+                          delete next[t.id];
+                          return next;
                         });
                         delete wheelXById.current[t.id];
                         delete wheelTimerById.current[t.id];
@@ -432,7 +433,7 @@ export const TransactionHistory: React.FC<Props> = ({
                       onClick={() => {
                         if (suppressRowClick.current) return;
                         if (openId === t.id) {
-                          animateSettle(t.id, x, 0, false, -Math.max(1, listRef.current?.clientWidth ?? 393));
+                          animateSettle(t.id, 0, false, -Math.max(1, listRef.current?.clientWidth ?? 393));
                           return;
                         }
                         if (openId) return;

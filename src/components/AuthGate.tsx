@@ -1,6 +1,5 @@
 import React from "react";
-
-const AUTH_MARKER_KEY = "householdAuthenticated";
+import { clearLocalAuth, hasLocalAuthMarker, markLocalAuth } from "../data/authSession";
 
 declare global {
   interface Window {
@@ -13,12 +12,6 @@ declare global {
     };
   }
 }
-
-export const clearLocalAuth = () => localStorage.removeItem(AUTH_MARKER_KEY);
-export const handleUnauthorized = () => {
-  clearLocalAuth();
-  window.location.reload();
-};
 
 export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -33,7 +26,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     void fetch("/api/auth/me").then((response) => {
       if (cancelled) return;
       if (response.ok) {
-        localStorage.setItem(AUTH_MARKER_KEY, "true");
+        markLocalAuth();
         setAuthState("authenticated");
       } else {
         clearLocalAuth();
@@ -41,7 +34,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
       }
     }).catch(() => {
       if (cancelled) return;
-      setAuthState(localStorage.getItem(AUTH_MARKER_KEY) === "true" ? "authenticated" : "unauthenticated");
+      setAuthState(hasLocalAuthMarker() ? "authenticated" : "unauthenticated");
     });
     return () => { cancelled = true; };
   }, [developmentBypass]);
@@ -53,7 +46,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
       window.google.accounts.id.initialize({ client_id: clientId, callback: async ({ credential }) => {
         const response = await fetch("/api/auth/session", { method: "POST", headers: { authorization: `Bearer ${credential}` } });
         if (!response.ok) { setError("このGoogleアカウントは許可されていません。"); return; }
-        localStorage.setItem(AUTH_MARKER_KEY, "true");
+        markLocalAuth();
         setAuthState("authenticated");
       } });
       window.google.accounts.id.renderButton(buttonRef.current, { theme: "outline", size: "large", text: "signin_with" });

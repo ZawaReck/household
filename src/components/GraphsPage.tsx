@@ -26,6 +26,7 @@ import {
   LabelList,
   ReferenceLine,
 } from "recharts";
+import type { LabelProps, PieLabelRenderProps, TooltipContentProps } from "recharts";
 import {
   getMonthKey,
   listMonthKeysBetween,
@@ -106,7 +107,7 @@ const sortByDefaultCategoryOrder = (
   });
 };
 
-const renderMonthlyTrendLabel = (props: any) => {
+const renderMonthlyTrendLabel = (props: LabelProps) => {
   const { x, y, width, height, value } = props;
   const resolved = Number(value ?? 0);
   if (!Number.isFinite(resolved)) return null;
@@ -130,8 +131,9 @@ const renderMonthlyTrendLabel = (props: any) => {
   );
 };
 
-const renderCategoryPieLabel = (props: any) => {
-  const { cx, cy, midAngle, innerRadius, outerRadius, percent, category } = props;
+const renderCategoryPieLabel = (props: PieLabelRenderProps) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props;
+  const category = (props as PieLabelRenderProps & { category?: string }).category;
   if (Number(percent ?? 0) <= 0.1) return null;
 
   const radius =
@@ -155,7 +157,7 @@ const renderCategoryPieLabel = (props: any) => {
   );
 };
 
-const renderCategoryPieTooltip = ({ active, payload }: any) => {
+const renderCategoryPieTooltip = ({ active, payload }: TooltipContentProps<number, string>) => {
   if (!active || !payload || payload.length === 0) return null;
 
   const item = payload[0]?.payload;
@@ -191,7 +193,7 @@ const getNiceMonthlyTrendScale = (values: number[]) => {
   const range = Math.max(rawMax - rawMin, 1);
   const step = getNiceStep(range / 4);
 
-  let domainMin = Math.floor(rawMin / step) * step;
+  const domainMin = Math.floor(rawMin / step) * step;
   let domainMax = Math.ceil(rawMax / step) * step;
 
   if (domainMin === domainMax) {

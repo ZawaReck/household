@@ -434,7 +434,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       else startEmptyDraft("expense");
     });
     return () => { cancelled = true; };
-  }, [draftScope]);
+  }, [activeGroupId, applySavedDraft, draftScope, editingTransaction, startEmptyDraft]);
 
   React.useEffect(() => {
     if (editingTransaction || activeGroupId || isApplyingDraft.current || !activeDraftId) return;
@@ -476,6 +476,31 @@ export const InputForm: React.FC<InputFormProps> = ({
     [receiptItems]
   );
 
+  const resetForm = React.useCallback((
+    nextType: "expense" | "income" | "move" = type,
+    options: { keepDate?: boolean; dateValue?: string; keepTaxControls?: boolean } = {}
+  ) => {
+    const nextDate = options.keepDate ? date : (options.dateValue ?? selectedDate);
+    const nextCategory = nextType === "income" ? defaultIncomeCategory : defaultExpenseCategory;
+
+    setAmount("");
+    setName("");
+    setMemo("");
+    setClassification("normal");
+    if (!options.keepTaxControls) {
+      setIsExternalTax(nextType === "expense" && entryMode === "receipt_exclusive");
+      setTaxRate(10);
+    }
+    setCategory(nextCategory);
+    setSource(defaultSource);
+    setSourceMove(defaultMoveSource);
+    setDestination(defaultMoveDestination);
+    setMoveFee("");
+    setDate(nextDate);
+    setIsSourcePickerOpen(false);
+    setOpenMovePicker(null);
+  }, [date, defaultExpenseCategory, defaultIncomeCategory, defaultMoveDestination, defaultMoveSource, defaultSource, entryMode, selectedDate, type]);
+
   // 税率別に合算してから端数処理する（あなたの合計表示仕様と同じ）
   const calcExternalGross = (items: Array<Pick<Transaction, "type" | "amount" | "taxRate" | "isTaxAdjustment">>) => {
     let sum10 = 0;
@@ -484,8 +509,8 @@ export const InputForm: React.FC<InputFormProps> = ({
 
     for (const t of items) {
       if (t.type !== "expense") continue;
-      if ((t as any).isTaxAdjustment) continue; // 調整アイテムは除外
-      const r = normalizeTaxRate((t as any).taxRate);
+      if (t.isTaxAdjustment) continue; // 調整アイテムは除外
+      const r = normalizeTaxRate(t.taxRate);
       if (r === 8) sum8 += t.amount || 0;
       else if (r === 0) sum0 += t.amount || 0;
       else sum10 += t.amount || 0;
@@ -513,7 +538,7 @@ export const InputForm: React.FC<InputFormProps> = ({
         other += t.amount || 0;
         continue;
       }
-      const r = normalizeTaxRate((t as any).taxRate);
+      const r = normalizeTaxRate(t.taxRate);
       if (r === 8) sum8 += t.amount || 0;
       else if (r === 0) sum0 += t.amount || 0;
       else sum10 += t.amount || 0;
@@ -529,18 +554,18 @@ export const InputForm: React.FC<InputFormProps> = ({
   const committedGroupItems = React.useMemo(() => {
     const gid =
       activeGroupId ??
-      ((editingTransaction as any)?.groupId as string | undefined);
+      editingTransaction?.groupId;
 
     if (!gid) return [];
-    return monthlyData.filter((t: any) => t.groupId === gid);
+    return monthlyData.filter((t) => t.groupId === gid);
   }, [monthlyData, editingTransaction, activeGroupId]);
 
   useEffect(() => {
     if (!activeGroupId) return;
     if (editingTransaction) return;
 
-    const groupItems = monthlyData.filter((t: any) => t.groupId === activeGroupId);
-    const visibleItems = groupItems.filter((t: any) => t.isTaxAdjustment !== true);
+    const groupItems = monthlyData.filter((t) => t.groupId === activeGroupId);
+    const visibleItems = groupItems.filter((t) => t.isTaxAdjustment !== true);
     const first = visibleItems[0];
 
     if (first) {
@@ -559,25 +584,25 @@ export const InputForm: React.FC<InputFormProps> = ({
     }
 
     const isExternalGroup =
-      groupItems.some((t: any) => t.isTaxAdjustment === true) ||
-      visibleItems.some((t: any) => t.taxMode === "exclusive");
+      groupItems.some((t) => t.isTaxAdjustment === true) ||
+      visibleItems.some((t) => t.taxMode === "exclusive");
 
     setIsExternalTax(isExternalGroup);
     setEntryMode(isExternalGroup ? "receipt_exclusive" : "receipt_inclusive");
-  }, [activeGroupId, activeGroupDate, monthlyData, editingTransaction]);
+  }, [activeGroupId, activeGroupDate, monthlyData, editingTransaction, resetForm, type, date]);
 
   // グループ内の「外税」調整アイテム（あれば）
   const committedTaxAdjustment = React.useMemo(() => {
-    return committedGroupItems.find((t: any) => t.isTaxAdjustment === true) ?? null;
+    return committedGroupItems.find((t) => t.isTaxAdjustment === true) ?? null;
   }, [committedGroupItems]);
 
   // InputForm 下リストに見せるのは “通常アイテムだけ”
   const committedGroupVisibleItems = React.useMemo(() => {
-    return committedGroupItems.filter((t: any) => t.isTaxAdjustment !== true);
+    return committedGroupItems.filter((t) => t.isTaxAdjustment !== true);
   }, [committedGroupItems]);
 
   const onEditModeFromList = (t: Transaction) => {
-    const gid = (t as any).groupId as string | undefined;
+    const gid = t.groupId;
     setActiveGroupId(gid ?? null);
     setActiveGroupDate(t.date);
     setEditingTransaction(t);
@@ -589,7 +614,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     : committedGroupVisibleItems.length >= 2;
 
   const committedGroupIsExternal =
-    committedTaxAdjustment != null || committedGroupVisibleItems.some((t: any) => t.taxMode === "exclusive");
+    committedTaxAdjustment != null || committedGroupVisibleItems.some((t) => t.taxMode === "exclusive");
 
   const committedGroupTotalDisplay = React.useMemo(() => {
     if (committedGroupVisibleItems.length === 0) return 0;
@@ -598,7 +623,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       return committedGroupVisibleItems.reduce((sum, t) => sum + (t.amount || 0), 0);
     }
 
-    const { base, tax } = calcExternalGross(committedGroupVisibleItems as any);
+    const { base, tax } = calcExternalGross(committedGroupVisibleItems);
     return base + tax;
   }, [committedGroupVisibleItems, committedGroupIsExternal]);
 
@@ -635,18 +660,18 @@ export const InputForm: React.FC<InputFormProps> = ({
     setEditingReceiptIndex(null);
 
     // グループに外税調整があるなら外税扱い（単体アイテムのtaxModeより優先）
-    const gid = (editingTransaction as any).groupId as string | undefined;
+    const gid = editingTransaction.groupId;
     if (gid) {
-      const group = monthlyData.filter((t: any) => t.groupId === gid);
-      const hasAdj = group.some((t: any) => t.isTaxAdjustment === true);
-      setIsExternalTax(hasAdj || normalizeTaxMode((editingTransaction as any).taxMode) === "exclusive");
-      setEntryMode(hasAdj || normalizeTaxMode((editingTransaction as any).taxMode) === "exclusive" ? "receipt_exclusive" : "receipt_inclusive");
+      const group = monthlyData.filter((t) => t.groupId === gid);
+      const hasAdj = group.some((t) => t.isTaxAdjustment === true);
+      setIsExternalTax(hasAdj || normalizeTaxMode(editingTransaction.taxMode) === "exclusive");
+      setEntryMode(hasAdj || normalizeTaxMode(editingTransaction.taxMode) === "exclusive" ? "receipt_exclusive" : "receipt_inclusive");
     } else {
-      setIsExternalTax(normalizeTaxMode((editingTransaction as any).taxMode) === "exclusive");
+      setIsExternalTax(normalizeTaxMode(editingTransaction.taxMode) === "exclusive");
       setEntryMode("individual");
     }
 
-    setTaxRate(normalizeTaxRate((editingTransaction as any).taxRate));
+    setTaxRate(normalizeTaxRate(editingTransaction.taxRate));
   }, [editingTransaction, monthlyData]);
 
   useEffect(() => {
@@ -668,7 +693,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       const opts = categoryOptions;
       return opts.includes(prev) ? prev : opts[0];
     });
-  }, [type]);
+  }, [categoryOptions, type]);
 
   const buildDraft = (): DraftTx => {
     const base: DraftTx = {
@@ -695,31 +720,6 @@ export const InputForm: React.FC<InputFormProps> = ({
     }
 
     return base;
-  };
-
-  const resetForm = (
-    nextType: "expense" | "income" | "move" = type,
-    options: { keepDate?: boolean; dateValue?: string; keepTaxControls?: boolean } = {}
-  ) => {
-    const nextDate = options.keepDate ? date : (options.dateValue ?? selectedDate);
-    const nextCategory = nextType === "income" ? defaultIncomeCategory : defaultExpenseCategory;
-
-    setAmount("");
-    setName("");
-    setMemo("");
-    setClassification("normal");
-    if (!options.keepTaxControls) {
-      setIsExternalTax(nextType === "expense" && entryMode === "receipt_exclusive");
-      setTaxRate(10);
-    }
-    setCategory(nextCategory);
-    setSource(defaultSource);
-    setSourceMove(defaultMoveSource);
-    setDestination(defaultMoveDestination);
-    setMoveFee("");
-    setDate(nextDate);
-    setIsSourcePickerOpen(false);
-    setOpenMovePicker(null);
   };
 
   const parseAmount = () => {
@@ -805,8 +805,8 @@ export const InputForm: React.FC<InputFormProps> = ({
       setCategory(t.category);
     }
     // 税情報
-    setIsExternalTax(normalizeTaxMode((t as any).taxMode) === "exclusive");
-    setTaxRate(normalizeTaxRate((t as any).taxRate));
+    setIsExternalTax(normalizeTaxMode(t.taxMode) === "exclusive");
+    setTaxRate(normalizeTaxRate(t.taxRate));
   };
 
   const deleteReceiptItem = (idx: number) => {
@@ -831,8 +831,22 @@ export const InputForm: React.FC<InputFormProps> = ({
 
     if (groupId && groupItems.length > 0) {
       const drafts = groupItems.map((transaction): DraftTx => {
-        const { id: _id, system: _system, groupId: _groupId, relationId: _relationId, ...draft } = transaction;
-        return { ...draft, date: copyDate };
+        return {
+          type: transaction.type,
+          amount: transaction.amount,
+          date: copyDate,
+          name: transaction.name,
+          category: transaction.category,
+          source: transaction.source,
+          destination: transaction.destination,
+          memo: transaction.memo,
+          isSpecial: transaction.isSpecial,
+          classification: transaction.classification,
+          taxMode: transaction.taxMode,
+          taxRate: transaction.taxRate,
+          taxBaseAmount: transaction.taxBaseAmount,
+          isTaxAdjustment: transaction.isTaxAdjustment,
+        };
       });
       const external = groupItems.some((transaction) => transaction.taxMode === "exclusive");
       setEditingTransaction(null);
@@ -897,7 +911,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       const error = draftValidationError();
       if (error) { window.alert(error); return; }
 
-      const gid = (editingTransaction as any).groupId as string | undefined;
+      const gid = editingTransaction.groupId;
       if (gid) setActiveGroupId(gid);
 
       const draft = buildDraft();
@@ -908,8 +922,8 @@ export const InputForm: React.FC<InputFormProps> = ({
       } as Transaction;
 
       // 外税（税別保存）なら、税別表示用の値も追従させる
-      if (updated.type === "expense" && (updated as any).taxMode === "exclusive") {
-        (updated as any).taxBaseAmount = updated.amount;
+      if (updated.type === "expense" && updated.taxMode === "exclusive") {
+        updated.taxBaseAmount = updated.amount;
       }
 
       // まず対象アイテムを更新
@@ -917,7 +931,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
       // レシート共通項目（日付・拠出元・集計区分）は全明細へ一括反映する
       if (gid) {
-        const groupAll = monthlyData.filter((t: any) => t.groupId === gid);
+        const groupAll = monthlyData.filter((t) => t.groupId === gid);
         groupAll
           .filter((transaction) => transaction.id !== updated.id)
           .forEach((transaction) => onUpdateTransaction({
@@ -974,16 +988,16 @@ export const InputForm: React.FC<InputFormProps> = ({
 
     const moveRelationId = type === "move" && Number(moveFee) > 0 ? crypto.randomUUID() : undefined;
     // ★ groupId を付与して「このまとまり」を後で引けるようにする
-    const baseItems = itemsToCommit.map((t) => {
+    const baseItems: DraftTx[] = itemsToCommit.map((t) => {
       if (t.type !== "expense") return moveRelationId ? { ...t, relationId: moveRelationId } : t;
       if (!isExternalTax) {
-        return { ...(t as any), groupId, taxMode: "inclusive" } as any;
+        return { ...t, groupId, taxMode: "inclusive" };
       }
       // 外税：税別保存
-      return { ...(t as any), groupId, taxMode: "exclusive", taxBaseAmount: t.amount } as any;
+      return { ...t, groupId, taxMode: "exclusive", taxBaseAmount: t.amount };
     });
 
-    baseItems.forEach((t) => onAddTransaction(t as any));
+    baseItems.forEach((t) => onAddTransaction(t));
 
     if (type === "move") {
       const fee = Number(moveFee);
@@ -1009,7 +1023,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   const renderTaxBadge = (t: DraftTx | Transaction) => {
     if (!isExternalTax) return null;
     if (t.type !== "expense") return null;
-    const r = normalizeTaxRate((t as any).taxRate);
+    const r = normalizeTaxRate(t.taxRate);
     return <span className="tax-badge">{r}%</span>;
   };
 
@@ -1020,21 +1034,21 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   const getReceiptDisplayAmount = (t: DraftTx) => {
     if (!isExternalTax || t.type !== "expense") return t.amount;
-    const r = normalizeTaxRate((t as any).taxRate);
+    const r = normalizeTaxRate(t.taxRate);
     return calcTaxedAmount(t.amount, r);
   };
 
   const getCommittedDisplayAmount = (t: Transaction) => {
     if (t.type !== "expense") return t.amount;
     if (!committedGroupIsExternal) return t.amount;
-    const r = normalizeTaxRate((t as any).taxRate);
+    const r = normalizeTaxRate(t.taxRate);
     return calcTaxedAmount(Number(t.taxBaseAmount ?? t.amount), r);
   };
 
   // --- 表示（TransactionHistoryと同じ見た目）を共通化 ---
   const renderRowContent = (t: DraftTx | Transaction) => {
     if (t.type === "move") {
-      const dest = (t as any).destination || "";
+      const dest = t.destination || "";
       return (
         <>
           <div className="cat is-move">
@@ -1046,11 +1060,11 @@ export const InputForm: React.FC<InputFormProps> = ({
       );
     }
 
-    const nm = (t as any).name || "";
+    const nm = t.name || "";
     return (
       <>
         <div className="cat">
-          <span className="category-text">{(t as any).category}</span>
+          <span className="category-text">{t.category}</span>
         </div>
         <div className={`nm ${nm.length >= 9 ? "nm-small" : ""}`}>{nm || "（摘要なし）"}</div>
       </>

@@ -6,10 +6,10 @@ export const safeLoadJSON = <T>(key: string, fallback: T): T => {
     const raw = localStorage.getItem(key);
     if (!raw) return fallback;
     return JSON.parse(raw) as T;
-  } catch (_err) {
+  } catch {
     try {
       localStorage.removeItem(key);
-    } catch (_err2) {
+    } catch {
       // ignore
     }
     return fallback;

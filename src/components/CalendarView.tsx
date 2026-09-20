@@ -102,7 +102,7 @@ const weeksToRender = weeksNeeded === 6 ? 6 : weeksNeeded === 4 ? 4 : 5;
     </div>
 
     {/* 日付（ここが 4/5/6 行で伸縮） */}
-    <div className="calendar-days" style={{ ["--weeks" as any]: weeksToRender }}>
+    <div className="calendar-days" style={{ "--weeks": weeksToRender } as React.CSSProperties}>
       {calendarDays.map((date, index) => {
         const isCurrentMonth = date.getMonth() === month;
 

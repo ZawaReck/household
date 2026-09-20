@@ -667,11 +667,27 @@ select {
 
 @media (max-width: 767px) {
   .graphs-page-root {
-    padding: 0 0 calc(96px + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .graphs-page-chrome {
+    position: relative;
+    flex: 0 0 auto;
   }
 
   .graphs-page-content {
-    padding: 8px 0 0;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 8px 0 calc(96px + env(safe-area-inset-bottom));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   .graphs-section {

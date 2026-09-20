@@ -26,7 +26,11 @@ void hydrateOfflineStorage(backupKeys).finally(renderApp)
 
 if (import.meta.env.DEV) {
   import("./dev/demoData").then(({ loadDemoData, clearDemoData }) => {
-    (window as any).loadDemoData = loadDemoData;
-    (window as any).clearDemoData = clearDemoData;
+    const developmentWindow = window as Window & {
+      loadDemoData?: typeof loadDemoData;
+      clearDemoData?: typeof clearDemoData;
+    };
+    developmentWindow.loadDemoData = loadDemoData;
+    developmentWindow.clearDemoData = clearDemoData;
   });
 }

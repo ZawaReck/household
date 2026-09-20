@@ -1,6 +1,6 @@
 import React from "react";
 import { backupKeys, mergeValues } from "../utils/backup";
-import { handleUnauthorized } from "./AuthGate";
+import { handleUnauthorized } from "../data/authSession";
 import { writeOfflineValue } from "../data/offlineStore";
 import { applyDeletionTombstones, DELETION_TOMBSTONE_KEY, loadDeletionTombstones } from "../data/deletionStore";
 import {

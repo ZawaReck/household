@@ -161,6 +161,12 @@ header {
     padding-bottom: 0;
     overflow: hidden;
   }
+  html[data-app-page="graphs"] main {
+    box-sizing: border-box;
+    height: 100dvh;
+    padding-bottom: 0;
+    overflow: hidden;
+  }
 }
 
 .summary-card {
