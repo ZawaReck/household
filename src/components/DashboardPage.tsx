@@ -46,7 +46,23 @@ export const DashboardPage: React.FC<Props> = (props) => {
 		offsetTop: typeof window === "undefined" ? 0 : window.visualViewport?.offsetTop ?? 0,
 		keyboardVisible: false,
 	}));
-	const sheetDragStartY = React.useRef<number | null>(null);
+	const inputSectionRef = React.useRef<HTMLElement | null>(null);
+	const sheetDrag = React.useRef<{
+		pointerId: number;
+		startY: number;
+		startHeight: number;
+		minHeight: number;
+		maxHeight: number;
+		lastY: number;
+		lastAt: number;
+		velocityY: number;
+	} | null>(null);
+	const sheetSwipe = React.useRef<{
+		identifier: number;
+		startX: number;
+		startY: number;
+		startedAt: number;
+	} | null>(null);
 	const sheetWasDragged = React.useRef(false);
 	const historySectionRef = React.useRef<HTMLElement | null>(null);
 
@@ -191,23 +207,99 @@ export const DashboardPage: React.FC<Props> = (props) => {
 		});
 	};
 	const resetCalendarTap = () => setLastCalendarTapDate(null);
+	const sheetSnapHeights = () => {
+		const viewportHeight = window.innerHeight;
+		const maxHeight = Math.max(0, viewportHeight - 83);
+		return {
+			minHeight: Math.min(viewportHeight * 0.70775, maxHeight),
+			maxHeight,
+		};
+	};
 	const handleSheetPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
-		sheetDragStartY.current = event.clientY;
+		if (!event.isPrimary || visualViewport.keyboardVisible) return;
+		const section = inputSectionRef.current;
+		if (!section) return;
+		const { minHeight, maxHeight } = sheetSnapHeights();
+		sheetDrag.current = {
+			pointerId: event.pointerId,
+			startY: event.clientY,
+			startHeight: section.getBoundingClientRect().height,
+			minHeight,
+			maxHeight,
+			lastY: event.clientY,
+			lastAt: event.timeStamp,
+			velocityY: 0,
+		};
 		sheetWasDragged.current = false;
+		section.classList.add("sheet-dragging");
 		event.currentTarget.setPointerCapture(event.pointerId);
 	};
 	const handleSheetPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
-		if (sheetDragStartY.current == null) return;
-		const delta = event.clientY - sheetDragStartY.current;
-		if (Math.abs(delta) < 12) return;
-		sheetWasDragged.current = true;
-		if (delta <= -30) setIsInputSheetExpanded(true);
-		if (delta >= 30) setIsInputSheetExpanded(false);
+		const drag = sheetDrag.current;
+		const section = inputSectionRef.current;
+		if (!drag || drag.pointerId !== event.pointerId || !section) return;
+		const delta = event.clientY - drag.startY;
+		if (Math.abs(delta) >= 4) sheetWasDragged.current = true;
+		const nextHeight = Math.max(drag.minHeight, Math.min(drag.maxHeight, drag.startHeight - delta));
+		const elapsed = Math.max(1, event.timeStamp - drag.lastAt);
+		drag.velocityY = (event.clientY - drag.lastY) / elapsed;
+		drag.lastY = event.clientY;
+		drag.lastAt = event.timeStamp;
+		section.style.setProperty("--sheet-drag-height", `${nextHeight}px`);
 	};
 	const handleSheetPointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
+		const drag = sheetDrag.current;
+		const section = inputSectionRef.current;
 		if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-		sheetDragStartY.current = null;
+		if (drag && section && drag.pointerId === event.pointerId && sheetWasDragged.current) {
+			const currentHeight = section.getBoundingClientRect().height;
+			const midpoint = (drag.minHeight + drag.maxHeight) / 2;
+			const nextExpanded = Math.abs(drag.velocityY) >= 0.35
+				? drag.velocityY < 0
+				: currentHeight >= midpoint;
+			setIsInputSheetExpanded(nextExpanded);
+			window.requestAnimationFrame(() => {
+				section.classList.remove("sheet-dragging");
+				section.style.removeProperty("--sheet-drag-height");
+			});
+		} else if (section) {
+			section.classList.remove("sheet-dragging");
+			section.style.removeProperty("--sheet-drag-height");
+		}
+		sheetDrag.current = null;
 		window.setTimeout(() => { sheetWasDragged.current = false; }, 0);
+	};
+	const handleSheetTouchStart = (event: React.TouchEvent<HTMLElement>) => {
+		if (visualViewport.keyboardVisible || event.touches.length !== 1) {
+			sheetSwipe.current = null;
+			return;
+		}
+		const target = event.target instanceof Element ? event.target : null;
+		if (target?.closest(".input-sheet-handle")) return;
+		const touch = event.touches[0];
+		sheetSwipe.current = {
+			identifier: touch.identifier,
+			startX: touch.clientX,
+			startY: touch.clientY,
+			startedAt: event.timeStamp,
+		};
+	};
+	const handleSheetTouchEnd = (event: React.TouchEvent<HTMLElement>) => {
+		const swipe = sheetSwipe.current;
+		sheetSwipe.current = null;
+		if (!swipe) return;
+		const touch = Array.from(event.changedTouches).find((candidate) => candidate.identifier === swipe.identifier);
+		if (!touch) return;
+		const deltaX = touch.clientX - swipe.startX;
+		const deltaY = touch.clientY - swipe.startY;
+		const elapsed = event.timeStamp - swipe.startedAt;
+		if (elapsed > 550 || Math.abs(deltaY) < 48 || Math.abs(deltaY) <= Math.abs(deltaX) * 1.25) return;
+		const nextExpanded = deltaY < 0;
+		if (nextExpanded === isInputSheetExpanded) return;
+		event.preventDefault();
+		sheetWasDragged.current = true;
+		setIsInputSheetExpanded(nextExpanded);
+		window.setTimeout(() => { sheetWasDragged.current = false; }, 250);
 	};
 
 
@@ -271,6 +363,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 		</section>
 		{isInputSheetOpen && <button className="input-sheet-backdrop" aria-label="入力画面を閉じる" onClick={closeInputSheet} />}
 		<section
+			ref={inputSectionRef}
 			className={`column input-section ${isInputSheetOpen ? "sheet-open" : ""} ${isInputSheetExpanded ? "sheet-expanded" : ""} ${visualViewport.keyboardVisible ? "keyboard-visible" : ""}`}
 			style={isInputSheetOpen ? {
 				"--visual-viewport-height": `${visualViewport.height}px`,
@@ -282,6 +375,8 @@ export const DashboardPage: React.FC<Props> = (props) => {
 					setIsInputSheetExpanded(true);
 				}
 			}}
+			onTouchStartCapture={handleSheetTouchStart}
+			onTouchEndCapture={handleSheetTouchEnd}
 		>
 			<div className="input-sheet-toolbar">
 				<button

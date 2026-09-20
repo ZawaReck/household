@@ -125,6 +125,11 @@
     height: calc(100dvh - 83px - var(--pwa-top-clearance));
   }
 
+  .input-section.sheet-open.sheet-dragging {
+    height: var(--sheet-drag-height);
+    transition: none;
+  }
+
   .input-section.sheet-open.sheet-expanded.keyboard-visible {
     top: calc(var(--visual-viewport-offset, 0px) + var(--pwa-top-clearance));
     bottom: auto;
@@ -160,8 +165,8 @@
   }
 
   .input-sheet-handle {
-    grid-column: 2;
-    width: 110px;
+    grid-column: 1 / -1;
+    width: 100%;
     height: 20px;
     padding: 0;
     border: 0;
