@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 
 const commitCount = Number(execFileSync('git', ['rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).trim())
-const appVersion = `0.2.${Math.max(0, commitCount - 223)}`
+const appVersion = `0.3.${Math.max(0, commitCount - 235)}`
 
 // https://vite.dev/config/
 export default defineConfig({
