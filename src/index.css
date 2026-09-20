@@ -13,7 +13,7 @@ html, body, #root {
 
 @media (max-width: 800px) {
   html[data-standalone-pwa="true"] {
-    --pwa-top-clearance: 40px;
+    --pwa-top-clearance: 20px;
   }
 }
 

@@ -186,7 +186,6 @@ header {
   box-sizing: border-box;
   width: min(390px, 90vw);
   height: 100%;
-  padding-top: var(--pwa-top-clearance);
   overflow-y: auto;
   background: #fbfffb;
   box-shadow: 4px 0 20px rgba(0, 0, 0, .2);
@@ -227,7 +226,7 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: calc(14px + var(--pwa-top-clearance)) 16px 14px;
   color: #fff;
   background: #245e2d;
 }
