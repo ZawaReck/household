@@ -8,8 +8,13 @@ html, body, #root {
 }
 
 :root {
+  --app-background-color: #f9fffb;
   --pwa-top-clearance: 0px;
   --pwa-top-shield-height: 0px;
+}
+
+.pwa-top-shield {
+  display: none;
 }
 
 @media (max-width: 800px) {
@@ -18,15 +23,21 @@ html, body, #root {
     --pwa-top-shield-height: 43px;
   }
 
-  html[data-standalone-pwa="true"] .app-container::before {
-    content: "";
+  html[data-standalone-pwa="true"] .pwa-top-shield {
+    display: block;
     position: fixed;
     z-index: 30;
     top: 0;
     right: 0;
     left: 0;
     height: var(--pwa-top-shield-height);
-    background: #f9fffb;
+    background-color: var(--app-background-color);
+    opacity: 1;
+    transform: translateZ(0);
+    contain: paint;
+    isolation: isolate;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
     pointer-events: none;
   }
 }
@@ -141,7 +152,7 @@ button:focus-visible {
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
-    background-color: #F9FFFB;
+    background-color: var(--app-background-color);
   }
   /* a:hover {
     color: #747bff;

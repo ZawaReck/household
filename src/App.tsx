@@ -500,6 +500,7 @@ export const App: React.FC = () => {
 	return (
 		<Router>
 			<div className="app-container">
+      <div className="pwa-top-shield" aria-hidden="true" />
       <header>
         <nav className="nav-menu">
           <button className="settings-trigger" type="button" aria-label="設定" onClick={openSettings}>☰</button>
