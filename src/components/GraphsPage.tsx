@@ -23,10 +23,9 @@ import {
   Line,
   BarChart,
   Bar,
-  LabelList,
   ReferenceLine,
 } from "recharts";
-import type { LabelProps, PieLabelRenderProps, TooltipContentProps } from "recharts";
+import type { BarShapeProps, PieLabelRenderProps, TooltipContentProps } from "recharts";
 import {
   getMonthKey,
   listMonthKeysBetween,
@@ -108,27 +107,34 @@ const sortByDefaultCategoryOrder = (
   });
 };
 
-const renderMonthlyTrendLabel = (props: LabelProps) => {
-  const { x, y, width, height, value } = props;
-  const resolved = Number(value ?? 0);
-  if (!Number.isFinite(resolved)) return null;
-
-  const labelX = Number(x ?? 0) + Number(width ?? 0) / 2;
-  const rectTop = Number(y ?? 0);
-  const rectBottom = rectTop + Number(height ?? 0);
-  const zeroLineY = resolved >= 0 ? rectTop : Math.min(rectTop, rectBottom);
-  const labelY = zeroLineY - 8;
+const MonthlyValueBarShape: React.FC<Partial<BarShapeProps> & { showLabel: boolean }> = ({
+  x,
+  y,
+  width,
+  height,
+  value,
+  fill,
+  showLabel,
+}) => {
+  if (![x, y, width, height].every((item) => Number.isFinite(Number(item)))) return null;
+  const resolved = Number(Array.isArray(value) ? value.at(-1) : value ?? 0);
+  const rectX = Number(x);
+  const rectY = Number(y);
+  const rectWidth = Number(width);
+  const rectHeight = Number(height);
+  const normalizedY = rectHeight >= 0 ? rectY : rectY + rectHeight;
+  const normalizedHeight = Math.abs(rectHeight);
+  const labelY = resolved >= 0 ? normalizedY - 8 : normalizedY + normalizedHeight + 14;
 
   return (
-    <text
-      x={labelX}
-      y={labelY}
-      textAnchor="middle"
-      fontSize={12}
-      fill="#4b5a52"
-    >
-      {formatYenNumber(resolved)}
-    </text>
+    <g>
+      <rect x={rectX} y={normalizedY} width={rectWidth} height={normalizedHeight} fill={fill} />
+      {showLabel && (
+        <text x={rectX + rectWidth / 2} y={labelY} textAnchor="middle" fontSize={12} fill="#4b5a52">
+          {formatYenNumber(resolved)}
+        </text>
+      )}
+    </g>
   );
 };
 
@@ -469,6 +475,7 @@ const CategoryMonthlyTrendChart: React.FC<{
                 animationDuration={560}
                 animationEasing="ease-out"
                 onAnimationEnd={() => setFinishedAnimationKey(animationKey)}
+                shape={<MonthlyValueBarShape showLabel={finishedAnimationKey === animationKey} />}
               >
                 {data.map((entry) => (
                   <Cell
@@ -476,7 +483,6 @@ const CategoryMonthlyTrendChart: React.FC<{
                     fill={colorOverride ?? getBarColorByMode(mode, entry.value)}
                   />
                 ))}
-                {finishedAnimationKey === animationKey && <LabelList dataKey="value" content={renderMonthlyTrendLabel} />}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -518,6 +524,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const [monthlyCategoryMode, setMonthlyCategoryMode] =
     React.useState<MonthlyCategoryMode>("expense");
   const [selectedCategory, setSelectedCategory] = React.useState<string>("");
+  const [finishedCategoryPieAnimationKey, setFinishedCategoryPieAnimationKey] = React.useState("");
 
   const [yearlyCategoryYear, setYearlyCategoryYear] = React.useState(currentYear);
   const [yearlyCategoryMode, setYearlyCategoryMode] =
@@ -1114,6 +1121,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       value: item.value,
       percent: categoryPieTotal > 0 ? item.value / categoryPieTotal : 0,
     }));
+  const categoryPieAnimationKey = `${categoryMonthKey}:${monthlyCategoryMode}:${categoryPieData
+    .map((item) => `${item.category}:${item.value}`)
+    .join("|")}`;
   const selectedCategoryColor = React.useMemo(() => {
     const colorIndex = categoryPieData.findIndex((item) => item.category === selectedCategory);
     if (colorIndex >= 0) return chartColors[colorIndex % chartColors.length];
@@ -1997,6 +2007,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   <ResponsiveContainer width="100%" height={210}>
                     <PieChart>
                       <Pie
+                        key={categoryPieAnimationKey}
                         data={categoryPieData}
                         dataKey="value"
                         nameKey="category"
@@ -2004,10 +2015,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                         startAngle={90}
                         endAngle={-270}
                         labelLine={false}
-                        label={renderCategoryPieLabel}
+                        label={finishedCategoryPieAnimationKey === categoryPieAnimationKey ? renderCategoryPieLabel : false}
                         animationBegin={0}
                         animationDuration={900}
                         animationEasing="ease-in"
+                        onAnimationEnd={() => setFinishedCategoryPieAnimationKey(categoryPieAnimationKey)}
                       >
                         {categoryPieData.map((_, idx) => (
                           <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
