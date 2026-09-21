@@ -86,6 +86,15 @@ const formatYen = (value: unknown) => {
 };
 const formatYenNumber = (value: number) => `${Math.round(value).toLocaleString()}円`;
 const formatAxisAmount = (value: unknown) => Math.round(Number(value ?? 0)).toLocaleString();
+const getMonthlyValueLabelFontSize = (label: string) => {
+  const widthUnits = Array.from(label).reduce((sum, character) => {
+    if (/\d/.test(character)) return sum + 0.59;
+    if (character === ",") return sum + 0.32;
+    if (character === "-" || character === "−") return sum + 0.4;
+    return sum + 1.06;
+  }, 0);
+  return Math.round(Math.max(7, Math.min(12, 44 / Math.max(widthUnits, 1))) * 10) / 10;
+};
 const transactionDisplayAmount = (transaction: Transaction) => {
   if (transaction.taxMode !== "exclusive") return transaction.amount;
   const rate = transaction.taxRate === 8 || transaction.taxRate === 10 ? transaction.taxRate : 0;
@@ -125,13 +134,15 @@ const MonthlyValueBarShape: React.FC<Partial<BarShapeProps> & { showLabel: boole
   const normalizedY = rectHeight >= 0 ? rectY : rectY + rectHeight;
   const normalizedHeight = Math.abs(rectHeight);
   const labelY = resolved >= 0 ? normalizedY - 8 : normalizedY + normalizedHeight + 14;
+  const label = formatYenNumber(resolved);
+  const labelFontSize = getMonthlyValueLabelFontSize(label);
 
   return (
     <g>
       <rect x={rectX} y={normalizedY} width={rectWidth} height={normalizedHeight} fill={fill} />
       {showLabel && (
-        <text x={rectX + rectWidth / 2} y={labelY} textAnchor="middle" fontSize={12} fill="#4b5a52">
-          {formatYenNumber(resolved)}
+        <text x={rectX + rectWidth / 2} y={labelY} textAnchor="middle" fontSize={labelFontSize} fill="#4b5a52">
+          {label}
         </text>
       )}
     </g>
@@ -487,7 +498,7 @@ const CategoryMonthlyTrendChart: React.FC<{
             <BarChart
               data={data}
               barCategoryGap={18}
-              margin={{ top: 24, right: 2, bottom: 0, left: 0 }}
+              margin={{ top: 24, right: 6, bottom: 0, left: 6 }}
               accessibilityLayer={false}
               tabIndex={-1}
             >
