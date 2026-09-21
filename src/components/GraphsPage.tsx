@@ -199,9 +199,10 @@ const getNiceMonthlyTrendScale = (values: number[]) => {
   const rawMax = max > 0 ? max : 0;
   const range = Math.max(rawMax - rawMin, 1);
   const step = getNiceStep(range / 5);
+  const labelPadding = range * 0.12;
 
-  const domainMin = Math.floor(rawMin / step) * step;
-  let domainMax = Math.ceil(rawMax / step) * step;
+  const domainMin = Math.floor((rawMin < 0 ? rawMin - labelPadding : rawMin) / step) * step;
+  let domainMax = Math.ceil((rawMax > 0 ? rawMax + labelPadding : rawMax) / step) * step;
 
   if (domainMin === domainMax) {
     domainMax = domainMin + step;
@@ -337,8 +338,8 @@ const CategoryMonthlyTrendChart: React.FC<{
   const autoAlignKeyRef = React.useRef("");
   const [viewportWidth, setViewportWidth] = React.useState(0);
   const [scrollLeft, setScrollLeft] = React.useState(0);
-  const animationKey = `${category}:${focusMonthKey}:${data.map((item) => `${item.month}:${item.value}`).join("|")}`;
-  const [finishedAnimationKey, setFinishedAnimationKey] = React.useState("");
+  const dataAnimationKey = `${category}:${focusMonthKey}:${data.map((item) => `${item.month}:${item.value}`).join("|")}`;
+  const [finishedDataAnimationKey, setFinishedDataAnimationKey] = React.useState("");
 
   React.useEffect(() => {
     const node = viewportRef.current;
@@ -393,6 +394,35 @@ const CategoryMonthlyTrendChart: React.FC<{
     const target = visibleData.length > 0 ? visibleData : data;
     return getNiceMonthlyTrendScale(target.map((item) => item.value));
   }, [data, visibleData]);
+  const [displayedDomain, setDisplayedDomain] = React.useState<[number, number]>(scale.domain);
+  const displayedDomainRef = React.useRef(displayedDomain);
+
+  React.useEffect(() => {
+    displayedDomainRef.current = displayedDomain;
+  }, [displayedDomain]);
+
+  React.useEffect(() => {
+    const from = displayedDomainRef.current;
+    const to = scale.domain;
+    if (from[0] === to[0] && from[1] === to[1]) return;
+
+    const startedAt = performance.now();
+    const duration = 420;
+    let frame = 0;
+    const animate = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = 1 - (1 - progress) ** 3;
+      const next: [number, number] = [
+        from[0] + (to[0] - from[0]) * eased,
+        from[1] + (to[1] - from[1]) * eased,
+      ];
+      displayedDomainRef.current = next;
+      setDisplayedDomain(next);
+      if (progress < 1) frame = window.requestAnimationFrame(animate);
+    };
+    frame = window.requestAnimationFrame(animate);
+    return () => window.cancelAnimationFrame(frame);
+  }, [scale.domain]);
 
   const axisWidth = React.useMemo(() => {
     const longest = Math.max(
@@ -440,7 +470,7 @@ const CategoryMonthlyTrendChart: React.FC<{
             <XAxis hide />
             <YAxis
               width={axisWidth}
-              domain={scale.domain}
+              domain={displayedDomain}
               ticks={scale.ticks}
               allowDataOverflow
               tick={{ fontSize: 8 }}
@@ -462,20 +492,31 @@ const CategoryMonthlyTrendChart: React.FC<{
               tabIndex={-1}
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="month" />
-              <YAxis hide domain={scale.domain} ticks={scale.ticks} allowDataOverflow />
+              <XAxis
+                dataKey="month"
+                interval={0}
+                tick={{ fontSize: 9 }}
+                tickMargin={6}
+                tickFormatter={(month) => {
+                  const [year, value] = String(month).split("-");
+                  return `${year.slice(-2)}/${value}`;
+                }}
+              />
+              <YAxis hide domain={displayedDomain} ticks={scale.ticks} allowDataOverflow />
               <ReferenceLine y={0} stroke="#7a8b80" strokeWidth={1.5} ifOverflow="extendDomain" />
               <Bar
-                key={animationKey}
+                key={dataAnimationKey}
                 dataKey="value"
                 name={category}
                 barSize={26}
-                isAnimationActive={finishedAnimationKey !== animationKey}
+                isAnimationActive={finishedDataAnimationKey !== dataAnimationKey}
                 animationBegin={0}
                 animationDuration={560}
                 animationEasing="ease-out"
-                onAnimationEnd={() => setFinishedAnimationKey(animationKey)}
-                shape={<MonthlyValueBarShape showLabel={finishedAnimationKey === animationKey} />}
+                onAnimationEnd={() => {
+                  setFinishedDataAnimationKey(dataAnimationKey);
+                }}
+                shape={<MonthlyValueBarShape showLabel={finishedDataAnimationKey === dataAnimationKey} />}
               >
                 {data.map((entry) => (
                   <Cell
