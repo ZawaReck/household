@@ -165,6 +165,10 @@ const renderCategoryPieLabel = (props: PieLabelRenderProps) => {
       x={x}
       y={y}
       fill="#245e2d"
+      stroke="#f9fffb"
+      strokeWidth={3}
+      strokeLinejoin="round"
+      paintOrder="stroke"
       textAnchor="middle"
       dominantBaseline="central"
       fontSize={15}
@@ -182,6 +186,17 @@ const renderCategoryPieTooltip = ({ active, payload }: TooltipContentProps<numbe
   if (!item || Number(item.percent ?? 0) > 0.1) return null;
 
   return <div className="pie-text-tooltip">{item.category}</div>;
+};
+
+const renderPortfolioPieTooltip = ({ active, payload }: TooltipContentProps<number, string>) => {
+  if (!active || !payload || payload.length === 0) return null;
+  const entry = payload[0]?.payload as { name?: string; signedValue?: number } | undefined;
+  if (!entry) return null;
+  return (
+    <div className="pie-text-tooltip">
+      {entry.name} {formatYen(entry.signedValue ?? 0)}
+    </div>
+  );
 };
 
 const getNiceStep = (value: number) => {
@@ -1016,9 +1031,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const portfolioAssetTotal = Object.values(portfolioDisplayValues).reduce((sum, value) => sum + value, 0);
   const selectedPendingCardTotal = includePendingCardPayments ? pendingCardTotal(portfolioBalanceDate) : 0;
 
-  const portfolioPieData = accountNames.map((acc) => {
-    return { name: acc, value: portfolioDisplayValues[acc] ?? 0 };
-  });
+  const portfolioPieData = accountNames
+    .map((account) => {
+      const signedValue = portfolioDisplayValues[account] ?? 0;
+      return { name: account, value: Math.abs(signedValue), signedValue };
+    })
+    .filter((item) => item.value > 0);
+  const portfolioPieHasNegativeBalance = portfolioPieData.some((item) => item.signedValue < 0);
 
   const portfolioChartRegularAccountNames = React.useMemo(() => {
     const masterNames = new Set(accountMaster.map((account) => account.name));
@@ -1895,6 +1914,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
           </div>
           <div className="card chart-card">
             <div className="chart-header-actions"><h3>{portfolioChartMode === "pie" ? "口座別構成" : "口座別残高推移"}</h3><div className="toggle-group"><button type="button" className={portfolioChartMode === "pie" ? "active" : ""} onClick={() => setPortfolioChartMode("pie")}>円</button><button type="button" className={portfolioChartMode === "stacked" ? "active" : ""} onClick={() => setPortfolioChartMode("stacked")}>積上</button></div></div>
+            {portfolioChartMode === "pie" && portfolioPieHasNegativeBalance && <p className="muted portfolio-pie-note">マイナス残高を含むため、円グラフは各残高の絶対額で構成比を表示しています。</p>}
             {portfolioChartMode === "pie" ? (portfolioPieData.length === 0 ? (
               <p className="muted">データがありません。</p>
             ) : (
@@ -1912,7 +1932,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => formatYen(value)} />
+                  <Tooltip content={renderPortfolioPieTooltip} isAnimationActive={false} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
