@@ -595,6 +595,26 @@
   overflow-x: auto;
 }
 
+.graph-mode-invest .table-wrap,
+.graph-mode-portfolio .table-wrap {
+  isolation: isolate;
+}
+
+.graph-mode-invest .table-wrap :is(th, td):first-child,
+.graph-mode-portfolio .table-wrap :is(th, td):first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #f9fffb;
+  box-shadow: 1px 0 #e1e7e3;
+}
+
+.graph-mode-invest .snapshot-form input {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

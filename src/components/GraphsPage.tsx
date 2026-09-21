@@ -1,6 +1,7 @@
 /* src/components/GraphsPage.tsx */
 
 import React from "react";
+import { visibleChartRange, investmentPeriodStartDate } from "../utils/chartDisplay";
 import type { Transaction } from "../types/Transaction";
 import type { Account } from "../types/Account";
 import type { Category } from "../types/Category";
@@ -392,13 +393,8 @@ const CategoryMonthlyTrendChart: React.FC<{
   const visibleRange = React.useMemo(() => {
     if (data.length === 0) return { start: 0, end: 0 };
 
-    const start = Math.max(0, Math.floor(scrollLeft / MONTHLY_TREND_SLOT_WIDTH));
-    const visibleCount = Math.max(1, Math.ceil(viewportWidth / MONTHLY_TREND_SLOT_WIDTH));
-    return {
-      start,
-      end: Math.min(data.length, start + visibleCount),
-    };
-  }, [data.length, scrollLeft, viewportWidth]);
+    return visibleChartRange(data.length, scrollLeft, viewportWidth, chartWidth);
+  }, [data.length, scrollLeft, viewportWidth, chartWidth]);
 
   const visibleData = React.useMemo(
     () => data.slice(visibleRange.start, visibleRange.end),
@@ -433,7 +429,7 @@ const CategoryMonthlyTrendChart: React.FC<{
     if (from[0] === to[0] && from[1] === to[1]) return;
 
     const startedAt = performance.now();
-    const duration = 420;
+    const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : 420;
     let frame = 0;
     const animate = (now: number) => {
       const progress = Math.min(1, (now - startedAt) / duration);
@@ -604,6 +600,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const [budgetMonthKey, setBudgetMonthKey] = React.useState(currentMonthKey);
   const [budgets, setBudgets] = React.useState<BudgetEntry[]>(() => loadBudgets());
   const [budgetDraft, setBudgetDraft] = React.useState<Record<string, number>>({});
+  const [savedBudgetDraft, setSavedBudgetDraft] = React.useState("");
   const [budgetApplyEndMonth, setBudgetApplyEndMonth] = React.useState(currentMonthKey);
 
   const [sontokuEntries, setSontokuEntries] = React.useState<SontokuEntry[]>(() =>
@@ -718,8 +715,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     [investmentAsOf, investmentSnapshots]
   );
   const latestSnapshot = visibleInvestmentSnapshots[visibleInvestmentSnapshots.length - 1];
-  const snapshotDateForTable = latestSnapshot?.date ?? investmentAsOf;
+  const snapshotDateForTable = investmentAsOf;
   const investmentValueAt = React.useCallback((account: Account, date: string) => {
+    if (date < account.openingDate) return 0;
     const snapshot = [...investmentSnapshots]
       .filter((item) => item.date <= date && item.values[account.id] != null)
       .sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -770,19 +768,16 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     const profitRate = totals.deposits > 0 ? (profit / totals.deposits) * 100 : null;
     return { date: snapshot.date, profit, profitRate };
   });
-  const investmentPeriodStart = React.useMemo(() => {
-    if (investmentPeriodMonths === "all" || !latestSnapshot) return "";
-    const date = new Date(`${latestSnapshot.date}T00:00:00`);
-    date.setMonth(date.getMonth() - Number(investmentPeriodMonths));
-    return localDateISO(date);
-  }, [investmentPeriodMonths, latestSnapshot]);
+  const investmentPeriodStart = investmentPeriodStartDate(investmentAsOf, investmentPeriodMonths);
   const filteredInvestmentChartData = investmentChartData.filter((point) => !investmentPeriodStart || String(point.date) >= investmentPeriodStart);
   const filteredInvestmentProfitData = investmentProfitData.filter((point) => !investmentPeriodStart || point.date >= investmentPeriodStart);
   const investmentPieData = investmentAssets.map((asset) => {
     const account = investmentAccounts.find((item) => item.id === asset.id)!;
-    return { name: asset.name, value: latestSnapshot ? investmentValueAt(account, latestSnapshot.date) : account.openingBalance };
+    return { name: asset.name, value: investmentValueAt(account, investmentAsOf) };
   });
   const latestInvestmentTotal = investmentPieData.reduce((sum, asset) => sum + asset.value, 0);
+  const investmentHasPositiveValue = investmentPieData.some((asset) => asset.value > 0);
+  const investmentHasNegativeValue = investmentPieData.some((asset) => asset.value < 0);
 
   const regularAccountNames = React.useMemo(() => {
     const accs = new Set<string>();
@@ -856,12 +851,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     accountNames.forEach((acc) => {
       fallback[acc] = investmentValuesForPortfolio[acc] ?? monthActuals[acc] ?? estimatedBalances[acc] ?? 0;
     });
-    const keys = Object.keys(fallback);
-    const same =
-      keys.length === Object.keys(portfolioActualInputs).length &&
-      keys.every((k) => portfolioActualInputs[k] === fallback[k]);
-    if (!same) setPortfolioActualInputs(fallback);
-  }, [portfolioMonthKey, accountActualState, accountNames, estimatedBalances, investmentValuesForPortfolio, portfolioActualInputs]);
+    setPortfolioActualInputs(fallback);
+  }, [portfolioMonthKey, accountActualState, accountNames, estimatedBalances, investmentValuesForPortfolio]);
 
   React.useEffect(() => {
     const saved = accountActualState.byMonth[portfolioMonthKey] ?? {};
@@ -1466,6 +1457,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       : [...budgets, entry];
     setBudgets(next);
     saveBudgets(next);
+    setSavedBudgetDraft(`${budgetMonthKey}:${JSON.stringify(budgetDraft)}`);
   };
 
   const handleApplyBudgetRange = () => {
@@ -1621,6 +1613,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
         : "category";
     }
   );
+  const contentRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [activeTab]);
   const activeTabIndex = tabs.findIndex((tab) => tab.id === activeTab);
   const graphTabDrag = useSegmentedDrag<HTMLElement>({
     count: tabs.length,
@@ -1702,13 +1698,14 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
           ))}
         </nav>
       </div>
-      <div className="graphs-page-content">
+      <div ref={contentRef} className="graphs-page-content">
 
       {activeTab === "invest" && (
       <TabPanel title="4) 投資損益" className="graph-mode-invest">
         <div className="section-grid">
           <div className="card">
             <h3>資産一覧</h3>
+            <p className="muted">{investmentAsOf}時点の入出金・評価額（評価更新：{latestSnapshot?.date ?? "開始残高"}）</p>
             {investmentAccounts.length === 0 ? (
               <p className="muted">設定で投資口座を登録してください。</p>
             ) : (
@@ -1758,6 +1755,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             <p className="muted">投資口座の追加・開始残高・開始時点損益は設定から変更します。入出金はMoveから自動集計します。</p>
             <h3>現在額更新</h3>
             <SnapshotForm
+              key={investmentAsOf}
               assets={investmentAssets}
               defaultDate={investmentAsOf}
               snapshots={investmentSnapshots}
@@ -1771,7 +1769,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
           {investmentChartMode !== "pie" && <div className="toggle-group investment-period-control">{([['3','3か月'],['6','6か月'],['12','1年'],['all','全期間']] as const).map(([value, label]) => <button key={value} type="button" className={investmentPeriodMonths === value ? "active" : ""} onClick={() => setInvestmentPeriodMonths(value)}>{label}</button>)}</div>}
           {investmentChartMode === "area" ? (
             filteredInvestmentChartData.length === 0 ? (
-              <p className="muted">スナップショットがありません。</p>
+              <p className="muted">選択期間に評価額の記録がありません。期間を広げるか、現在額更新から登録してください。</p>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
                 <AreaChart data={filteredInvestmentChartData}>
@@ -1796,7 +1794,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             )
           ) : investmentChartMode === "profit" ? (
             filteredInvestmentProfitData.length === 0 ? (
-              <p className="muted">スナップショットがありません。</p>
+              <p className="muted">選択期間に評価額の記録がありません。期間を広げるか、現在額更新から登録してください。</p>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={filteredInvestmentProfitData}>
@@ -1822,7 +1820,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 </LineChart>
               </ResponsiveContainer>
             )
-          ) : !latestSnapshot ? <p className="muted">スナップショットがありません。</p> : (
+          ) : investmentHasNegativeValue ? <p className="muted">マイナス評価額を含むため、構成比を表示できません。資産一覧で評価額を確認してください。</p> : !investmentHasPositiveValue ? <p className="muted">この時点の評価額はすべて0円です。現在額更新から評価額を登録できます。</p> : (
             <ResponsiveContainer width="100%" height={280}><PieChart><Pie data={investmentPieData} dataKey="value" nameKey="name" outerRadius={95}>{investmentPieData.map((_, index) => <Cell key={index} fill={chartColors[index % chartColors.length]} />)}</Pie><Tooltip formatter={(value) => formatYen(value)} /><Legend /></PieChart></ResponsiveContainer>
           )}
         </div>
@@ -2482,6 +2480,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               <button type="button" onClick={handleSaveBudget}>
                 この月だけ保存
               </button>
+              {savedBudgetDraft === `${budgetMonthKey}:${JSON.stringify(budgetDraft)}` && <span role="status">保存しました</span>}
             </div>
             <div className="budget-total-card">
               <div><strong>総額</strong><span>{formatYen(totalBudgetActual)} / {totalBudget > 0 ? formatYen(totalBudget) : "未設定"}</span></div>
@@ -2524,6 +2523,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                               min="1"
                               step="1"
                               placeholder="未設定"
+                              aria-label={`${category}の予算`}
                               value={budget ?? ""}
                               onChange={(e) => setBudgetDraft((prev) => {
                                 const next = { ...prev };
@@ -2713,6 +2713,7 @@ const SnapshotForm: React.FC<{
 }> = ({ assets, defaultDate, snapshots, onSave }) => {
   const [date, setDate] = React.useState(defaultDate);
   const [values, setValues] = React.useState<Record<string, number>>({});
+  const [savedValues, setSavedValues] = React.useState("");
 
   React.useEffect(() => {
     setValues(Object.fromEntries(assets.map((asset) => [
@@ -2733,6 +2734,7 @@ const SnapshotForm: React.FC<{
           return;
         }
         onSave(date, values);
+        setSavedValues(`${date}:${JSON.stringify(values)}`);
       }}
     >
       <label>
@@ -2753,7 +2755,8 @@ const SnapshotForm: React.FC<{
           />
         </label>
       ))}
-      <button type="submit">更新</button>
+      <button type="submit" disabled={assets.length === 0}>更新</button>
+      {savedValues === `${date}:${JSON.stringify(values)}` && <span role="status">評価額を保存しました</span>}
     </form>
   );
 };
