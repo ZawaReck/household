@@ -86,12 +86,7 @@ const formatYen = (value: unknown) => {
   return `${Math.round(Number(resolved ?? 0)).toLocaleString()}円`;
 };
 const formatYenNumber = (value: number) => `${Math.round(value).toLocaleString()}円`;
-const formatCompactYen = (value: unknown) => {
-  const amount = Math.round(Number(value ?? 0));
-  if (Math.abs(amount) < 10_000) return amount.toLocaleString();
-  const man = amount / 10_000;
-  return `${Number.isInteger(man) ? man : man.toFixed(1)}万`;
-};
+const formatAxisAmount = (value: unknown) => Math.round(Number(value ?? 0)).toLocaleString();
 const transactionDisplayAmount = (transaction: Transaction) => {
   if (transaction.taxMode !== "exclusive") return transaction.amount;
   const rate = transaction.taxRate === 8 || transaction.taxRate === 10 ? transaction.taxRate : 0;
@@ -329,12 +324,15 @@ const CategoryMonthlyTrendChart: React.FC<{
   mode: MonthlyCategoryMode;
   colorOverride?: string;
   focusMonthKey: string;
+  height?: number;
   onVisibleMonthChange?: (monthKey: string) => void;
-}> = ({ data, category, mode, colorOverride, focusMonthKey, onVisibleMonthChange }) => {
+}> = ({ data, category, mode, colorOverride, focusMonthKey, height = 320, onVisibleMonthChange }) => {
   const viewportRef = React.useRef<HTMLDivElement | null>(null);
   const autoAlignKeyRef = React.useRef("");
   const [viewportWidth, setViewportWidth] = React.useState(0);
   const [scrollLeft, setScrollLeft] = React.useState(0);
+  const animationKey = `${category}:${focusMonthKey}:${data.map((item) => `${item.month}:${item.value}`).join("|")}`;
+  const [finishedAnimationKey, setFinishedAnimationKey] = React.useState("");
 
   React.useEffect(() => {
     const node = viewportRef.current;
@@ -392,10 +390,10 @@ const CategoryMonthlyTrendChart: React.FC<{
 
   const axisWidth = React.useMemo(() => {
     const longest = Math.max(
-      formatCompactYen(scale.domain[0]).length,
-      formatCompactYen(scale.domain[1]).length
+      formatAxisAmount(scale.domain[0]).length,
+      formatAxisAmount(scale.domain[1]).length
     );
-    return Math.max(52, longest * 7 + 12);
+    return Math.max(52, longest * 5.5 + 10);
   }, [scale.domain]);
 
   React.useEffect(() => {
@@ -426,7 +424,7 @@ const CategoryMonthlyTrendChart: React.FC<{
       style={{ gridTemplateColumns: `${axisWidth}px minmax(0, 1fr)` }}
     >
       <div className="monthly-trend-y-axis">
-        <ResponsiveContainer width="100%" height={320}>
+        <ResponsiveContainer width="100%" height={height}>
           <BarChart
             data={data}
             margin={{ top: 24, right: 0, bottom: 0, left: 0 }}
@@ -439,8 +437,8 @@ const CategoryMonthlyTrendChart: React.FC<{
               domain={scale.domain}
               ticks={scale.ticks}
               allowDataOverflow
-              tick={{ fontSize: 10 }}
-              tickFormatter={formatCompactYen}
+              tick={{ fontSize: 8 }}
+              tickFormatter={formatAxisAmount}
             />
             <Bar dataKey="value" fill="transparent" isAnimationActive={false} />
           </BarChart>
@@ -449,7 +447,7 @@ const CategoryMonthlyTrendChart: React.FC<{
 
       <div ref={viewportRef} className="chart-scroll-viewport">
         <div className="chart-scroll-canvas" style={{ width: `${chartWidth}px` }}>
-          <ResponsiveContainer width="100%" height={320}>
+          <ResponsiveContainer width="100%" height={height}>
             <BarChart
               data={data}
               barCategoryGap={24}
@@ -461,14 +459,24 @@ const CategoryMonthlyTrendChart: React.FC<{
               <XAxis dataKey="month" />
               <YAxis hide domain={scale.domain} ticks={scale.ticks} allowDataOverflow />
               <ReferenceLine y={0} stroke="#7a8b80" strokeWidth={1.5} ifOverflow="extendDomain" />
-              <Bar dataKey="value" name={category} barSize={48} isAnimationActive={false}>
+              <Bar
+                key={animationKey}
+                dataKey="value"
+                name={category}
+                barSize={48}
+                isAnimationActive
+                animationBegin={0}
+                animationDuration={560}
+                animationEasing="ease-out"
+                onAnimationEnd={() => setFinishedAnimationKey(animationKey)}
+              >
                 {data.map((entry) => (
                   <Cell
                     key={`${category}-${entry.month}`}
                     fill={colorOverride ?? getBarColorByMode(mode, entry.value)}
                   />
                 ))}
-                <LabelList dataKey="value" content={renderMonthlyTrendLabel} />
+                {finishedAnimationKey === animationKey && <LabelList dataKey="value" content={renderMonthlyTrendLabel} />}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -1973,6 +1981,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     mode={monthlyCategoryMode}
                     colorOverride={selectedCategoryColor}
                     focusMonthKey={categoryMonthKey}
+                    height={210}
                   />
                 )}
               </>
@@ -1985,20 +1994,20 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   </div>
                 </div>
                 <div className="pie-chart-wrap">
-                  <ResponsiveContainer width="100%" height={320}>
+                  <ResponsiveContainer width="100%" height={210}>
                     <PieChart>
                       <Pie
                         data={categoryPieData}
                         dataKey="value"
                         nameKey="category"
-                        outerRadius={110}
+                        outerRadius={78}
                         startAngle={90}
                         endAngle={-270}
                         labelLine={false}
                         label={renderCategoryPieLabel}
                         animationBegin={0}
-                        animationDuration={220}
-                        animationEasing="ease-out"
+                        animationDuration={900}
+                        animationEasing="ease-in"
                       >
                         {categoryPieData.map((_, idx) => (
                           <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
@@ -2034,6 +2043,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   category="収支"
                   mode="net"
                   focusMonthKey={categoryMonthKey}
+                  height={210}
                 />
               </>
             ) : (
@@ -2046,7 +2056,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     </p>
                   </div>
                 </div>
-                <ResponsiveContainer width="100%" height={320}>
+                <ResponsiveContainer width="100%" height={210}>
                   <BarChart
                     data={monthlyCategorySummary.items.map((item) => ({
                       category: item.name,

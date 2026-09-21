@@ -830,6 +830,7 @@ select {
     position: sticky;
     z-index: 5;
     top: 42px;
+    min-height: 0;
     border-color: #d7e3db;
     background: #f9fffb;
   }
@@ -837,6 +838,16 @@ select {
   .graph-mode-category .monthly-category-chart-header {
     flex-direction: row;
     align-items: flex-start;
+    margin-bottom: 4px;
+  }
+
+  .graph-mode-category .monthly-category-chart-header h3 {
+    font-size: 15px;
+  }
+
+  .graph-mode-category .monthly-category-chart-header .muted {
+    margin: 2px 0 0;
+    font-size: 10px;
   }
 
   .graph-mode-category .monthly-category-chart-header > button {
