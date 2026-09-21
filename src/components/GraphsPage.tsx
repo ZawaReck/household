@@ -1111,16 +1111,15 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       })
     : [];
 
-  const categoryPieTotal = monthlyCategorySummary.items
-    .filter((item) => item.value > 0)
-    .reduce((sum, item) => sum + item.value, 0);
-  const categoryPieData = monthlyCategorySummary.items
-    .filter((item) => item.value > 0)
-    .map((item) => ({
+  const categoryPieData = React.useMemo(() => {
+    const positiveItems = monthlyCategorySummary.items.filter((item) => item.value > 0);
+    const total = positiveItems.reduce((sum, item) => sum + item.value, 0);
+    return positiveItems.map((item) => ({
       category: item.name,
       value: item.value,
-      percent: categoryPieTotal > 0 ? item.value / categoryPieTotal : 0,
+      percent: total > 0 ? item.value / total : 0,
     }));
+  }, [monthlyCategorySummary.items]);
   const categoryPieAnimationKey = `${categoryMonthKey}:${monthlyCategoryMode}:${categoryPieData
     .map((item) => `${item.category}:${item.value}`)
     .join("|")}`;
@@ -2019,6 +2018,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                         animationBegin={0}
                         animationDuration={900}
                         animationEasing="ease-in"
+                        isAnimationActive={finishedCategoryPieAnimationKey !== categoryPieAnimationKey}
                         onAnimationEnd={() => setFinishedCategoryPieAnimationKey(categoryPieAnimationKey)}
                       >
                         {categoryPieData.map((_, idx) => (
