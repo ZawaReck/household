@@ -153,7 +153,7 @@ const renderCategoryPieLabel = (props: PieLabelRenderProps) => {
     <text
       x={x}
       y={y}
-      fill="#24332c"
+      fill="#245e2d"
       textAnchor="middle"
       dominantBaseline="central"
       fontSize={15}
@@ -220,7 +220,7 @@ const getNiceMonthlyTrendScale = (values: number[]) => {
 
 type MonthlyCategoryMode = "income" | "expense" | "net";
 type OverviewChartMode = "pie" | MonthlyCategoryMode;
-const MONTHLY_TREND_SLOT_WIDTH = 96;
+const MONTHLY_TREND_SLOT_WIDTH = 52;
 const POSITIVE_BAR_COLOR = "#00C950";
 const NEGATIVE_BAR_COLOR = "#FF0004";
 const NET_SUMMARY_CATEGORY_NAMES = ["収入", "支出"] as const;
@@ -399,7 +399,7 @@ const CategoryMonthlyTrendChart: React.FC<{
       formatAxisAmount(scale.domain[0]).length,
       formatAxisAmount(scale.domain[1]).length
     );
-    return Math.max(52, longest * 5.5 + 10);
+    return Math.max(44, longest * 5 + 6);
   }, [scale.domain]);
 
   React.useEffect(() => {
@@ -456,8 +456,8 @@ const CategoryMonthlyTrendChart: React.FC<{
           <ResponsiveContainer width="100%" height={height}>
             <BarChart
               data={data}
-              barCategoryGap={24}
-              margin={{ top: 24, right: 8, bottom: 0, left: 0 }}
+              barCategoryGap={18}
+              margin={{ top: 24, right: 2, bottom: 0, left: 0 }}
               accessibilityLayer={false}
               tabIndex={-1}
             >
@@ -469,8 +469,8 @@ const CategoryMonthlyTrendChart: React.FC<{
                 key={animationKey}
                 dataKey="value"
                 name={category}
-                barSize={48}
-                isAnimationActive
+                barSize={26}
+                isAnimationActive={finishedAnimationKey !== animationKey}
                 animationBegin={0}
                 animationDuration={560}
                 animationEasing="ease-out"
@@ -2016,8 +2016,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                         labelLine={false}
                         label={finishedCategoryPieAnimationKey === categoryPieAnimationKey ? renderCategoryPieLabel : false}
                         animationBegin={0}
-                        animationDuration={900}
-                        animationEasing="ease-in"
+                        animationDuration={1050}
+                        animationEasing="ease-out"
                         isAnimationActive={finishedCategoryPieAnimationKey !== categoryPieAnimationKey}
                         onAnimationEnd={() => setFinishedCategoryPieAnimationKey(categoryPieAnimationKey)}
                       >

@@ -125,6 +125,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [usesCustomKeypad, setUsesCustomKeypad] = React.useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
   const amountInputRef = React.useRef<HTMLInputElement>(null);
   const moveFeeInputRef = React.useRef<HTMLInputElement>(null);
+  const numericKeypadRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const query = window.matchMedia("(max-width: 767px)");
@@ -179,7 +180,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     setter(fallback);
   };
 
-  const deactivateCalculator = (target: CalculatorTarget) => {
+  const deactivateCalculator = React.useCallback((target: CalculatorTarget) => {
     if (calculatorTarget !== target) return;
     const rawValue = target === "amount" ? amount : moveFee;
     const currentValue = rawValue.trim() === "" ? null : Number(rawValue);
@@ -192,7 +193,22 @@ export const InputForm: React.FC<InputFormProps> = ({
     }
     resetCalculator();
     setCalculatorTarget(null);
-  };
+  }, [amount, calculatorLeft, calculatorOperator, calculatorTarget, moveFee, resetCalculator]);
+
+  React.useEffect(() => {
+    if (!usesCustomKeypad || !calculatorTarget) return;
+
+    const closeWhenPressedOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (numericKeypadRef.current?.contains(target)) return;
+      if (target instanceof HTMLElement && target.closest("[data-calculator-target]")) return;
+      deactivateCalculator(calculatorTarget);
+    };
+
+    document.addEventListener("pointerdown", closeWhenPressedOutside, true);
+    return () => document.removeEventListener("pointerdown", closeWhenPressedOutside, true);
+  }, [calculatorTarget, deactivateCalculator, usesCustomKeypad]);
 
   const runCalculatorKey = React.useCallback((key: CalculatorOperator | "=") => {
     const rawValue = calculatorTarget === "amount" ? amount : calculatorTarget === "moveFee" ? moveFee : "";
@@ -1217,21 +1233,23 @@ export const InputForm: React.FC<InputFormProps> = ({
           />
           <input
             ref={amountInputRef}
+            data-calculator-target="amount"
             type="text"
             inputMode="none"
             autoComplete="off"
             readOnly={usesCustomKeypad}
             value={displayedNumericValue("amount", amount)}
             onChange={(e) => updateNumericValue("amount", e.target.value)}
+            onPointerDown={() => activateCalculator("amount")}
             onFocus={() => activateCalculator("amount")}
-            onBlur={() => deactivateCalculator("amount")}
+            onBlur={() => { if (!usesCustomKeypad) deactivateCalculator("amount"); }}
             placeholder="金額"
             required
           />
         </div>
         {type === "move" && (
           <div className="move-fee-row">
-            <input ref={moveFeeInputRef} type="text" inputMode="none" autoComplete="off" readOnly={usesCustomKeypad} value={displayedNumericValue("moveFee", moveFee)} onChange={(event) => updateNumericValue("moveFee", event.target.value)} onFocus={() => activateCalculator("moveFee")} onBlur={() => deactivateCalculator("moveFee")} placeholder="手数料等" aria-label="手数料等" />
+            <input ref={moveFeeInputRef} data-calculator-target="moveFee" type="text" inputMode="none" autoComplete="off" readOnly={usesCustomKeypad} value={displayedNumericValue("moveFee", moveFee)} onChange={(event) => updateNumericValue("moveFee", event.target.value)} onPointerDown={() => activateCalculator("moveFee")} onFocus={() => activateCalculator("moveFee")} onBlur={() => { if (!usesCustomKeypad) deactivateCalculator("moveFee"); }} placeholder="手数料等" aria-label="手数料等" />
           </div>
         )}
         <DateWheelPicker value={date} onChange={setDate} />
@@ -1595,6 +1613,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       </form>
       {calculatorTarget && usesCustomKeypad && (
         <div
+          ref={numericKeypadRef}
           className="numeric-keypad"
           role="group"
           aria-label="金額入力テンキー"
@@ -1603,6 +1622,7 @@ export const InputForm: React.FC<InputFormProps> = ({
             <button
               key={key}
               type="button"
+              tabIndex={-1}
               className={`numeric-keypad-key key-${key} ${calculatorOperator === key ? "is-pending" : ""}`}
               aria-label={key === "+" ? "足す" : key === "-" ? "引く" : key === "×" ? "掛ける" : key === "=" ? "計算する" : key === "delete" ? "一文字削除" : key}
               onPointerDown={(event) => {

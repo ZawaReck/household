@@ -525,13 +525,13 @@
 .monthly-trend-chart-shell {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr);
-  gap: 8px;
+  gap: 4px;
   align-items: stretch;
 }
 
 .monthly-trend-y-axis {
   flex: none;
-  padding-left: 8px;
+  padding-left: 0;
 }
 
 .chart-scroll-viewport {
