@@ -939,7 +939,7 @@ select {
   .graphs-page-content {
     flex: 1 1 auto;
     min-height: 0;
-    padding: 8px 0 calc(96px + env(safe-area-inset-bottom));
+    padding: 0 0 calc(96px + env(safe-area-inset-bottom));
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -966,6 +966,11 @@ select {
     position: sticky;
     z-index: 6;
     top: 0;
+    width: calc(100% + 16px);
+    margin-inline: -8px;
+    box-sizing: border-box;
+    padding-inline: 8px;
+    padding-top: 8px;
     padding-bottom: 8px;
     margin-bottom: 0;
     background: #f9fffb;
@@ -975,17 +980,32 @@ select {
   .graph-mode-monthly .monthly-category-chart {
     position: sticky;
     z-index: 5;
-    top: 42px;
+    top: 50px;
+    width: calc(100% + 16px);
+    margin-inline: -8px;
+    box-sizing: border-box;
+    padding: 6px 8px;
     min-height: 0;
-    border-color: #d7e3db;
+    border: 0;
+    border-bottom: 1px solid #d7e3db;
+    border-radius: 0;
     background: #f9fffb;
+    box-shadow: none;
   }
 
   .graph-mode-portfolio .chart-card {
     position: sticky;
     z-index: 5;
     top: 0;
+    width: calc(100% + 16px);
+    margin-inline: -8px;
+    box-sizing: border-box;
+    padding: 6px 8px;
+    border: 0;
+    border-bottom: 1px solid #d7e3db;
+    border-radius: 0;
     background: #f9fffb;
+    box-shadow: none;
   }
 
   .investment-chart-heading {
