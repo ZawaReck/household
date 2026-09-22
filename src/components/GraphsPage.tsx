@@ -124,6 +124,8 @@ const MonthlyValueBarShape: React.FC<Partial<BarShapeProps> & { showLabel: boole
   height,
   value,
   fill,
+  stroke,
+  strokeWidth,
   showLabel,
 }) => {
   if (![x, y, width, height].every((item) => Number.isFinite(Number(item)))) return null;
@@ -140,7 +142,15 @@ const MonthlyValueBarShape: React.FC<Partial<BarShapeProps> & { showLabel: boole
 
   return (
     <g>
-      <rect x={rectX} y={normalizedY} width={rectWidth} height={normalizedHeight} fill={fill} />
+      <rect
+        x={rectX}
+        y={normalizedY}
+        width={rectWidth}
+        height={normalizedHeight}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+      />
       {showLabel && (
         <text x={rectX + rectWidth / 2} y={labelY} textAnchor="middle" fontSize={labelFontSize} fill="#4b5a52">
           {label}
@@ -187,17 +197,6 @@ const renderCategoryPieTooltip = ({ active, payload }: TooltipContentProps<numbe
   if (!item || Number(item.percent ?? 0) > 0.1) return null;
 
   return <div className="pie-text-tooltip">{item.category}</div>;
-};
-
-const renderPortfolioPieTooltip = ({ active, payload }: TooltipContentProps<number, string>) => {
-  if (!active || !payload || payload.length === 0) return null;
-  const entry = payload[0]?.payload as { name?: string; signedValue?: number } | undefined;
-  if (!entry) return null;
-  return (
-    <div className="pie-text-tooltip">
-      {entry.name} {formatYen(entry.signedValue ?? 0)}
-    </div>
-  );
 };
 
 const getNiceStep = (value: number) => {
@@ -360,12 +359,13 @@ const CategoryMonthlyTrendChart: React.FC<{
   focusMonthKey: string;
   height?: number;
   onVisibleMonthChange?: (monthKey: string) => void;
-}> = ({ data, category, mode, colorOverride, focusMonthKey, height = 320, onVisibleMonthChange }) => {
+  onMonthSelect?: (monthKey: string) => void;
+}> = ({ data, category, mode, colorOverride, focusMonthKey, height = 320, onVisibleMonthChange, onMonthSelect }) => {
   const viewportRef = React.useRef<HTMLDivElement | null>(null);
   const autoAlignKeyRef = React.useRef("");
   const [viewportWidth, setViewportWidth] = React.useState(0);
   const [scrollLeft, setScrollLeft] = React.useState(0);
-  const dataAnimationKey = `${category}:${focusMonthKey}:${data.map((item) => `${item.month}:${item.value}`).join("|")}`;
+  const dataAnimationKey = `${category}:${data.map((item) => `${item.month}:${item.value}`).join("|")}`;
   const [finishedDataAnimationKey, setFinishedDataAnimationKey] = React.useState("");
 
   React.useEffect(() => {
@@ -538,12 +538,19 @@ const CategoryMonthlyTrendChart: React.FC<{
                 onAnimationEnd={() => {
                   setFinishedDataAnimationKey(dataAnimationKey);
                 }}
+                onClick={(entry) => {
+                  const month = String(entry?.payload?.month ?? "");
+                  if (month && onMonthSelect) onMonthSelect(month);
+                }}
                 shape={<MonthlyValueBarShape showLabel={finishedDataAnimationKey === dataAnimationKey} />}
               >
                 {data.map((entry) => (
                   <Cell
                     key={`${category}-${entry.month}`}
                     fill={colorOverride ?? getBarColorByMode(mode, entry.value)}
+                    cursor={onMonthSelect ? "pointer" : undefined}
+                    stroke={onMonthSelect && entry.month === focusMonthKey ? "#173c25" : "none"}
+                    strokeWidth={onMonthSelect && entry.month === focusMonthKey ? 2 : 0}
                   />
                 ))}
               </Bar>
@@ -582,6 +589,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const [cardAvailableInputs, setCardAvailableInputs] = React.useState<Record<string, number>>({});
   const [includePendingCardPayments, setIncludePendingCardPayments] = React.useState(false);
   const [portfolioChartMode, setPortfolioChartMode] = React.useState<"pie" | "stacked">("pie");
+  const [finishedPortfolioPieAnimationKey, setFinishedPortfolioPieAnimationKey] = React.useState("");
 
   const [categoryMonthKey, setCategoryMonthKey] = React.useState(currentMonthKey);
   const [monthlyCategoryMode, setMonthlyCategoryMode] =
@@ -1022,13 +1030,21 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const portfolioAssetTotal = Object.values(portfolioDisplayValues).reduce((sum, value) => sum + value, 0);
   const selectedPendingCardTotal = includePendingCardPayments ? pendingCardTotal(portfolioBalanceDate) : 0;
 
-  const portfolioPieData = accountNames
+  const portfolioPieRawData = accountNames
     .map((account) => {
       const signedValue = portfolioDisplayValues[account] ?? 0;
-      return { name: account, value: Math.abs(signedValue), signedValue };
+      return { category: account, value: Math.abs(signedValue), signedValue };
     })
     .filter((item) => item.value > 0);
+  const portfolioPieAbsoluteTotal = portfolioPieRawData.reduce((sum, item) => sum + item.value, 0);
+  const portfolioPieData = portfolioPieRawData.map((item) => ({
+    ...item,
+    percent: portfolioPieAbsoluteTotal > 0 ? item.value / portfolioPieAbsoluteTotal : 0,
+  }));
   const portfolioPieHasNegativeBalance = portfolioPieData.some((item) => item.signedValue < 0);
+  const portfolioPieAnimationKey = `${portfolioMonthKey}:${portfolioPieData
+    .map((item) => `${item.category}:${item.value}`)
+    .join("|")}`;
 
   const portfolioChartRegularAccountNames = React.useMemo(() => {
     const masterNames = new Set(accountMaster.map((account) => account.name));
@@ -1916,24 +1932,38 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             {portfolioChartMode === "pie" ? (portfolioPieData.length === 0 ? (
               <p className="muted">データがありません。</p>
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie
-                    data={portfolioPieData}
-                    dataKey="value"
-                    nameKey="name"
-                    outerRadius={90}
-                    startAngle={90}
-                    endAngle={-270}
-                  >
-                    {portfolioPieData.map((_, idx) => (
-                      <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={renderPortfolioPieTooltip} isAnimationActive={false} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="pie-chart-wrap">
+                <ResponsiveContainer width="100%" height={190}>
+                  <PieChart>
+                    <Pie
+                      key={portfolioPieAnimationKey}
+                      data={portfolioPieData}
+                      dataKey="value"
+                      nameKey="category"
+                      outerRadius={78}
+                      startAngle={90}
+                      endAngle={-270}
+                      labelLine={false}
+                      label={finishedPortfolioPieAnimationKey === portfolioPieAnimationKey ? renderCategoryPieLabel : false}
+                      animationBegin={0}
+                      animationDuration={1050}
+                      animationEasing="ease-out"
+                      isAnimationActive={finishedPortfolioPieAnimationKey !== portfolioPieAnimationKey}
+                      onAnimationEnd={() => setFinishedPortfolioPieAnimationKey(portfolioPieAnimationKey)}
+                    >
+                      {portfolioPieData.map((item, idx) => (
+                        <Cell key={item.category} fill={chartColors[idx % chartColors.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      cursor={false}
+                      content={renderCategoryPieTooltip}
+                      isAnimationActive={false}
+                      wrapperStyle={{ outline: "none" }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             )) : portfolioChartAccountNames.length === 0 ? (
               <p className="muted">データがありません。</p>
             ) : (
@@ -2060,7 +2090,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     mode={monthlyCategoryMode}
                     colorOverride={selectedCategoryColor}
                     focusMonthKey={categoryMonthKey}
-                    height={210}
+                    height={190}
+                    onMonthSelect={setCategoryMonthKey}
                   />
                 )}
               </>
@@ -2069,11 +2100,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 <div className="monthly-category-chart-header">
                   <div>
                     <h3>カテゴリ内訳</h3>
-                    <p className="muted">左のカテゴリ名を押すと月推移を表示します。</p>
                   </div>
                 </div>
                 <div className="pie-chart-wrap">
-                  <ResponsiveContainer width="100%" height={210}>
+                  <ResponsiveContainer width="100%" height={190}>
                     <PieChart>
                       <Pie
                         key={categoryPieAnimationKey}
@@ -2091,8 +2121,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                         isAnimationActive={finishedCategoryPieAnimationKey !== categoryPieAnimationKey}
                         onAnimationEnd={() => setFinishedCategoryPieAnimationKey(categoryPieAnimationKey)}
                       >
-                        {categoryPieData.map((_, idx) => (
-                          <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
+                        {categoryPieData.map((item, idx) => (
+                          <Cell
+                            key={item.category}
+                            fill={chartColors[idx % chartColors.length]}
+                            cursor="pointer"
+                            onClick={() => setSelectedCategory(item.category)}
+                          />
                         ))}
                       </Pie>
                       <Tooltip
@@ -2125,7 +2160,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   category="収支"
                   mode="net"
                   focusMonthKey={categoryMonthKey}
-                  height={210}
+                  height={190}
                 />
               </>
             ) : (
@@ -2138,7 +2173,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     </p>
                   </div>
                 </div>
-                <ResponsiveContainer width="100%" height={210}>
+                <ResponsiveContainer width="100%" height={190}>
                   <BarChart
                     data={monthlyCategorySummary.items.map((item) => ({
                       category: item.name,

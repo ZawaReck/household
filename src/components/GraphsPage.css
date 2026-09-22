@@ -418,6 +418,19 @@
   min-height: 360px;
 }
 
+.graph-mode-category .monthly-category-chart {
+  min-height: 0;
+  padding-block: 6px;
+}
+
+.graph-mode-category .monthly-category-chart-header {
+  margin-bottom: 0;
+}
+
+.graph-mode-category .pie-chart-wrap {
+  margin-block: -4px;
+}
+
 .graph-context-bar {
   display: flex;
   justify-content: center;
@@ -492,6 +505,7 @@
 
 .graph-mode-portfolio .section-grid > .chart-card {
   order: 1;
+  min-height: 0;
 }
 
 .graph-mode-portfolio .section-grid > .card:not(.chart-card) {
@@ -958,6 +972,10 @@ select {
 
   .monthly-category-chart {
     min-height: 330px;
+  }
+
+  .graph-mode-category .monthly-category-chart {
+    min-height: 0;
   }
 
   .monthly-category-sidebar {
