@@ -631,6 +631,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const [monthlyCategoryMode, setMonthlyCategoryMode] =
     React.useState<MonthlyCategoryMode>("expense");
   const [selectedCategory, setSelectedCategory] = React.useState<string>("");
+  const [selectedPieCategory, setSelectedPieCategory] = React.useState<string>("");
   const [finishedCategoryPieAnimationKey, setFinishedCategoryPieAnimationKey] = React.useState("");
 
   const [yearlyCategoryYear, setYearlyCategoryYear] = React.useState(currentYear);
@@ -1201,6 +1202,15 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     setSelectedCategory("");
   }, [monthlyCategorySummary.items, selectedCategory]);
 
+  React.useEffect(() => {
+    if (
+      selectedPieCategory &&
+      !monthlyCategorySummary.items.some((item) => item.name === selectedPieCategory)
+    ) {
+      setSelectedPieCategory("");
+    }
+  }, [monthlyCategorySummary.items, selectedPieCategory]);
+
   const categoryTrendMonths = listMonthKeysBetween(allMonthKeys[0], allMonthKeys[allMonthKeys.length - 1]);
   const handleVisibleYearSync = React.useCallback((monthKey: string) => {
     const nextYear = monthKey.slice(0, 4);
@@ -1277,13 +1287,14 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     selectedCategory === "" &&
     categoryPieData.length > 0 &&
     monthlyCategorySummary.items.every((item) => item.value > 0);
-  const monthlyCategoryTransactions = selectedCategory
+  const monthlyDetailCategory = selectedPieCategory || selectedCategory;
+  const monthlyCategoryTransactions = monthlyDetailCategory
     ? transactions
         .filter((transaction) => {
           if (getMonthKey(transaction.date) !== categoryMonthKey || transaction.isTaxAdjustment) return false;
           if (!isIncludedInRegularAnalytics(transaction, includeExcludedAnalytics)) return false;
-          if (monthlyCategoryMode === "net") return transaction.type === (selectedCategory === "収入" ? "income" : "expense");
-          return transaction.type === monthlyCategoryMode && (transaction.category || "未分類") === selectedCategory;
+          if (monthlyCategoryMode === "net") return transaction.type === (monthlyDetailCategory === "収入" ? "income" : "expense");
+          return transaction.type === monthlyCategoryMode && (transaction.category || "未分類") === monthlyDetailCategory;
         })
         .sort((a, b) => b.date.localeCompare(a.date))
     : [];
@@ -2090,7 +2101,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 key={mode}
                 type="button"
                 className={monthlyCategoryMode === mode ? "active" : ""}
-                onClick={() => setMonthlyCategoryMode(mode)}
+                onClick={() => {
+                  setMonthlyCategoryMode(mode);
+                  setSelectedCategory("");
+                  setSelectedPieCategory("");
+                }}
               >
                 {mode === "income" ? "収入" : mode === "expense" ? "支出" : "収支"}
               </button>
@@ -2102,9 +2117,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             <button
               type="button"
               className={`monthly-category-row monthly-category-total${
-                selectedCategory === "" ? " active" : ""
+                selectedCategory === "" && selectedPieCategory === "" ? " active" : ""
               }`}
-              onClick={() => setSelectedCategory("")}
+              onClick={() => {
+                setSelectedCategory("");
+                setSelectedPieCategory("");
+              }}
             >
               <span className="monthly-category-name">total</span>
               <span
@@ -2126,9 +2144,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     key={item.name}
                     type="button"
                     className={`monthly-category-row${
-                      selectedCategory === item.name ? " active" : ""
+                      selectedCategory === item.name || selectedPieCategory === item.name ? " active" : ""
                     }`}
-                    onClick={() => setSelectedCategory(item.name)}
+                    onClick={() => {
+                      setSelectedPieCategory("");
+                      setSelectedCategory(item.name);
+                    }}
                   >
                     <span className="monthly-category-name">
                       <span
@@ -2149,9 +2170,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 ))
               )}
             </div>
-            {selectedCategory && renderCategoryTransactions(
+            {monthlyDetailCategory && renderCategoryTransactions(
               monthlyCategoryTransactions,
-              `${categoryMonthKey} ${selectedCategory} の取引明細`,
+              `${categoryMonthKey} ${monthlyDetailCategory} の取引明細`,
               true,
             )}
           </div>
@@ -2213,7 +2234,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                             key={item.category}
                             fill={chartColors[idx % chartColors.length]}
                             cursor="pointer"
-                            onPointerDown={(event) => beginPieTap(event, () => setSelectedCategory(item.category))}
+                            onPointerDown={(event) => beginPieTap(event, () => {
+                              setSelectedCategory("");
+                              setSelectedPieCategory(item.category);
+                            })}
                             onPointerUp={completePieTap}
                             onPointerCancel={cancelPieTap}
                           />
