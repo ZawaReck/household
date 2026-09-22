@@ -1413,6 +1413,39 @@ select {
   min-height: 0;
 }
 
+.budget-total-overview {
+  width: min(720px, 100%);
+  margin: 0 auto;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border-bottom: 1px solid #d7e3db;
+  background: #f9fffb;
+}
+
+.budget-total-heading {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.budget-total-heading > span:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.budget-total-heading strong {
+  color: #31533f;
+  font-size: 13px;
+}
+
+.budget-total-heading small {
+  color: #789081;
+  font-size: 9px;
+}
+
 .budget-plan-card,
 .sontoku-card {
   width: 100%;
@@ -1422,8 +1455,14 @@ select {
 }
 
 .budget-summary {
-  padding: 12px 0;
-  border-bottom: 1px solid #d7e3db;
+  padding: 8px 0 10px;
+}
+
+.budget-plan-card {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .budget-summary-values,
@@ -1992,6 +2031,17 @@ select {
     flex: 1 1 auto;
     box-sizing: border-box;
     padding: 8px 0 calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .budget-total-overview {
+    flex: 0 0 auto;
+    width: calc(100% + 16px);
+    margin: 0 -8px;
+    padding: 0 20px;
+  }
+
+  .budget-view-scroll.is-budget {
+    padding-top: 0;
   }
 
   .graph-mode-budget .budget-layout {

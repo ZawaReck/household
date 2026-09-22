@@ -2829,14 +2829,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             <button type="button" className={budgetView === "sontoku" ? "active" : ""} onClick={() => setBudgetView("sontoku")}>損得</button>
           </div>
         </div>
-        <div ref={budgetViewScrollRef} className="budget-view-scroll">
-          <div className="section-grid budget-layout">
-          <section className="card budget-plan-card" hidden={budgetView !== "budget"}>
-            <div className="portfolio-section-heading">
-              <div>
-                <h3>予算</h3>
-                <p>{budgetMonthKey}・カテゴリ別</p>
-              </div>
+        {budgetView === "budget" && (
+          <div className="budget-total-overview">
+            <div className="budget-total-heading">
+              <span><strong>Total</strong><small>{budgetMonthKey}</small></span>
               {savedBudgetDraft === `${budgetMonthKey}:${JSON.stringify(budgetDraft)}` && <span className="portfolio-confirmed-badge" role="status">保存済み</span>}
             </div>
             <div className={`budget-summary${(totalBudgetRate ?? 0) > 100 ? " is-over" : ""}`}>
@@ -2856,6 +2852,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 </>
               )}
             </div>
+          </div>
+        )}
+        <div ref={budgetViewScrollRef} className={`budget-view-scroll${budgetView === "budget" ? " is-budget" : ""}`}>
+          <div className="section-grid budget-layout">
+          <section className="budget-plan-card" hidden={budgetView !== "budget"}>
             {expenseCategories.length === 0 ? (
               <p className="muted">カテゴリがありません。</p>
             ) : (
