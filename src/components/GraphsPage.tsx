@@ -2391,6 +2391,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 ))
               )}
             </div>
+            {selectedYearlyCategory && renderCategoryTransactions(
+              yearlyCategoryTransactions,
+              `${yearlyCategoryYear}年 ${selectedYearlyCategory} の取引明細`,
+              true,
+            )}
           </div>
 
           <div className="card chart-card monthly-category-chart">
@@ -2616,7 +2621,6 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             )}
           </div>
         </div>
-        {selectedYearlyCategory && renderCategoryTransactions(yearlyCategoryTransactions, `${yearlyCategoryYear}年 ${selectedYearlyCategory} の取引明細`)}
       </TabPanel>
       )}
 
