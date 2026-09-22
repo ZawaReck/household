@@ -184,6 +184,7 @@ const renderCategoryPieLabel = (props: PieLabelRenderProps) => {
       dominantBaseline="central"
       fontSize={15}
       fontWeight={600}
+      pointerEvents="none"
     >
       {category}
     </text>
@@ -363,6 +364,7 @@ const CategoryMonthlyTrendChart: React.FC<{
 }> = ({ data, category, mode, colorOverride, focusMonthKey, height = 320, onVisibleMonthChange, onMonthSelect }) => {
   const viewportRef = React.useRef<HTMLDivElement | null>(null);
   const autoAlignKeyRef = React.useRef("");
+  const skipNextAutoAlignRef = React.useRef(false);
   const [viewportWidth, setViewportWidth] = React.useState(0);
   const [scrollLeft, setScrollLeft] = React.useState(0);
   const dataAnimationKey = `${category}:${data.map((item) => `${item.month}:${item.value}`).join("|")}`;
@@ -460,6 +462,11 @@ const CategoryMonthlyTrendChart: React.FC<{
 
     const autoAlignKey = `${category}:${focusMonthKey}:${data.length}:${Math.round(viewportWidth)}`;
     if (autoAlignKeyRef.current === autoAlignKey) return;
+    if (skipNextAutoAlignRef.current) {
+      skipNextAutoAlignRef.current = false;
+      autoAlignKeyRef.current = autoAlignKey;
+      return;
+    }
 
     const targetIndex = data.findIndex((item) => item.month === focusMonthKey);
     if (targetIndex < 0) return;
@@ -540,7 +547,10 @@ const CategoryMonthlyTrendChart: React.FC<{
                 }}
                 onClick={(entry) => {
                   const month = String(entry?.payload?.month ?? "");
-                  if (month && onMonthSelect) onMonthSelect(month);
+                  if (month && onMonthSelect) {
+                    skipNextAutoAlignRef.current = true;
+                    onMonthSelect(month);
+                  }
                 }}
                 shape={<MonthlyValueBarShape showLabel={finishedDataAnimationKey === dataAnimationKey} />}
               >
@@ -549,8 +559,6 @@ const CategoryMonthlyTrendChart: React.FC<{
                     key={`${category}-${entry.month}`}
                     fill={colorOverride ?? getBarColorByMode(mode, entry.value)}
                     cursor={onMonthSelect ? "pointer" : undefined}
-                    stroke={onMonthSelect && entry.month === focusMonthKey ? "#173c25" : "none"}
-                    strokeWidth={onMonthSelect && entry.month === focusMonthKey ? 2 : 0}
                   />
                 ))}
               </Bar>
@@ -590,6 +598,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const [includePendingCardPayments, setIncludePendingCardPayments] = React.useState(false);
   const [portfolioChartMode, setPortfolioChartMode] = React.useState<"pie" | "stacked">("pie");
   const [finishedPortfolioPieAnimationKey, setFinishedPortfolioPieAnimationKey] = React.useState("");
+  const [selectedPortfolioAccount, setSelectedPortfolioAccount] = React.useState("");
 
   const [categoryMonthKey, setCategoryMonthKey] = React.useState(currentMonthKey);
   const [monthlyCategoryMode, setMonthlyCategoryMode] =
@@ -1089,6 +1098,23 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     portfolioChartAccountNames.forEach((account) => { point[account] = balances[account] ?? 0; });
     return point;
   });
+  const selectedPortfolioTrendData = selectedPortfolioAccount
+    ? portfolioAreaData.map((point) => ({
+        month: String(point.month),
+        value: Number(point[selectedPortfolioAccount] ?? 0),
+      }))
+    : [];
+  const selectedPortfolioColorIndex = portfolioPieData.findIndex(
+    (item) => item.category === selectedPortfolioAccount
+  );
+  const selectedPortfolioColor = chartColors[
+    (selectedPortfolioColorIndex >= 0 ? selectedPortfolioColorIndex : 0) % chartColors.length
+  ];
+  React.useEffect(() => {
+    if (selectedPortfolioAccount && !portfolioChartAccountNames.includes(selectedPortfolioAccount)) {
+      setSelectedPortfolioAccount("");
+    }
+  }, [portfolioChartAccountNames, selectedPortfolioAccount]);
   const selectedInvestmentSnapshotIsExact = portfolioInvestmentAccounts.length === 0 || investmentSnapshots.some((snapshot) => snapshot.date === portfolioAsOf);
 
   const monthlyCategorySummary = React.useMemo(() => {
@@ -1884,7 +1910,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       const displayed = portfolioDisplayValues[account] ?? actual;
                       const ratio = portfolioAssetTotal !== 0 ? (displayed / portfolioAssetTotal) * 100 : 0;
                       return (
-                        <tr key={account}>
+                        <tr key={account} className={selectedPortfolioAccount === account ? "selected-account-row" : undefined}>
                           <td>{account}</td>
                           <td>{formatYen(estimated)}</td>
                           <td>
@@ -1927,9 +1953,29 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             )}
           </div>
           <div className="card chart-card">
-            <div className="chart-header-actions"><h3>{portfolioChartMode === "pie" ? "口座別構成" : "口座別残高推移"}</h3><div className="toggle-group"><button type="button" className={portfolioChartMode === "pie" ? "active" : ""} onClick={() => setPortfolioChartMode("pie")}>円</button><button type="button" className={portfolioChartMode === "stacked" ? "active" : ""} onClick={() => setPortfolioChartMode("stacked")}>積上</button></div></div>
-            {portfolioChartMode === "pie" && portfolioPieHasNegativeBalance && <p className="muted portfolio-pie-note">マイナス残高を含むため、円グラフは各残高の絶対額で構成比を表示しています。</p>}
-            {portfolioChartMode === "pie" ? (portfolioPieData.length === 0 ? (
+            <div className="chart-header-actions">
+              <h3>{selectedPortfolioAccount ? `${selectedPortfolioAccount} の月推移` : portfolioChartMode === "pie" ? "口座別構成" : "口座別残高推移"}</h3>
+              {selectedPortfolioAccount ? (
+                <button type="button" onClick={() => setSelectedPortfolioAccount("")}>円グラフに戻す</button>
+              ) : (
+                <div className="toggle-group">
+                  <button type="button" className={portfolioChartMode === "pie" ? "active" : ""} onClick={() => { setPortfolioChartMode("pie"); setSelectedPortfolioAccount(""); }}>円</button>
+                  <button type="button" className={portfolioChartMode === "stacked" ? "active" : ""} onClick={() => { setPortfolioChartMode("stacked"); setSelectedPortfolioAccount(""); }}>積上</button>
+                </div>
+              )}
+            </div>
+            {!selectedPortfolioAccount && portfolioChartMode === "pie" && portfolioPieHasNegativeBalance && <p className="muted portfolio-pie-note">マイナス残高を含むため、円グラフは各残高の絶対額で構成比を表示しています。</p>}
+            {selectedPortfolioAccount ? (
+              <CategoryMonthlyTrendChart
+                data={selectedPortfolioTrendData}
+                category={selectedPortfolioAccount}
+                mode="net"
+                colorOverride={selectedPortfolioColor}
+                focusMonthKey={portfolioMonthKey}
+                height={190}
+                onMonthSelect={setPortfolioMonthKey}
+              />
+            ) : portfolioChartMode === "pie" ? (portfolioPieData.length === 0 ? (
               <p className="muted">データがありません。</p>
             ) : (
               <div className="pie-chart-wrap">
@@ -1952,7 +1998,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       onAnimationEnd={() => setFinishedPortfolioPieAnimationKey(portfolioPieAnimationKey)}
                     >
                       {portfolioPieData.map((item, idx) => (
-                        <Cell key={item.category} fill={chartColors[idx % chartColors.length]} />
+                        <Cell
+                          key={item.category}
+                          fill={chartColors[idx % chartColors.length]}
+                          cursor="pointer"
+                          onClick={() => setSelectedPortfolioAccount(item.category)}
+                        />
                       ))}
                     </Pie>
                     <Tooltip

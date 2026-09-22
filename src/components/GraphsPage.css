@@ -512,6 +512,10 @@
   order: 2;
 }
 
+.graph-mode-portfolio .selected-account-row > td {
+  background: #edf7f0;
+}
+
 .graph-mode-monthly .monthly-category-chart-header .toggle-group {
   display: none;
 }
