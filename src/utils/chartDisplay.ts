@@ -18,27 +18,3 @@ export const investmentPeriodStartDate = (asOf: string, months: string) => {
   const date = new Date(Date.UTC(year, month - Number(months), 1));
   return date.toISOString().slice(0, 10);
 };
-
-export const investmentPeriodSeries = <T extends { date: string }>(
-  points: T[],
-  startDate: string,
-  endDate: string,
-) => {
-  const visible = [...points]
-    .filter((point) => point.date <= endDate)
-    .sort((a, b) => a.date.localeCompare(b.date));
-  if (visible.length === 0) return [];
-
-  const inPeriod = startDate
-    ? visible.filter((point) => point.date >= startDate)
-    : visible;
-  if (startDate) {
-    const previous = visible.filter((point) => point.date < startDate).at(-1);
-    if (previous) inPeriod.unshift({ ...previous, date: startDate });
-  }
-  if (inPeriod.length === 0) return [];
-
-  const latest = inPeriod[inPeriod.length - 1];
-  if (latest.date < endDate) inPeriod.push({ ...latest, date: endDate });
-  return inPeriod;
-};
