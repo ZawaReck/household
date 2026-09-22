@@ -599,6 +599,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const [portfolioChartMode, setPortfolioChartMode] = React.useState<"pie" | "stacked">("pie");
   const [finishedPortfolioPieAnimationKey, setFinishedPortfolioPieAnimationKey] = React.useState("");
   const [selectedPortfolioAccount, setSelectedPortfolioAccount] = React.useState("");
+  const portfolioAccountRowsRef = React.useRef(new Map<string, HTMLTableRowElement>());
 
   const [categoryMonthKey, setCategoryMonthKey] = React.useState(currentMonthKey);
   const [monthlyCategoryMode, setMonthlyCategoryMode] =
@@ -1098,23 +1099,20 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     portfolioChartAccountNames.forEach((account) => { point[account] = balances[account] ?? 0; });
     return point;
   });
-  const selectedPortfolioTrendData = selectedPortfolioAccount
-    ? portfolioAreaData.map((point) => ({
-        month: String(point.month),
-        value: Number(point[selectedPortfolioAccount] ?? 0),
-      }))
-    : [];
-  const selectedPortfolioColorIndex = portfolioPieData.findIndex(
-    (item) => item.category === selectedPortfolioAccount
-  );
-  const selectedPortfolioColor = chartColors[
-    (selectedPortfolioColorIndex >= 0 ? selectedPortfolioColorIndex : 0) % chartColors.length
-  ];
   React.useEffect(() => {
-    if (selectedPortfolioAccount && !portfolioChartAccountNames.includes(selectedPortfolioAccount)) {
+    if (selectedPortfolioAccount && !accountNames.includes(selectedPortfolioAccount)) {
       setSelectedPortfolioAccount("");
     }
-  }, [portfolioChartAccountNames, selectedPortfolioAccount]);
+  }, [accountNames, selectedPortfolioAccount]);
+  const handlePortfolioPieSelect = React.useCallback((account: string) => {
+    setSelectedPortfolioAccount(account);
+    window.requestAnimationFrame(() => {
+      portfolioAccountRowsRef.current.get(account)?.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
+    });
+  }, []);
   const selectedInvestmentSnapshotIsExact = portfolioInvestmentAccounts.length === 0 || investmentSnapshots.some((snapshot) => snapshot.date === portfolioAsOf);
 
   const monthlyCategorySummary = React.useMemo(() => {
@@ -1807,8 +1805,25 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
         </div>
 
         <div className="card chart-card">
-          <div className="chart-header-actions"><h3>{investmentChartMode === "area" ? "評価額推移" : investmentChartMode === "profit" ? "損益額 / 損益率" : "現在構成"}</h3><div className="toggle-group"><button type="button" className={investmentChartMode === "area" ? "active" : ""} onClick={() => setInvestmentChartMode("area")}>積上</button><button type="button" className={investmentChartMode === "profit" ? "active" : ""} onClick={() => setInvestmentChartMode("profit")}>損益</button><button type="button" className={investmentChartMode === "pie" ? "active" : ""} onClick={() => setInvestmentChartMode("pie")}>円</button></div></div>
-          {investmentChartMode !== "pie" && <div className="toggle-group investment-period-control">{([['3','3か月'],['6','6か月'],['12','1年'],['all','全期間']] as const).map(([value, label]) => <button key={value} type="button" className={investmentPeriodMonths === value ? "active" : ""} onClick={() => setInvestmentPeriodMonths(value)}>{label}</button>)}</div>}
+          <div className="investment-chart-heading">
+            <h3>{investmentChartMode === "area" ? "評価額推移" : investmentChartMode === "profit" ? "損益額 / 損益率" : "現在構成"}</h3>
+            <div
+              className="app-segmented-control investment-chart-mode-control"
+              style={{ "--segment-count": 3, "--segment-index": ["area", "profit", "pie"].indexOf(investmentChartMode) } as React.CSSProperties}
+            >
+              <button type="button" className={investmentChartMode === "area" ? "active" : ""} onClick={() => setInvestmentChartMode("area")}>積上</button>
+              <button type="button" className={investmentChartMode === "profit" ? "active" : ""} onClick={() => setInvestmentChartMode("profit")}>損益</button>
+              <button type="button" className={investmentChartMode === "pie" ? "active" : ""} onClick={() => setInvestmentChartMode("pie")}>円</button>
+            </div>
+          </div>
+          {investmentChartMode !== "pie" && (
+            <div
+              className="app-segmented-control investment-period-control"
+              style={{ "--segment-count": 4, "--segment-index": ["3", "6", "12", "all"].indexOf(investmentPeriodMonths) } as React.CSSProperties}
+            >
+              {([['3','3か月'],['6','6か月'],['12','1年'],['all','全期間']] as const).map(([value, label]) => <button key={value} type="button" className={investmentPeriodMonths === value ? "active" : ""} onClick={() => setInvestmentPeriodMonths(value)}>{label}</button>)}
+            </div>
+          )}
           {investmentChartMode === "area" ? (
             filteredInvestmentChartData.length === 0 ? (
               <p className="muted">選択期間に評価額の記録がありません。期間を広げるか、現在額更新から登録してください。</p>
@@ -1910,7 +1925,14 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       const displayed = portfolioDisplayValues[account] ?? actual;
                       const ratio = portfolioAssetTotal !== 0 ? (displayed / portfolioAssetTotal) * 100 : 0;
                       return (
-                        <tr key={account} className={selectedPortfolioAccount === account ? "selected-account-row" : undefined}>
+                        <tr
+                          key={account}
+                          ref={(node) => {
+                            if (node) portfolioAccountRowsRef.current.set(account, node);
+                            else portfolioAccountRowsRef.current.delete(account);
+                          }}
+                          className={selectedPortfolioAccount === account ? "selected-account-row" : undefined}
+                        >
                           <td>{account}</td>
                           <td>{formatYen(estimated)}</td>
                           <td>
@@ -1954,28 +1976,14 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
           </div>
           <div className="card chart-card">
             <div className="chart-header-actions">
-              <h3>{selectedPortfolioAccount ? `${selectedPortfolioAccount} の月推移` : portfolioChartMode === "pie" ? "口座別構成" : "口座別残高推移"}</h3>
-              {selectedPortfolioAccount ? (
-                <button type="button" onClick={() => setSelectedPortfolioAccount("")}>円グラフに戻す</button>
-              ) : (
-                <div className="toggle-group">
-                  <button type="button" className={portfolioChartMode === "pie" ? "active" : ""} onClick={() => { setPortfolioChartMode("pie"); setSelectedPortfolioAccount(""); }}>円</button>
-                  <button type="button" className={portfolioChartMode === "stacked" ? "active" : ""} onClick={() => { setPortfolioChartMode("stacked"); setSelectedPortfolioAccount(""); }}>積上</button>
-                </div>
-              )}
+              <h3>{portfolioChartMode === "pie" ? "口座別構成" : "口座別残高推移"}</h3>
+              <div className="toggle-group">
+                <button type="button" className={portfolioChartMode === "pie" ? "active" : ""} onClick={() => setPortfolioChartMode("pie")}>円</button>
+                <button type="button" className={portfolioChartMode === "stacked" ? "active" : ""} onClick={() => setPortfolioChartMode("stacked")}>積上</button>
+              </div>
             </div>
-            {!selectedPortfolioAccount && portfolioChartMode === "pie" && portfolioPieHasNegativeBalance && <p className="muted portfolio-pie-note">マイナス残高を含むため、円グラフは各残高の絶対額で構成比を表示しています。</p>}
-            {selectedPortfolioAccount ? (
-              <CategoryMonthlyTrendChart
-                data={selectedPortfolioTrendData}
-                category={selectedPortfolioAccount}
-                mode="net"
-                colorOverride={selectedPortfolioColor}
-                focusMonthKey={portfolioMonthKey}
-                height={190}
-                onMonthSelect={setPortfolioMonthKey}
-              />
-            ) : portfolioChartMode === "pie" ? (portfolioPieData.length === 0 ? (
+            {portfolioChartMode === "pie" && portfolioPieHasNegativeBalance && <p className="muted portfolio-pie-note">マイナス残高を含むため、円グラフは各残高の絶対額で構成比を表示しています。</p>}
+            {portfolioChartMode === "pie" ? (portfolioPieData.length === 0 ? (
               <p className="muted">データがありません。</p>
             ) : (
               <div className="pie-chart-wrap">
@@ -2002,7 +2010,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                           key={item.category}
                           fill={chartColors[idx % chartColors.length]}
                           cursor="pointer"
-                          onClick={() => setSelectedPortfolioAccount(item.category)}
+                          onClick={() => handlePortfolioPieSelect(item.category)}
                         />
                       ))}
                     </Pie>
