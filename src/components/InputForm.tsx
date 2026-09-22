@@ -120,6 +120,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [destination, setDestination] = React.useState(defaultMoveDestination); // 移動先（move）
   const [moveFee, setMoveFee] = React.useState("");
   const [calculatorTarget, setCalculatorTarget] = React.useState<CalculatorTarget | null>(null);
+  const [calculatorCursor, setCalculatorCursor] = React.useState<{ target: CalculatorTarget; index: number } | null>(null);
   const [calculatorLeft, setCalculatorLeft] = React.useState<number | null>(null);
   const [calculatorOperator, setCalculatorOperator] = React.useState<CalculatorOperator | null>(null);
   const [usesCustomKeypad, setUsesCustomKeypad] = React.useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
@@ -151,12 +152,17 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   const activateCalculator = (target: CalculatorTarget) => {
     if (calculatorTarget !== target) resetCalculator();
+    if (calculatorTarget !== target) {
+      const value = target === "amount" ? amount : moveFee;
+      setCalculatorCursor({ target, index: value.length });
+    }
     setCalculatorTarget(target);
   };
 
-  const setCalculatorValue = React.useCallback((value: string) => {
+  const setCalculatorValue = React.useCallback((value: string, cursorIndex = value.length) => {
     if (calculatorTarget === "amount") setAmount(value);
     if (calculatorTarget === "moveFee") setMoveFee(value);
+    if (calculatorTarget) setCalculatorCursor({ target: calculatorTarget, index: Math.max(0, Math.min(value.length, cursorIndex)) });
   }, [calculatorTarget]);
 
   const calculatorSymbol = calculatorOperator === "-" ? "−" : calculatorOperator;
@@ -164,6 +170,20 @@ export const InputForm: React.FC<InputFormProps> = ({
   const displayedNumericValue = (target: CalculatorTarget, value: string) => (
     calculatorTarget === target && calculatorPrefix ? `${calculatorPrefix}${value}` : value
   );
+  const calculatorCursorIndex = React.useCallback((target: CalculatorTarget, value: string) =>
+    calculatorCursor?.target === target
+      ? Math.max(0, Math.min(value.length, calculatorCursor.index))
+      : value.length, [calculatorCursor]);
+  const calculatorCaretSuffix = (target: CalculatorTarget, value: string) =>
+    value.slice(calculatorCursorIndex(target, value));
+
+  const syncCalculatorCursor = (target: CalculatorTarget, input: HTMLInputElement) => {
+    if (!usesCustomKeypad) return;
+    const value = target === "amount" ? amount : moveFee;
+    const prefixLength = calculatorTarget === target ? calculatorPrefix.length : 0;
+    const selectedIndex = (input.selectionStart ?? input.value.length) - prefixLength;
+    setCalculatorCursor({ target, index: Math.max(0, Math.min(value.length, selectedIndex)) });
+  };
 
   const updateNumericValue = (target: CalculatorTarget, displayedValue: string) => {
     const setter = target === "amount" ? setAmount : setMoveFee;
@@ -193,6 +213,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     }
     resetCalculator();
     setCalculatorTarget(null);
+    setCalculatorCursor(null);
   }, [amount, calculatorLeft, calculatorOperator, calculatorTarget, moveFee, resetCalculator]);
 
   React.useEffect(() => {
@@ -215,7 +236,8 @@ export const InputForm: React.FC<InputFormProps> = ({
     const currentValue = rawValue.trim() === "" ? null : Number(rawValue);
     if (key === "=") {
       if (calculatorLeft == null || calculatorOperator == null || currentValue == null || !Number.isFinite(currentValue)) return;
-      setCalculatorValue(String(calculateNumericInput(calculatorLeft, currentValue, calculatorOperator)));
+      const result = String(calculateNumericInput(calculatorLeft, currentValue, calculatorOperator));
+      setCalculatorValue(result, result.length);
       resetCalculator();
       return;
     }
@@ -228,35 +250,44 @@ export const InputForm: React.FC<InputFormProps> = ({
       : currentValue;
     setCalculatorLeft(nextLeft);
     setCalculatorOperator(key);
-    setCalculatorValue("");
+    setCalculatorValue("", 0);
   }, [amount, calculatorLeft, calculatorOperator, calculatorTarget, moveFee, resetCalculator, setCalculatorValue]);
 
   const appendCalculatorDigits = (digits: string) => {
     const currentValue = calculatorTarget === "amount" ? amount : calculatorTarget === "moveFee" ? moveFee : "";
-    const nextValue = currentValue === "0"
-      ? (digits === "00" ? "0" : digits)
-      : currentValue === "" && digits === "00" ? "0" : `${currentValue}${digits}`;
-    setCalculatorValue(nextValue);
+    const cursor = calculatorTarget ? calculatorCursorIndex(calculatorTarget, currentValue) : currentValue.length;
+    if (currentValue === "0" && cursor === 1) {
+      const nextValue = digits === "00" ? "0" : digits;
+      setCalculatorValue(nextValue, nextValue.length);
+      return;
+    }
+    const inserted = currentValue === "" && digits === "00" ? "0" : digits;
+    const nextValue = `${currentValue.slice(0, cursor)}${inserted}${currentValue.slice(cursor)}`;
+    setCalculatorValue(nextValue, cursor + inserted.length);
   };
 
   const deleteCalculatorDigit = () => {
     const currentValue = calculatorTarget === "amount" ? amount : calculatorTarget === "moveFee" ? moveFee : "";
     if (currentValue !== "") {
-      setCalculatorValue(currentValue.slice(0, -1));
+      const cursor = calculatorTarget ? calculatorCursorIndex(calculatorTarget, currentValue) : currentValue.length;
+      if (cursor === 0) return;
+      setCalculatorValue(`${currentValue.slice(0, cursor - 1)}${currentValue.slice(cursor)}`, cursor - 1);
       return;
     }
     if (calculatorLeft != null) {
-      setCalculatorValue(String(calculatorLeft));
+      const restored = String(calculatorLeft);
+      setCalculatorValue(restored, restored.length);
       resetCalculator();
     }
   };
 
   React.useLayoutEffect(() => {
-    if (!calculatorPrefix || !calculatorTarget) return;
+    if (!calculatorTarget) return;
     const input = calculatorTarget === "amount" ? amountInputRef.current : moveFeeInputRef.current;
-    const end = input?.value.length ?? 0;
-    input?.setSelectionRange(end, end);
-  }, [amount, calculatorPrefix, calculatorTarget, moveFee]);
+    const value = calculatorTarget === "amount" ? amount : moveFee;
+    const index = calculatorPrefix.length + calculatorCursorIndex(calculatorTarget, value);
+    input?.setSelectionRange(index, index);
+  }, [amount, calculatorCursorIndex, calculatorPrefix, calculatorTarget, moveFee]);
 
   useEffect(() => {
     if (!activeAccountNames.includes(source)) setSource(defaultSource);
@@ -1242,19 +1273,33 @@ export const InputForm: React.FC<InputFormProps> = ({
               value={displayedNumericValue("amount", amount)}
               onChange={(e) => updateNumericValue("amount", e.target.value)}
               onPointerDown={() => activateCalculator("amount")}
+              onPointerUp={(event) => {
+                const input = event.currentTarget;
+                window.requestAnimationFrame(() => syncCalculatorCursor("amount", input));
+              }}
               onFocus={() => activateCalculator("amount")}
               onBlur={() => { if (!usesCustomKeypad) deactivateCalculator("amount"); }}
               placeholder="金額"
               required
             />
-            {calculatorTarget === "amount" && usesCustomKeypad && <i className="calculator-caret" aria-hidden="true" />}
+            {calculatorTarget === "amount" && usesCustomKeypad && (
+              <b className="calculator-caret-position" aria-hidden="true">
+                <i className="calculator-caret" />
+                <em>{calculatorCaretSuffix("amount", amount)}</em>
+              </b>
+            )}
           </div>
         </div>
         {type === "move" && (
           <div className="move-fee-row">
             <div className={`calculator-input-shell${calculatorTarget === "moveFee" && usesCustomKeypad ? " is-active" : ""}`}>
-              <input ref={moveFeeInputRef} data-calculator-target="moveFee" type="text" inputMode="none" autoComplete="off" readOnly={usesCustomKeypad} value={displayedNumericValue("moveFee", moveFee)} onChange={(event) => updateNumericValue("moveFee", event.target.value)} onPointerDown={() => activateCalculator("moveFee")} onFocus={() => activateCalculator("moveFee")} onBlur={() => { if (!usesCustomKeypad) deactivateCalculator("moveFee"); }} placeholder="手数料等" aria-label="手数料等" />
-              {calculatorTarget === "moveFee" && usesCustomKeypad && <i className="calculator-caret" aria-hidden="true" />}
+              <input ref={moveFeeInputRef} data-calculator-target="moveFee" type="text" inputMode="none" autoComplete="off" readOnly={usesCustomKeypad} value={displayedNumericValue("moveFee", moveFee)} onChange={(event) => updateNumericValue("moveFee", event.target.value)} onPointerDown={() => activateCalculator("moveFee")} onPointerUp={(event) => { const input = event.currentTarget; window.requestAnimationFrame(() => syncCalculatorCursor("moveFee", input)); }} onFocus={() => activateCalculator("moveFee")} onBlur={() => { if (!usesCustomKeypad) deactivateCalculator("moveFee"); }} placeholder="手数料等" aria-label="手数料等" />
+              {calculatorTarget === "moveFee" && usesCustomKeypad && (
+                <b className="calculator-caret-position" aria-hidden="true">
+                  <i className="calculator-caret" />
+                  <em>{calculatorCaretSuffix("moveFee", moveFee)}</em>
+                </b>
+              )}
             </div>
           </div>
         )}
