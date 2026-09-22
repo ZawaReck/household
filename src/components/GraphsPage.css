@@ -509,6 +509,7 @@
 .graph-mode-portfolio .section-grid > .chart-card {
   order: 1;
   min-height: 0;
+  padding-block: 6px;
 }
 
 .graph-mode-portfolio .section-grid > .card:not(.chart-card) {
@@ -533,6 +534,28 @@
 
 .graph-mode-portfolio .table-wrap .selected-account-row > td:first-child {
   background: #edf7f0;
+}
+
+.graph-mode-portfolio .chart-header-actions {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.graph-mode-portfolio .chart-header-actions h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.graph-mode-portfolio .portfolio-pie-note {
+  margin: 4px 0 0;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.graph-mode-portfolio .pie-chart-wrap,
+.graph-mode-invest .pie-chart-wrap {
+  margin-block: -4px;
 }
 
 .investment-chart-heading {

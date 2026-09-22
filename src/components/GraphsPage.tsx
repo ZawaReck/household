@@ -582,6 +582,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const [investmentChartMode, setInvestmentChartMode] = React.useState<"area" | "profit" | "pie">("area");
   const [investmentPeriodMonths, setInvestmentPeriodMonths] = React.useState<"3" | "6" | "12" | "all">("12");
   const [investmentMonthKey, setInvestmentMonthKey] = React.useState(currentMonthKey);
+  const [finishedInvestmentPieAnimationKey, setFinishedInvestmentPieAnimationKey] = React.useState("");
 
   const [portfolioMonthKey, setPortfolioMonthKey] = React.useState(() => {
     const requested = new URLSearchParams(window.location.search).get("month") ?? "";
@@ -818,11 +819,23 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const filteredInvestmentProfitData = investmentProfitData.filter((point) => !investmentPeriodStart || point.date >= investmentPeriodStart);
   const investmentPieData = investmentAssets.map((asset) => {
     const account = investmentAccounts.find((item) => item.id === asset.id)!;
-    return { name: asset.name, value: investmentValueAt(account, investmentAsOf) };
+    return { category: asset.name, value: investmentValueAt(account, investmentAsOf) };
   });
   const latestInvestmentTotal = investmentPieData.reduce((sum, asset) => sum + asset.value, 0);
   const investmentHasPositiveValue = investmentPieData.some((asset) => asset.value > 0);
   const investmentHasNegativeValue = investmentPieData.some((asset) => asset.value < 0);
+  const investmentPiePositiveTotal = investmentPieData
+    .filter((asset) => asset.value > 0)
+    .reduce((sum, asset) => sum + asset.value, 0);
+  const investmentPieChartData = investmentPieData
+    .filter((asset) => asset.value > 0)
+    .map((asset) => ({
+      ...asset,
+      percent: investmentPiePositiveTotal > 0 ? asset.value / investmentPiePositiveTotal : 0,
+    }));
+  const investmentPieAnimationKey = `${investmentAsOf}:${investmentPieChartData
+    .map((asset) => `${asset.category}:${asset.value}`)
+    .join("|")}`;
 
   const regularAccountNames = React.useMemo(() => {
     const accs = new Set<string>();
@@ -1915,7 +1928,38 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               </ResponsiveContainer>
             )
           ) : investmentHasNegativeValue ? <p className="muted">マイナス評価額を含むため、構成比を表示できません。資産一覧で評価額を確認してください。</p> : !investmentHasPositiveValue ? <p className="muted">この時点の評価額はすべて0円です。現在額更新から評価額を登録できます。</p> : (
-            <ResponsiveContainer width="100%" height={280}><PieChart><Pie data={investmentPieData} dataKey="value" nameKey="name" outerRadius={95}>{investmentPieData.map((_, index) => <Cell key={index} fill={chartColors[index % chartColors.length]} />)}</Pie><Tooltip formatter={(value) => formatYen(value)} /><Legend /></PieChart></ResponsiveContainer>
+            <div className="pie-chart-wrap">
+              <ResponsiveContainer width="100%" height={190}>
+                <PieChart>
+                  <Pie
+                    key={investmentPieAnimationKey}
+                    data={investmentPieChartData}
+                    dataKey="value"
+                    nameKey="category"
+                    outerRadius={78}
+                    startAngle={90}
+                    endAngle={-270}
+                    labelLine={false}
+                    label={finishedInvestmentPieAnimationKey === investmentPieAnimationKey ? renderCategoryPieLabel : false}
+                    animationBegin={0}
+                    animationDuration={1050}
+                    animationEasing="ease-out"
+                    isAnimationActive={finishedInvestmentPieAnimationKey !== investmentPieAnimationKey}
+                    onAnimationEnd={() => setFinishedInvestmentPieAnimationKey(investmentPieAnimationKey)}
+                  >
+                    {investmentPieChartData.map((asset, index) => (
+                      <Cell key={asset.category} fill={chartColors[index % chartColors.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    cursor={false}
+                    content={renderCategoryPieTooltip}
+                    isAnimationActive={false}
+                    wrapperStyle={{ outline: "none" }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </div>
       </TabPanel>
@@ -2019,7 +2063,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 <button type="button" className={portfolioChartMode === "stacked" ? "active" : ""} onClick={() => setPortfolioChartMode("stacked")}>積上</button>
               </div>
             </div>
-            {portfolioChartMode === "pie" && portfolioPieHasNegativeBalance && <p className="muted portfolio-pie-note">マイナス残高を含むため、円グラフは各残高の絶対額で構成比を表示しています。</p>}
+            {portfolioChartMode === "pie" && portfolioPieHasNegativeBalance && <p className="muted portfolio-pie-note">マイナス残高は絶対額で構成比を表示</p>}
             {portfolioChartMode === "pie" ? (portfolioPieData.length === 0 ? (
               <p className="muted">データがありません。</p>
             ) : (
