@@ -416,6 +416,10 @@ const CategoryMonthlyTrendChart: React.FC<{
     const target = visibleData.length > 0 ? visibleData : data;
     return getNiceMonthlyTrendScale(target.map((item) => item.value));
   }, [data, visibleData]);
+  const fullDataScale = React.useMemo(
+    () => getNiceMonthlyTrendScale(data.map((item) => item.value)),
+    [data]
+  );
   const [displayedDomain, setDisplayedDomain] = React.useState<[number, number]>(scale.domain);
   const displayedDomainRef = React.useRef(displayedDomain);
 
@@ -447,12 +451,16 @@ const CategoryMonthlyTrendChart: React.FC<{
   }, [scale.domain]);
 
   const axisWidth = React.useMemo(() => {
+    // The plot viewport must not resize when a large value enters or leaves the
+    // visible range. A range-dependent width creates a feedback loop at slot
+    // boundaries: viewport width -> visible months -> scale -> viewport width.
     const longest = Math.max(
-      formatAxisAmount(scale.domain[0]).length,
-      formatAxisAmount(scale.domain[1]).length
+      ...fullDataScale.ticks.map((tick) => formatAxisAmount(tick).length),
+      formatAxisAmount(fullDataScale.domain[0]).length,
+      formatAxisAmount(fullDataScale.domain[1]).length
     );
     return Math.max(44, longest * 5 + 6);
-  }, [scale.domain]);
+  }, [fullDataScale]);
 
   React.useEffect(() => {
     const viewport = viewportRef.current;
