@@ -606,7 +606,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const [portfolioChartMode, setPortfolioChartMode] = React.useState<"pie" | "stacked">("pie");
   const [finishedPortfolioPieAnimationKey, setFinishedPortfolioPieAnimationKey] = React.useState("");
   const [selectedPortfolioAccount, setSelectedPortfolioAccount] = React.useState("");
-  const portfolioAccountRowsRef = React.useRef(new Map<string, HTMLTableRowElement>());
+  const portfolioAccountRowsRef = React.useRef(new Map<string, HTMLElement>());
   const pieTapRef = React.useRef<{
     pointerId: number;
     x: number;
@@ -1969,98 +1969,14 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
 
       {activeTab === "portfolio" && (
       <TabPanel title="3) ポートフォリオ（口座別）" className="graph-mode-portfolio">
-        <div className="section-grid">
-          <div className="card">
-            <div className="inline-controls">
-              <label>
-                残高基準日
-                <input type="date" min={`${portfolioMonthKey}-01`} max={portfolioMonthKey === currentMonthKey ? todayISO : portfolioAsOf} value={portfolioBalanceDate} onChange={(event) => setPortfolioBalanceDate(event.target.value)} />
-              </label>
-              <button type="button" onClick={handleSavePortfolioActuals}>
-                {portfolioBalanceDate === portfolioAsOf ? "全口座の月末残高を確定" : "この日の残高を更新"}
-              </button>
-              <label><input type="checkbox" checked={includePendingCardPayments} onChange={(event) => setIncludePendingCardPayments(event.target.checked)} />カード引落予定を差し引く</label>
-            </div>
-            {!selectedInvestmentSnapshotIsExact && <p className="muted">投資口座は直近の評価額を仮表示しています。この月を確定すると月末評価額として保存されます。</p>}
-            <div className="budget-total-card">
-              <div><strong>総資産</strong><span>{formatYen(portfolioAssetTotal - selectedPendingCardTotal)}</span></div>
-              {includePendingCardPayments && <div className="muted"><span>カード引落予定額</span><span>−{formatYen(selectedPendingCardTotal)}</span></div>}
-            </div>
-            {accountNames.length === 0 ? (
-              <p className="muted">口座データがありません。</p>
-            ) : (
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>口座</th>
-                      <th>推定残高</th>
-                      <th>実残高</th>
-                      <th>差額</th>
-                      <th>割合</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {accountNames.map((account) => {
-                      const estimated = displayedEstimatedBalances[account] ?? 0;
-                      const actual = portfolioActualInputs[account] ?? 0;
-                      const diff = actual - estimated;
-                      const displayed = portfolioDisplayValues[account] ?? actual;
-                      const ratio = portfolioAssetTotal !== 0 ? (displayed / portfolioAssetTotal) * 100 : 0;
-                      return (
-                        <tr
-                          key={account}
-                          ref={(node) => {
-                            if (node) portfolioAccountRowsRef.current.set(account, node);
-                            else portfolioAccountRowsRef.current.delete(account);
-                          }}
-                          className={selectedPortfolioAccount === account ? "selected-account-row" : undefined}
-                        >
-                          <td>{account}</td>
-                          <td>{formatYen(estimated)}</td>
-                          <td>
-                            <input
-                              type="number"
-                              inputMode="numeric"
-                              value={actual}
-                              onChange={(e) => handlePortfolioActualChange(account, e.target.value)}
-                            />
-                          </td>
-                          <td className={diff >= 0 ? "positive" : "negative"}>
-                            {formatYen(diff)}
-                          </td>
-                          <td>{ratio.toFixed(1)}%</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-          <div className="card">
-            <h3>クレジットカード月末確認</h3>
-            {portfolioBalanceDate !== portfolioAsOf ? <p className="muted">カードの確認済み操作は月末日の更新時に行えます。</p> : cardStatuses.length === 0 ? <p className="muted">有効なカードがありません。</p> : (
-              <>
-                <div className="table-wrap">
-                  <table>
-                    <thead><tr><th>カード</th><th>利用額</th><th>計算利用可能額</th><th>実利用可能額</th></tr></thead>
-                    <tbody>{cardStatuses.map(({ account, limit, used, available }) => (
-                      <tr key={account.id}>
-                        <td>{account.name}<span className="muted"> / 上限 {formatYen(limit)}</span></td><td>{formatYen(used)}</td><td>{formatYen(available)}</td>
-                        <td><input type="number" inputMode="numeric" value={cardAvailableInputs[account.name] ?? available} onChange={(event) => setCardAvailableInputs((current) => ({ ...current, [account.name]: Number(event.target.value) }))} /></td>
-                      </tr>
-                    ))}</tbody>
-                  </table>
-                </div>
-                <button type="button" onClick={handleConfirmCards}>{cardMonthConfirmed ? "確認済み" : "カード残高を確認済みにする"}</button>
-              </>
-            )}
-          </div>
-          <div className="card chart-card">
+        <div className="portfolio-layout">
+          <div className="card chart-card portfolio-chart-card">
             <div className="chart-header-actions">
               <h3>{portfolioChartMode === "pie" ? "口座別構成" : "口座別残高推移"}</h3>
-              <div className="toggle-group">
+              <div
+                className="app-segmented-control portfolio-chart-mode-control"
+                style={{ "--segment-count": 2, "--segment-index": portfolioChartMode === "pie" ? 0 : 1 } as React.CSSProperties}
+              >
                 <button type="button" className={portfolioChartMode === "pie" ? "active" : ""} onClick={() => setPortfolioChartMode("pie")}>円</button>
                 <button type="button" className={portfolioChartMode === "stacked" ? "active" : ""} onClick={() => setPortfolioChartMode("stacked")}>積上</button>
               </div>
@@ -2111,13 +2027,20 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             )) : portfolioChartAccountNames.length === 0 ? (
               <p className="muted">データがありません。</p>
             ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={portfolioAreaData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
+              <ResponsiveContainer width="100%" height={190}>
+                <BarChart data={portfolioAreaData} margin={{ top: 10, right: 6, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    interval="preserveStartEnd"
+                    tick={{ fontSize: 9 }}
+                    tickFormatter={(month) => {
+                      const [year, value] = String(month).split("-");
+                      return `${year.slice(-2)}/${value}`;
+                    }}
+                  />
+                  <YAxis width={48} tick={{ fontSize: 8 }} tickFormatter={formatAxisAmount} />
                   <Tooltip formatter={(value) => formatYen(value)} />
-                  <Legend />
                   {portfolioChartAccountNames.map((account, idx) => (
                     <Bar
                       key={account}
@@ -2131,6 +2054,116 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               </ResponsiveContainer>
             )}
           </div>
+
+          <section className="card portfolio-balance-card">
+            <div className="portfolio-section-heading">
+              <div>
+                <h3>口座残高</h3>
+                <p>{portfolioBalanceDate} 時点</p>
+              </div>
+              <label className="portfolio-date-control">
+                <span>基準日</span>
+                <input type="date" min={`${portfolioMonthKey}-01`} max={portfolioMonthKey === currentMonthKey ? todayISO : portfolioAsOf} value={portfolioBalanceDate} onChange={(event) => setPortfolioBalanceDate(event.target.value)} />
+              </label>
+            </div>
+
+            <div className="portfolio-total-row">
+              <span>総資産</span>
+              <strong>{formatYen(portfolioAssetTotal - selectedPendingCardTotal)}</strong>
+            </div>
+            <label className="portfolio-option-row">
+              <span>
+                <strong>カード引落予定を差し引く</strong>
+                {includePendingCardPayments && <small>−{formatYen(selectedPendingCardTotal)}</small>}
+              </span>
+              <input type="checkbox" checked={includePendingCardPayments} onChange={(event) => setIncludePendingCardPayments(event.target.checked)} />
+            </label>
+
+            {!selectedInvestmentSnapshotIsExact && <p className="muted portfolio-balance-note">投資口座は直近の評価額を仮表示しています。この月を確定すると月末評価額として保存されます。</p>}
+            {accountNames.length === 0 ? (
+              <p className="muted">口座データがありません。</p>
+            ) : (
+              <div className="portfolio-account-list">
+                {accountNames.map((account) => {
+                  const estimated = displayedEstimatedBalances[account] ?? 0;
+                  const actual = portfolioActualInputs[account] ?? 0;
+                  const diff = actual - estimated;
+                  const displayed = portfolioDisplayValues[account] ?? actual;
+                  const ratio = portfolioAssetTotal !== 0 ? (displayed / portfolioAssetTotal) * 100 : 0;
+                  const colorIndex = portfolioPieData.findIndex((item) => item.category === account);
+                  return (
+                    <section
+                      key={account}
+                      ref={(node) => {
+                        if (node) portfolioAccountRowsRef.current.set(account, node);
+                        else portfolioAccountRowsRef.current.delete(account);
+                      }}
+                      className={`portfolio-account-row${selectedPortfolioAccount === account ? " selected-account-row" : ""}`}
+                    >
+                      <div className="portfolio-account-main">
+                        <span className="portfolio-account-name">
+                          <i style={{ backgroundColor: colorIndex >= 0 ? chartColors[colorIndex % chartColors.length] : "#aebbb3" }} />
+                          {account}
+                        </span>
+                        <span className="portfolio-account-ratio">{ratio.toFixed(1)}%</span>
+                      </div>
+                      <div className="portfolio-account-values">
+                        <span>推定 {formatYen(estimated)}</span>
+                        <span className={diff >= 0 ? "positive" : "negative"}>差額 {diff > 0 ? "+" : ""}{formatYen(diff)}</span>
+                      </div>
+                      <label className="portfolio-balance-input">
+                        <span>実残高</span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={actual}
+                          onChange={(event) => handlePortfolioActualChange(account, event.target.value)}
+                        />
+                        <span>円</span>
+                      </label>
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+            <button className="portfolio-primary-action" type="button" onClick={handleSavePortfolioActuals}>
+              {portfolioBalanceDate === portfolioAsOf ? "全口座の月末残高を確定" : "この日の残高を更新"}
+            </button>
+          </section>
+
+          <section className="card portfolio-card-card">
+            <div className="portfolio-section-heading">
+              <div>
+                <h3>クレジットカード</h3>
+                <p>月末利用可能額の確認</p>
+              </div>
+              {cardMonthConfirmed && <span className="portfolio-confirmed-badge">確認済み</span>}
+            </div>
+            {portfolioBalanceDate !== portfolioAsOf ? <p className="muted">カードの確認済み操作は月末日の更新時に行えます。</p> : cardStatuses.length === 0 ? <p className="muted">有効なカードがありません。</p> : (
+              <>
+                <div className="portfolio-card-list">
+                  {cardStatuses.map(({ account, limit, used, available }) => (
+                    <section className="portfolio-card-row" key={account.id}>
+                      <div className="portfolio-card-name">
+                        <strong>{account.name}</strong>
+                        <span>上限 {formatYen(limit)}</span>
+                      </div>
+                      <div className="portfolio-card-values">
+                        <span><small>利用額</small>{formatYen(used)}</span>
+                        <span><small>計算残額</small>{formatYen(available)}</span>
+                      </div>
+                      <label className="portfolio-balance-input">
+                        <span>実利用可能額</span>
+                        <input type="number" inputMode="numeric" value={cardAvailableInputs[account.name] ?? available} onChange={(event) => setCardAvailableInputs((current) => ({ ...current, [account.name]: Number(event.target.value) }))} />
+                        <span>円</span>
+                      </label>
+                    </section>
+                  ))}
+                </div>
+                <button className="portfolio-primary-action" type="button" onClick={handleConfirmCards}>{cardMonthConfirmed ? "確認済み" : "カード残高を確認済みにする"}</button>
+              </>
+            )}
+          </section>
         </div>
       </TabPanel>
       )}
