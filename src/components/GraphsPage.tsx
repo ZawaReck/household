@@ -1,7 +1,7 @@
 /* src/components/GraphsPage.tsx */
 
 import React from "react";
-import { visibleChartRange, investmentPeriodStartDate } from "../utils/chartDisplay";
+import { boundedChartScrollLeft, visibleChartRange, investmentPeriodStartDate } from "../utils/chartDisplay";
 import type { Transaction } from "../types/Transaction";
 import type { Account } from "../types/Account";
 import type { Category } from "../types/Category";
@@ -374,16 +374,26 @@ const CategoryMonthlyTrendChart: React.FC<{
     if (!node) return;
 
     const updateWidth = () => setViewportWidth(node.clientWidth);
-    const updateScrollLeft = () => setScrollLeft(node.scrollLeft);
+    let scrollFrame = 0;
+    const commitScrollLeft = () => {
+      scrollFrame = 0;
+      const bounded = boundedChartScrollLeft(node.scrollLeft, node.clientWidth, node.scrollWidth);
+      setScrollLeft((current) => Math.abs(current - bounded) < 0.5 ? current : bounded);
+    };
+    const updateScrollLeft = () => {
+      if (scrollFrame) return;
+      scrollFrame = window.requestAnimationFrame(commitScrollLeft);
+    };
 
     updateWidth();
-    updateScrollLeft();
+    commitScrollLeft();
 
     const observer = new ResizeObserver(updateWidth);
     observer.observe(node);
     node.addEventListener("scroll", updateScrollLeft, { passive: true });
 
     return () => {
+      if (scrollFrame) window.cancelAnimationFrame(scrollFrame);
       observer.disconnect();
       node.removeEventListener("scroll", updateScrollLeft);
     };
@@ -399,7 +409,7 @@ const CategoryMonthlyTrendChart: React.FC<{
 
   const visibleData = React.useMemo(
     () => data.slice(visibleRange.start, visibleRange.end),
-    [data, visibleRange]
+    [data, visibleRange.start, visibleRange.end]
   );
 
   const scale = React.useMemo(() => {

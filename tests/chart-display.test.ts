@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { visibleChartRange, investmentPeriodStartDate } from "../src/utils/chartDisplay";
+import { boundedChartScrollLeft, visibleChartRange, investmentPeriodStartDate } from "../src/utils/chartDisplay";
 
 describe("chart display boundaries", () => {
   it("includes a partially visible seventh month when scrolled between slots", () => {
@@ -7,6 +7,8 @@ describe("chart display boundaries", () => {
     expect(visibleChartRange(12, 329, 307, 636)).toEqual({ start: 6, end: 12 });
   });
   it("keeps the visible range stable during elastic overscroll at both edges", () => {
+    expect(boundedChartScrollLeft(-80, 307, 636)).toBe(0);
+    expect(boundedChartScrollLeft(409, 307, 636)).toBe(329);
     expect(visibleChartRange(12, -80, 307, 636)).toEqual(visibleChartRange(12, 0, 307, 636));
     expect(visibleChartRange(12, 409, 307, 636)).toEqual(visibleChartRange(12, 329, 307, 636));
   });
