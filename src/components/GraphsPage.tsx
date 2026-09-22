@@ -649,6 +649,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const [yearlyChartAnchorMonthKey, setYearlyChartAnchorMonthKey] = React.useState(currentMonthKey);
 
   const [budgetMonthKey, setBudgetMonthKey] = React.useState(currentMonthKey);
+  const [budgetView, setBudgetView] = React.useState<"budget" | "sontoku">("budget");
+  const budgetViewScrollRef = React.useRef<HTMLDivElement>(null);
   const [budgets, setBudgets] = React.useState<BudgetEntry[]>(() => loadBudgets());
   const [budgetDraft, setBudgetDraft] = React.useState<Record<string, number>>({});
   const [savedBudgetDraft, setSavedBudgetDraft] = React.useState("");
@@ -1716,6 +1718,86 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     cssVariable: "--graphs-tab-position",
     horizontalPadding: 3,
   });
+  const monthlyModeDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 3,
+    selectedIndex: ["expense", "income", "net"].indexOf(monthlyCategoryMode),
+    onSelect: (index) => {
+      setMonthlyCategoryMode((["expense", "income", "net"] as const)[index] ?? "expense");
+      setSelectedCategory("");
+      setSelectedPieCategory("");
+    },
+    cssVariable: "--graph-mode-index",
+    horizontalPadding: 3,
+  });
+  const yearlyModeDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 3,
+    selectedIndex: ["expense", "income", "net"].indexOf(yearlyCategoryMode),
+    onSelect: (index) => {
+      const mode = (["expense", "income", "net"] as const)[index] ?? "expense";
+      setYearlyCategoryMode(mode);
+      setYearlyOverviewMode(mode);
+      setSelectedYearlyCategory("");
+    },
+    cssVariable: "--graph-mode-index",
+    horizontalPadding: 3,
+  });
+  const portfolioModeDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 2,
+    selectedIndex: portfolioChartMode === "pie" ? 0 : 1,
+    onSelect: (index) => setPortfolioChartMode(index === 0 ? "pie" : "stacked"),
+    cssVariable: "--segment-index",
+    horizontalPadding: 3,
+  });
+  const investmentModeDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 3,
+    selectedIndex: ["area", "profit", "pie"].indexOf(investmentChartMode),
+    onSelect: (index) => setInvestmentChartMode((["area", "profit", "pie"] as const)[index] ?? "area"),
+    cssVariable: "--segment-index",
+    horizontalPadding: 3,
+  });
+  const investmentPeriodDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 4,
+    selectedIndex: ["3", "6", "12", "all"].indexOf(investmentPeriodMonths),
+    onSelect: (index) => setInvestmentPeriodMonths((["3", "6", "12", "all"] as const)[index] ?? "12"),
+    cssVariable: "--segment-index",
+    horizontalPadding: 3,
+  });
+  const yearlyOverviewDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 4,
+    selectedIndex: ["pie", "income", "expense", "net"].indexOf(yearlyOverviewMode),
+    onSelect: (index) => {
+      const mode = (["pie", "income", "expense", "net"] as const)[index] ?? "net";
+      if (mode === "pie" && yearlyCategoryMode === "net") return;
+      setSelectedYearlyCategory("");
+      setYearlyOverviewMode(mode);
+    },
+    cssVariable: "--segment-index",
+    horizontalPadding: 3,
+  });
+  const budgetViewDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 2,
+    selectedIndex: budgetView === "budget" ? 0 : 1,
+    onSelect: (index) => setBudgetView(index === 0 ? "budget" : "sontoku"),
+    cssVariable: "--segment-index",
+    horizontalPadding: 3,
+  });
+  const sontokuModeDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 2,
+    selectedIndex: sontokuMode === "month" ? 0 : 1,
+    onSelect: (index) => setSontokuMode(index === 0 ? "month" : "total"),
+    cssVariable: "--segment-index",
+    horizontalPadding: 3,
+  });
+  const sontokuKindDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 2,
+    selectedIndex: sontokuForm.kind === "gain" ? 0 : 1,
+    onSelect: (index) => setSontokuForm((prev) => ({ ...prev, kind: index === 0 ? "gain" : "loss" })),
+    cssVariable: "--segment-index",
+    horizontalPadding: 3,
+  });
+  React.useEffect(() => {
+    budgetViewScrollRef.current?.scrollTo({ top: 0 });
+  }, [budgetView]);
   const activeMonthKey = activeTab === "category"
     ? categoryMonthKey
     : activeTab === "monthly"
@@ -1863,8 +1945,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
           <div className="investment-chart-heading">
             <h3>{investmentChartMode === "area" ? "評価額推移" : investmentChartMode === "profit" ? "損益額 / 損益率" : "現在構成"}</h3>
             <div
-              className="app-segmented-control investment-chart-mode-control"
+              ref={investmentModeDrag.ref}
+              className={`app-segmented-control investment-chart-mode-control${investmentModeDrag.isDragging ? " is-dragging" : ""}`}
               style={{ "--segment-count": 3, "--segment-index": ["area", "profit", "pie"].indexOf(investmentChartMode) } as React.CSSProperties}
+              {...investmentModeDrag.handlers}
             >
               <button type="button" className={investmentChartMode === "area" ? "active" : ""} onClick={() => setInvestmentChartMode("area")}>積上</button>
               <button type="button" className={investmentChartMode === "profit" ? "active" : ""} onClick={() => setInvestmentChartMode("profit")}>損益</button>
@@ -1873,8 +1957,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
           </div>
           {investmentChartMode !== "pie" && (
             <div
-              className="app-segmented-control investment-period-control"
+              ref={investmentPeriodDrag.ref}
+              className={`app-segmented-control investment-period-control${investmentPeriodDrag.isDragging ? " is-dragging" : ""}`}
               style={{ "--segment-count": 4, "--segment-index": ["3", "6", "12", "all"].indexOf(investmentPeriodMonths) } as React.CSSProperties}
+              {...investmentPeriodDrag.handlers}
             >
               {([['3','3か月'],['6','6か月'],['12','1年'],['all','全期間']] as const).map(([value, label]) => <button key={value} type="button" className={investmentPeriodMonths === value ? "active" : ""} onClick={() => setInvestmentPeriodMonths(value)}>{label}</button>)}
             </div>
@@ -1975,8 +2061,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             <div className="chart-header-actions">
               <h3>{portfolioChartMode === "pie" ? "口座別構成" : "口座別残高推移"}</h3>
               <div
-                className="app-segmented-control portfolio-chart-mode-control"
+                ref={portfolioModeDrag.ref}
+                className={`app-segmented-control portfolio-chart-mode-control${portfolioModeDrag.isDragging ? " is-dragging" : ""}`}
                 style={{ "--segment-count": 2, "--segment-index": portfolioChartMode === "pie" ? 0 : 1 } as React.CSSProperties}
+                {...portfolioModeDrag.handlers}
               >
                 <button type="button" className={portfolioChartMode === "pie" ? "active" : ""} onClick={() => setPortfolioChartMode("pie")}>円</button>
                 <button type="button" className={portfolioChartMode === "stacked" ? "active" : ""} onClick={() => setPortfolioChartMode("stacked")}>積上</button>
@@ -2175,8 +2263,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       <TabPanel title="1) 月毎収支（カテゴリ内訳 + 推移）" className="graph-mode-category">
         <div className="graph-context-bar" aria-label="月次表示">
           <div
-            className="toggle-group graph-mode-toggle"
+            ref={monthlyModeDrag.ref}
+            className={`toggle-group graph-mode-toggle${monthlyModeDrag.isDragging ? " is-dragging" : ""}`}
             style={{ "--graph-mode-index": ["expense", "income", "net"].indexOf(monthlyCategoryMode) } as React.CSSProperties}
+            {...monthlyModeDrag.handlers}
           >
             {(["expense", "income", "net"] as const).map((mode) => (
               <button
@@ -2402,8 +2492,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       <TabPanel title="2) 収支推移（年合計 + 月推移）" className="graph-mode-monthly">
         <div className="graph-context-bar" aria-label="推移表示">
           <div
-            className="toggle-group graph-mode-toggle"
+            ref={yearlyModeDrag.ref}
+            className={`toggle-group graph-mode-toggle${yearlyModeDrag.isDragging ? " is-dragging" : ""}`}
             style={{ "--graph-mode-index": ["expense", "income", "net"].indexOf(yearlyCategoryMode) } as React.CSSProperties}
+            {...yearlyModeDrag.handlers}
           >
             {(["expense", "income", "net"] as const).map((mode) => (
               <button
@@ -2489,7 +2581,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     <p className="muted">{categoryTrendMonths[0]} から {categoryTrendMonths[categoryTrendMonths.length - 1]}</p>
                   </div>
                   <div className="chart-header-actions">
-                    <div className="toggle-group">
+                    <div
+                      ref={yearlyOverviewDrag.ref}
+                      className={`app-segmented-control yearly-overview-control${yearlyOverviewDrag.isDragging ? " is-dragging" : ""}`}
+                      style={{ "--segment-count": 4, "--segment-index": ["pie", "income", "expense", "net"].indexOf(yearlyOverviewMode) } as React.CSSProperties}
+                      {...yearlyOverviewDrag.handlers}
+                    >
                       {([
                         { key: "pie", label: "円グラフ" },
                         { key: "income", label: "収入" },
@@ -2535,7 +2632,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   <div>
                     <h3>{yearlyCategoryYear}年のカテゴリ内訳</h3>
                   </div>
-                  <div className="toggle-group">
+                  <div
+                    ref={yearlyOverviewDrag.ref}
+                    className={`app-segmented-control yearly-overview-control${yearlyOverviewDrag.isDragging ? " is-dragging" : ""}`}
+                    style={{ "--segment-count": 4, "--segment-index": ["pie", "income", "expense", "net"].indexOf(yearlyOverviewMode) } as React.CSSProperties}
+                    {...yearlyOverviewDrag.handlers}
+                  >
                     {([
                       { key: "pie", label: "円グラフ" },
                       { key: "income", label: "収入" },
@@ -2593,7 +2695,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       収支には負の値が含まれるため、円グラフの代わりにカテゴリ棒グラフを表示しています。
                     </p>
                   </div>
-                  <div className="toggle-group">
+                  <div
+                    ref={yearlyOverviewDrag.ref}
+                    className={`app-segmented-control yearly-overview-control${yearlyOverviewDrag.isDragging ? " is-dragging" : ""}`}
+                    style={{ "--segment-count": 4, "--segment-index": ["pie", "income", "expense", "net"].indexOf(yearlyOverviewMode) } as React.CSSProperties}
+                    {...yearlyOverviewDrag.handlers}
+                  >
                     {([
                       { key: "pie", label: "円グラフ" },
                       { key: "income", label: "収入" },
@@ -2657,7 +2764,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     <h3>{yearlyCategoryYear}年の月毎{yearlyBarMode === "income" ? "収入" : yearlyBarMode === "expense" ? "支出" : "収支"}</h3>
                     <p className="muted">{yearlyTrendMonths[0]} から {yearlyTrendMonths[yearlyTrendMonths.length - 1]}</p>
                   </div>
-                  <div className="toggle-group">
+                  <div
+                    ref={yearlyOverviewDrag.ref}
+                    className={`app-segmented-control yearly-overview-control${yearlyOverviewDrag.isDragging ? " is-dragging" : ""}`}
+                    style={{ "--segment-count": 4, "--segment-index": ["pie", "income", "expense", "net"].indexOf(yearlyOverviewMode) } as React.CSSProperties}
+                    {...yearlyOverviewDrag.handlers}
+                  >
                     {([
                       { key: "pie", label: "円グラフ" },
                       { key: "income", label: "収入" },
@@ -2706,8 +2818,20 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
 
       {activeTab === "budget" && (
       <TabPanel title="5) 予算&損得" className="graph-mode-budget">
-        <div className="section-grid budget-layout">
-          <section className="card budget-plan-card">
+        <div className="budget-view-switch-bar">
+          <div
+            ref={budgetViewDrag.ref}
+            className={`app-segmented-control budget-view-control${budgetViewDrag.isDragging ? " is-dragging" : ""}`}
+            style={{ "--segment-count": 2, "--segment-index": budgetView === "budget" ? 0 : 1 } as React.CSSProperties}
+            {...budgetViewDrag.handlers}
+          >
+            <button type="button" className={budgetView === "budget" ? "active" : ""} onClick={() => setBudgetView("budget")}>予実</button>
+            <button type="button" className={budgetView === "sontoku" ? "active" : ""} onClick={() => setBudgetView("sontoku")}>損得</button>
+          </div>
+        </div>
+        <div ref={budgetViewScrollRef} className="budget-view-scroll">
+          <div className="section-grid budget-layout">
+          <section className="card budget-plan-card" hidden={budgetView !== "budget"}>
             <div className="portfolio-section-heading">
               <div>
                 <h3>予算</h3>
@@ -2794,15 +2918,17 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             </div>
           </section>
 
-          <section className="card sontoku-card">
+          <section className="card sontoku-card" hidden={budgetView !== "sontoku"}>
             <div className="portfolio-section-heading sontoku-heading">
               <div>
                 <h3>損得カウンター</h3>
                 <p>我慢のモチベーション記録</p>
               </div>
               <div
-                className="app-segmented-control sontoku-mode-control"
+                ref={sontokuModeDrag.ref}
+                className={`app-segmented-control sontoku-mode-control${sontokuModeDrag.isDragging ? " is-dragging" : ""}`}
                 style={{ "--segment-count": 2, "--segment-index": sontokuMode === "month" ? 0 : 1 } as React.CSSProperties}
+                {...sontokuModeDrag.handlers}
               >
                 <button
                   type="button"
@@ -2869,8 +2995,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 />
               </label>
               <div
-                className="app-segmented-control sontoku-kind-control"
+                ref={sontokuKindDrag.ref}
+                className={`app-segmented-control sontoku-kind-control${sontokuKindDrag.isDragging ? " is-dragging" : ""}`}
                 style={{ "--segment-count": 2, "--segment-index": sontokuForm.kind === "gain" ? 0 : 1 } as React.CSSProperties}
+                {...sontokuKindDrag.handlers}
               >
                 {(["gain", "loss"] as const).map((kind) => (
                   <button
@@ -2935,6 +3063,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               </ul>
             )}
           </section>
+          </div>
         </div>
       </TabPanel>
       )}

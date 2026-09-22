@@ -451,6 +451,10 @@
   overflow: hidden;
   border-radius: 17px;
   background: #d7e3db;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .graph-mode-toggle::before {
@@ -478,6 +482,9 @@
   color: #006428;
   font-size: 13px;
   font-weight: 500;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .toggle-group.graph-mode-toggle button.active {
@@ -864,6 +871,10 @@
   overflow: hidden;
   border-radius: 17px;
   background: #d7e3db;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .app-segmented-control::before {
@@ -878,6 +889,12 @@
   background: #006428;
   transform: translateX(calc(var(--segment-index) * 100%));
   transition: transform 260ms cubic-bezier(.2, .72, .25, 1);
+  will-change: transform;
+}
+
+.app-segmented-control.is-dragging::before,
+.graph-mode-toggle.is-dragging::before {
+  transition: none;
 }
 
 .app-segmented-control button {
@@ -891,6 +908,9 @@
   color: #006428;
   font-size: 12px;
   font-weight: 500;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .app-segmented-control button.active {
@@ -907,8 +927,13 @@
   margin: 8px auto 0;
 }
 
-.graph-mode-monthly .monthly-category-chart-header .toggle-group {
+.graph-mode-monthly .monthly-category-chart-header .yearly-overview-control {
   display: none;
+}
+
+.yearly-overview-control {
+  width: 250px;
+  flex: none;
 }
 
 .monthly-category-chart-header {
@@ -1367,7 +1392,25 @@ select {
 }
 
 .budget-layout {
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
+  width: min(720px, 100%);
+  margin-inline: auto;
+}
+
+.budget-view-switch-bar {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.budget-view-control {
+  width: min(240px, 100%);
+}
+
+.budget-view-scroll {
+  min-height: 0;
 }
 
 .budget-plan-card,
@@ -1890,7 +1933,7 @@ select {
   .graph-mode-monthly .monthly-category-sidebar,
   .portfolio-detail-scroll,
   .graph-mode-invest > .graphs-section-body > .section-grid,
-  .graph-mode-budget > .graphs-section-body {
+  .budget-view-scroll {
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
@@ -1931,7 +1974,24 @@ select {
   }
 
   .graph-mode-budget > .graphs-section-body {
-    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
+
+  .budget-view-switch-bar {
+    position: relative;
+    z-index: 1;
+    width: calc(100% + 16px);
+    margin: 0 -8px;
+    padding: 8px;
+    box-sizing: border-box;
+    border-bottom: 1px solid #d7e3db;
+    background: #f9fffb;
+  }
+
+  .budget-view-scroll {
+    flex: 1 1 auto;
+    box-sizing: border-box;
+    padding: 8px 0 calc(96px + env(safe-area-inset-bottom));
   }
 
   .graph-mode-budget .budget-layout {
