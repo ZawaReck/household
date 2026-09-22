@@ -14,7 +14,6 @@ import {
   Pie,
   Cell,
   Tooltip,
-  Legend,
   AreaChart,
   Area,
   XAxis,
@@ -1794,58 +1793,61 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
 
       {activeTab === "invest" && (
       <TabPanel title="4) 投資損益" className="graph-mode-invest">
-        <div className="section-grid">
-          <div className="card">
-            <h3>資産一覧</h3>
-            <p className="muted">{investmentAsOf}時点の入出金・評価額（評価更新：{latestSnapshot?.date ?? "開始残高"}）</p>
+        <div className="section-grid investment-detail-layout">
+          <section className="card investment-assets-card">
+            <div className="portfolio-section-heading">
+              <div>
+                <h3>投資口座</h3>
+                <p>{investmentAsOf} 時点・評価更新 {latestSnapshot?.date ?? "開始残高"}</p>
+              </div>
+              <strong className="investment-assets-total">{formatYen(latestInvestmentTotal)}</strong>
+            </div>
             {investmentAccounts.length === 0 ? (
               <p className="muted">設定で投資口座を登録してください。</p>
             ) : (
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>資産</th>
-                      <th>累計入金</th>
-                      <th>累計出金</th>
-                      <th>現在額</th>
-                      <th>損益</th>
-                      <th>損益率</th>
-                      <th>構成比</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {investmentAccounts.map((account) => {
-                      const flow = investmentFlows(account, snapshotDateForTable);
-                      const current = investmentValueAt(account, snapshotDateForTable);
-                      const profit = current + flow.withdrawals - flow.cumulativeDeposits;
-                      const rate = flow.cumulativeDeposits > 0 ? (profit / flow.cumulativeDeposits) * 100 : null;
-                      return (
-                        <tr key={account.id}>
-                          <td>{account.name}</td>
-                          <td>{formatYen(flow.cumulativeDeposits)}</td>
-                          <td>{formatYen(flow.withdrawals)}</td>
-                          <td>{formatYen(current)}</td>
-                          <td className={profit >= 0 ? "positive" : "negative"}>
-                            {formatYen(profit)}
-                          </td>
-                          <td className={profit >= 0 ? "positive" : "negative"}>
-                            {rate == null ? "—" : `${rate.toFixed(1)}%`}
-                          </td>
-                          <td>{latestInvestmentTotal !== 0 ? `${((current / latestInvestmentTotal) * 100).toFixed(1)}%` : "—"}</td>
-                          <td />
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="investment-account-list">
+                {investmentAccounts.map((account) => {
+                  const flow = investmentFlows(account, snapshotDateForTable);
+                  const current = investmentValueAt(account, snapshotDateForTable);
+                  const profit = current + flow.withdrawals - flow.cumulativeDeposits;
+                  const rate = flow.cumulativeDeposits > 0 ? (profit / flow.cumulativeDeposits) * 100 : null;
+                  const ratio = latestInvestmentTotal !== 0 ? (current / latestInvestmentTotal) * 100 : null;
+                  const colorIndex = historicalInvestmentAccounts.findIndex((item) => item.id === account.id);
+                  return (
+                    <section className="investment-account-row" key={account.id}>
+                      <div className="investment-account-main">
+                        <span className="portfolio-account-name">
+                          <i style={{ backgroundColor: chartColors[(colorIndex >= 0 ? colorIndex : 0) % chartColors.length] }} />
+                          {account.name}
+                        </span>
+                        <strong>{formatYen(current)}</strong>
+                      </div>
+                      <div className="investment-performance-row">
+                        <span className={profit >= 0 ? "positive" : "negative"}>
+                          損益 {profit > 0 ? "+" : ""}{formatYen(profit)}
+                        </span>
+                        <span className={profit >= 0 ? "positive" : "negative"}>
+                          {rate == null ? "—" : `${rate > 0 ? "+" : ""}${rate.toFixed(1)}%`}
+                        </span>
+                      </div>
+                      <div className="investment-flow-grid">
+                        <span><small>累計入金</small>{formatYen(flow.cumulativeDeposits)}</span>
+                        <span><small>累計出金</small>{formatYen(flow.withdrawals)}</span>
+                        <span><small>構成比</small>{ratio == null ? "—" : `${ratio.toFixed(1)}%`}</span>
+                      </div>
+                    </section>
+                  );
+                })}
               </div>
             )}
-          </div>
-          <div className="card">
-            <p className="muted">投資口座の追加・開始残高・開始時点損益は設定から変更します。入出金はMoveから自動集計します。</p>
-            <h3>現在額更新</h3>
+          </section>
+          <section className="card investment-update-card">
+            <div className="portfolio-section-heading">
+              <div>
+                <h3>現在額更新</h3>
+                <p>入出金はMoveから自動集計</p>
+              </div>
+            </div>
             <SnapshotForm
               key={investmentAsOf}
               assets={investmentAssets}
@@ -1853,10 +1855,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               snapshots={investmentSnapshots}
               onSave={handleSaveSnapshot}
             />
-          </div>
+            <p className="muted investment-update-note">口座の追加・開始残高・開始時点損益は設定から変更できます。</p>
+          </section>
         </div>
 
-        <div className="card chart-card">
+        <div className="card chart-card investment-chart-card">
           <div className="investment-chart-heading">
             <h3>{investmentChartMode === "area" ? "評価額推移" : investmentChartMode === "profit" ? "損益額 / 損益率" : "現在構成"}</h3>
             <div
@@ -1880,13 +1883,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             filteredInvestmentChartData.length === 0 ? (
               <p className="muted">選択期間に評価額の記録がありません。期間を広げるか、現在額更新から登録してください。</p>
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <AreaChart data={filteredInvestmentChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
+              <ResponsiveContainer width="100%" height={190}>
+                <AreaChart data={filteredInvestmentChartData} margin={{ top: 10, right: 6, bottom: 0, left: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fontSize: 9 }} tickFormatter={(date) => String(date).slice(2, 7).replace("-", "/")} />
+                  <YAxis width={48} tick={{ fontSize: 8 }} tickFormatter={formatAxisAmount} />
                   <Tooltip formatter={(value) => formatYen(value)} />
-                  <Legend />
                   {historicalInvestmentAssets.map((asset, idx) => (
                     <Area
                       key={asset.id}
@@ -1896,6 +1898,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       stackId="1"
                       stroke={chartColors[idx % chartColors.length]}
                       fill={chartColors[idx % chartColors.length]}
+                      fillOpacity={0.78}
                     />
                   ))}
                 </AreaChart>
@@ -1905,29 +1908,26 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             filteredInvestmentProfitData.length === 0 ? (
               <p className="muted">選択期間に評価額の記録がありません。期間を広げるか、現在額更新から登録してください。</p>
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={filteredInvestmentProfitData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip
-                    formatter={(value, name) =>
-                      name === "損益率"
-                        ? value == null ? "—" : `${Number(value).toFixed(1)}%`
-                        : formatYen(value)
-                    }
-                  />
-                  <Legend />
-                  <Line yAxisId="left" type="monotone" dataKey="profit" name="損益額" />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="profitRate"
-                    name="損益率"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <div className="investment-profit-chart">
+                <div className="investment-line-legend"><span>● 損益額</span><span>● 損益率</span></div>
+                <ResponsiveContainer width="100%" height={170}>
+                  <LineChart data={filteredInvestmentProfitData} margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 9 }} tickFormatter={(date) => String(date).slice(2, 7).replace("-", "/")} />
+                    <YAxis yAxisId="left" width={48} tick={{ fontSize: 8 }} tickFormatter={formatAxisAmount} />
+                    <YAxis yAxisId="right" width={34} tick={{ fontSize: 8 }} orientation="right" tickFormatter={(value) => `${Math.round(Number(value))}%`} />
+                    <Tooltip
+                      formatter={(value, name) =>
+                        name === "損益率"
+                          ? value == null ? "—" : `${Number(value).toFixed(1)}%`
+                          : formatYen(value)
+                      }
+                    />
+                    <Line yAxisId="left" type="monotone" dataKey="profit" name="損益額" stroke="#006428" strokeWidth={2} dot={false} />
+                    <Line yAxisId="right" type="monotone" dataKey="profitRate" name="損益率" stroke="#59A14F" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             )
           ) : investmentHasNegativeValue ? <p className="muted">マイナス評価額を含むため、構成比を表示できません。資産一覧で評価額を確認してください。</p> : !investmentHasPositiveValue ? <p className="muted">この時点の評価額はすべて0円です。現在額更新から評価額を登録できます。</p> : (
             <div className="pie-chart-wrap">
@@ -1949,9 +1949,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     isAnimationActive={finishedInvestmentPieAnimationKey !== investmentPieAnimationKey}
                     onAnimationEnd={() => setFinishedInvestmentPieAnimationKey(investmentPieAnimationKey)}
                   >
-                    {investmentPieChartData.map((asset, index) => (
-                      <Cell key={asset.category} fill={chartColors[index % chartColors.length]} />
-                    ))}
+                    {investmentPieChartData.map((asset) => {
+                      const index = historicalInvestmentAssets.findIndex((item) => item.name === asset.category);
+                      return <Cell key={asset.category} fill={chartColors[(index >= 0 ? index : 0) % chartColors.length]} />;
+                    })}
                   </Pie>
                   <Tooltip
                     cursor={false}
@@ -2958,7 +2959,7 @@ const SnapshotForm: React.FC<{
 
   return (
     <form
-      className="snapshot-form"
+      className="snapshot-form investment-snapshot-form"
       onSubmit={(e) => {
         e.preventDefault();
         if (!date || assets.some((asset) => !Number.isInteger(values[asset.id] ?? 0))) {
@@ -2969,26 +2970,29 @@ const SnapshotForm: React.FC<{
         setSavedValues(`${date}:${JSON.stringify(values)}`);
       }}
     >
-      <label>
-        日付
+      <label className="investment-snapshot-date">
+        <span>評価日</span>
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </label>
-      {assets.map((asset) => (
-        <label key={asset.id}>
-          {asset.name}
-          <input
-            type="number"
-            inputMode="numeric"
-            step="1"
-            value={values[asset.id] ?? 0}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, [asset.id]: Number(e.target.value) || 0 }))
-            }
-          />
-        </label>
-      ))}
-      <button type="submit" disabled={assets.length === 0}>更新</button>
-      {savedValues === `${date}:${JSON.stringify(values)}` && <span role="status">評価額を保存しました</span>}
+      <div className="investment-snapshot-list">
+        {assets.map((asset) => (
+          <label className="portfolio-balance-input investment-snapshot-input" key={asset.id}>
+            <span>{asset.name}</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              step="1"
+              value={values[asset.id] ?? 0}
+              onChange={(e) =>
+                setValues((prev) => ({ ...prev, [asset.id]: Number(e.target.value) || 0 }))
+              }
+            />
+            <span>円</span>
+          </label>
+        ))}
+      </div>
+      <button className="portfolio-primary-action" type="submit" disabled={assets.length === 0}>評価額を保存</button>
+      {savedValues === `${date}:${JSON.stringify(values)}` && <span className="investment-saved-status" role="status">評価額を保存しました</span>}
     </form>
   );
 };
