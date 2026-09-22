@@ -1,9 +1,10 @@
 // Include partially visible slots at both edges of the scrolling plot.
 export const visibleChartRange = (count: number, scrollLeft: number, width: number, canvasWidth: number) => {
   const slot = Math.max(1, (canvasWidth - 12) / Math.max(1, count));
+  const boundedScrollLeft = Math.max(0, Math.min(scrollLeft, Math.max(0, canvasWidth - width)));
   return {
-    start: Math.max(0, Math.min(count, Math.floor((scrollLeft - 6) / slot))),
-    end: Math.max(0, Math.min(count, Math.ceil((scrollLeft + width - 6) / slot))),
+    start: Math.max(0, Math.min(count, Math.floor((boundedScrollLeft - 6) / slot))),
+    end: Math.max(0, Math.min(count, Math.ceil((boundedScrollLeft + width - 6) / slot))),
   };
 };
 

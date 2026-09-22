@@ -359,9 +359,8 @@ const CategoryMonthlyTrendChart: React.FC<{
   colorOverride?: string;
   focusMonthKey: string;
   height?: number;
-  onVisibleMonthChange?: (monthKey: string) => void;
   onMonthSelect?: (monthKey: string) => void;
-}> = ({ data, category, mode, colorOverride, focusMonthKey, height = 320, onVisibleMonthChange, onMonthSelect }) => {
+}> = ({ data, category, mode, colorOverride, focusMonthKey, height = 320, onMonthSelect }) => {
   const viewportRef = React.useRef<HTMLDivElement | null>(null);
   const autoAlignKeyRef = React.useRef("");
   const skipNextAutoAlignRef = React.useRef(false);
@@ -402,17 +401,6 @@ const CategoryMonthlyTrendChart: React.FC<{
     () => data.slice(visibleRange.start, visibleRange.end),
     [data, visibleRange]
   );
-
-  React.useEffect(() => {
-    if (!onVisibleMonthChange || data.length === 0 || visibleRange.end <= visibleRange.start) return;
-
-    const centerIndex = Math.min(
-      data.length - 1,
-      Math.floor((visibleRange.start + visibleRange.end - 1) / 2)
-    );
-    const visibleMonth = data[centerIndex]?.month;
-    if (visibleMonth) onVisibleMonthChange(visibleMonth);
-  }, [data, onVisibleMonthChange, visibleRange]);
 
   const scale = React.useMemo(() => {
     const target = visibleData.length > 0 ? visibleData : data;
@@ -1225,10 +1213,6 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   }, [monthlyCategorySummary.items, selectedPieCategory]);
 
   const categoryTrendMonths = listMonthKeysBetween(allMonthKeys[0], allMonthKeys[allMonthKeys.length - 1]);
-  const handleVisibleYearSync = React.useCallback((monthKey: string) => {
-    const nextYear = monthKey.slice(0, 4);
-    setYearlyCategoryYear((prev) => (prev === nextYear ? prev : nextYear));
-  }, []);
   const categoryTrendData = selectedCategory
     ? categoryTrendMonths.map((month) => {
         if (monthlyCategoryMode === "expense") {
@@ -2488,7 +2472,6 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     colorOverride={selectedYearlyCategoryColor}
                     focusMonthKey={yearlyChartAnchorMonthKey}
                     height={190}
-                    onVisibleMonthChange={handleVisibleYearSync}
                   />
                 )}
               </>
@@ -2657,7 +2640,6 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   mode={yearlyBarMode}
                   focusMonthKey={yearlyChartAnchorMonthKey}
                   height={190}
-                  onVisibleMonthChange={handleVisibleYearSync}
                 />
               </>
                 );
