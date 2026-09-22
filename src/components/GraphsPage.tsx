@@ -1,7 +1,7 @@
 /* src/components/GraphsPage.tsx */
 
 import React from "react";
-import { boundedChartScrollLeft, visibleChartRange, investmentPeriodStartDate } from "../utils/chartDisplay";
+import { boundedChartScrollLeft, visibleChartRange, investmentPeriodStartDate, investmentPeriodSeries } from "../utils/chartDisplay";
 import type { Transaction } from "../types/Transaction";
 import type { Account } from "../types/Account";
 import type { Category } from "../types/Category";
@@ -793,7 +793,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   };
 
   const investmentChartData = visibleInvestmentSnapshots.map((snapshot) => {
-    const point: Record<string, number | string> = { date: snapshot.date };
+    const point: { date: string } & Record<string, number | string> = { date: snapshot.date };
     historicalInvestmentAssets.forEach((asset) => {
       const account = historicalInvestmentAccounts.find((item) => item.id === asset.id);
       point[asset.id] = account && isAccountVisibleOn(account, snapshot.date)
@@ -824,8 +824,14 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     return { date: snapshot.date, profit, profitRate };
   });
   const investmentPeriodStart = investmentPeriodStartDate(investmentAsOf, investmentPeriodMonths);
-  const filteredInvestmentChartData = investmentChartData.filter((point) => !investmentPeriodStart || String(point.date) >= investmentPeriodStart);
-  const filteredInvestmentProfitData = investmentProfitData.filter((point) => !investmentPeriodStart || point.date >= investmentPeriodStart);
+  const filteredInvestmentChartData = investmentPeriodSeries(investmentChartData, investmentPeriodStart, investmentAsOf)
+    .map((point) => ({ ...point, timestamp: Date.parse(String(point.date)) }));
+  const filteredInvestmentProfitData = investmentPeriodSeries(investmentProfitData, investmentPeriodStart, investmentAsOf)
+    .map((point) => ({ ...point, timestamp: Date.parse(point.date) }));
+  const investmentPeriodDomainStart = Date.parse(
+    investmentPeriodStart || String(investmentChartData[0]?.date ?? investmentAsOf)
+  );
+  const investmentPeriodDomainEnd = Date.parse(investmentAsOf);
   const investmentPieData = investmentAssets.map((asset) => {
     const account = investmentAccounts.find((item) => item.id === asset.id)!;
     return { category: asset.name, value: investmentValueAt(account, investmentAsOf) };
@@ -1989,9 +1995,19 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               <ResponsiveContainer width="100%" height={190}>
                 <AreaChart data={filteredInvestmentChartData} margin={{ top: 10, right: 6, bottom: 0, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 9 }} tickFormatter={(date) => String(date).slice(2, 7).replace("-", "/")} />
+                  <XAxis
+                    dataKey="timestamp"
+                    type="number"
+                    scale="time"
+                    domain={[investmentPeriodDomainStart, investmentPeriodDomainEnd]}
+                    tick={{ fontSize: 9 }}
+                    tickFormatter={(timestamp) => new Date(Number(timestamp)).toISOString().slice(2, 7).replace("-", "/")}
+                  />
                   <YAxis width={48} tick={{ fontSize: 8 }} tickFormatter={formatAxisAmount} />
-                  <Tooltip formatter={(value) => formatYen(value)} />
+                  <Tooltip
+                    formatter={(value) => formatYen(value)}
+                    labelFormatter={(timestamp) => new Date(Number(timestamp)).toISOString().slice(0, 10)}
+                  />
                   {historicalInvestmentAssets.map((asset, idx) => (
                     <Area
                       key={asset.id}
@@ -2016,10 +2032,18 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 <ResponsiveContainer width="100%" height={170}>
                   <LineChart data={filteredInvestmentProfitData} margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 9 }} tickFormatter={(date) => String(date).slice(2, 7).replace("-", "/")} />
+                    <XAxis
+                      dataKey="timestamp"
+                      type="number"
+                      scale="time"
+                      domain={[investmentPeriodDomainStart, investmentPeriodDomainEnd]}
+                      tick={{ fontSize: 9 }}
+                      tickFormatter={(timestamp) => new Date(Number(timestamp)).toISOString().slice(2, 7).replace("-", "/")}
+                    />
                     <YAxis yAxisId="left" width={48} tick={{ fontSize: 8 }} tickFormatter={formatAxisAmount} />
                     <YAxis yAxisId="right" width={34} tick={{ fontSize: 8 }} orientation="right" tickFormatter={(value) => `${Math.round(Number(value))}%`} />
                     <Tooltip
+                      labelFormatter={(timestamp) => new Date(Number(timestamp)).toISOString().slice(0, 10)}
                       formatter={(value, name) =>
                         name === "損益率"
                           ? value == null ? "—" : `${Number(value).toFixed(1)}%`

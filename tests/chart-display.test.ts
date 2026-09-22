@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { boundedChartScrollLeft, visibleChartRange, investmentPeriodStartDate } from "../src/utils/chartDisplay";
+import { boundedChartScrollLeft, visibleChartRange, investmentPeriodStartDate, investmentPeriodSeries } from "../src/utils/chartDisplay";
 
 describe("chart display boundaries", () => {
   it("includes a partially visible seventh month when scrolled between slots", () => {
@@ -17,5 +17,30 @@ describe("chart display boundaries", () => {
     expect(investmentPeriodStartDate("2026-02-28", "3")).toBe("2025-12-01");
     expect(investmentPeriodStartDate("2026-09-30", "12")).toBe("2025-10-01");
     expect(investmentPeriodStartDate("2026-09-30", "all")).toBe("");
+  });
+  it("pins investment series to the selected period and carries the latest known value", () => {
+    const points = [
+      { date: "2026-06-15", value: 100 },
+      { date: "2026-07-31", value: 110 },
+      { date: "2026-09-15", value: 130 },
+      { date: "2026-10-01", value: 140 },
+    ];
+    expect(investmentPeriodSeries(points, "2026-07-01", "2026-09-30")).toEqual([
+      { date: "2026-07-01", value: 100 },
+      { date: "2026-07-31", value: 110 },
+      { date: "2026-09-15", value: 130 },
+      { date: "2026-09-30", value: 130 },
+    ]);
+  });
+  it("uses the first record for all-time display and still pins the selected end date", () => {
+    expect(investmentPeriodSeries(
+      [{ date: "2025-01-31", value: 100 }, { date: "2025-04-30", value: 120 }],
+      "",
+      "2025-06-30",
+    )).toEqual([
+      { date: "2025-01-31", value: 100 },
+      { date: "2025-04-30", value: 120 },
+      { date: "2025-06-30", value: 120 },
+    ]);
   });
 });
