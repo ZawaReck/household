@@ -2438,6 +2438,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     mode={yearlyCategoryMode}
                     colorOverride={selectedYearlyCategoryColor}
                     focusMonthKey={yearlyChartAnchorMonthKey}
+                    height={190}
                     onVisibleMonthChange={handleVisibleYearSync}
                   />
                 )}
@@ -2447,7 +2448,6 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 <div className="monthly-category-chart-header">
                   <div>
                     <h3>{yearlyCategoryYear}年のカテゴリ内訳</h3>
-                    <p className="muted">左のカテゴリ名を押すと月推移を表示します。</p>
                   </div>
                   <div className="toggle-group">
                     {([
@@ -2472,13 +2472,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   </div>
                 </div>
                 <div className="pie-chart-wrap">
-                  <ResponsiveContainer width="100%" height={320}>
+                  <ResponsiveContainer width="100%" height={190}>
                     <PieChart>
                       <Pie
                         data={yearlyPieData}
                         dataKey="value"
                         nameKey="category"
-                        outerRadius={110}
+                        outerRadius={78}
                         startAngle={90}
                         endAngle={-270}
                         labelLine={false}
@@ -2529,7 +2529,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     ))}
                   </div>
                 </div>
-                <ResponsiveContainer width="100%" height={320}>
+                <ResponsiveContainer width="100%" height={190}>
                   <BarChart
                     data={yearlyCategorySummary.items.map((item) => ({
                       category: item.name,
@@ -2569,7 +2569,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 <div className="monthly-category-chart-header">
                   <div>
                     <h3>{yearlyCategoryYear}年の月毎{yearlyBarMode === "income" ? "収入" : yearlyBarMode === "expense" ? "支出" : "収支"}</h3>
-                    <p className="muted">{categoryTrendMonths[0]} から {categoryTrendMonths[categoryTrendMonths.length - 1]} を月別に表示します。</p>
+                    <p className="muted">{yearlyTrendMonths[0]} から {yearlyTrendMonths[yearlyTrendMonths.length - 1]}</p>
                   </div>
                   <div className="toggle-group">
                     {([
@@ -2607,6 +2607,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   }
                   mode={yearlyBarMode}
                   focusMonthKey={yearlyChartAnchorMonthKey}
+                  height={190}
                   onVisibleMonthChange={handleVisibleYearSync}
                 />
               </>
