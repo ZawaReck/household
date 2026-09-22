@@ -1078,7 +1078,6 @@ select {
 }
 
 .toggle-group button,
-.period-buttons button,
 .inline-controls button,
 .sontoku-form button,
 .asset-form button,
@@ -1091,8 +1090,7 @@ select {
   transition: color 160ms ease, background-color 200ms ease, border-color 200ms ease, transform 180ms ease;
 }
 
-.toggle-group button.active,
-.period-buttons button.active {
+.toggle-group button.active {
   background: #006828;
   color: #F9FFFB;
   border-color: #006828;
@@ -1115,7 +1113,7 @@ select {
   .graphs-tabs button.active,
   .graphs-section,
   .toggle-group button,
-  .period-buttons button.active {
+  .app-segmented-control button.active {
     animation-duration: 1ms;
     transition-duration: 1ms;
   }
@@ -1139,15 +1137,13 @@ select {
 }
 
 .period-buttons {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  width: 100%;
 }
 
 .period-custom {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .period-custom label {
@@ -1155,6 +1151,12 @@ select {
   flex-direction: column;
   gap: 4px;
   font-size: 0.85rem;
+}
+
+.period-custom input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .asset-form,
@@ -1495,6 +1497,40 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
+.budget-total-input {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.budget-total-input input {
+  width: 118px;
+  height: 30px;
+  box-sizing: border-box;
+  padding: 0 7px;
+  border-radius: 8px;
+  color: #173c25;
+  background: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.budget-total-input em {
+  color: #789081;
+  font-size: 10px;
+  font-style: normal;
+}
+
+.budget-buffer-caption {
+  margin-top: 5px;
+  color: #789081;
+  font-size: 9px;
+  text-align: right;
+}
+
 .budget-gauge {
   height: 7px;
   margin-top: 10px;
@@ -1640,21 +1676,22 @@ select {
   flex: none;
 }
 
-.sontoku-card .period-filter {
+.sontoku-fixed-overview {
+  width: min(720px, 100%);
+  margin: 0 auto;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border-bottom: 1px solid #d7e3db;
+  background: #f9fffb;
+}
+
+.sontoku-fixed-overview .period-filter {
   margin: 8px 0 0;
   padding-bottom: 8px;
   border-bottom: 1px solid #e1e7e3;
 }
 
-.sontoku-card .period-buttons {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px;
-}
-
-.sontoku-card .period-buttons button {
-  min-height: 30px;
-  padding: 0 4px;
+.sontoku-fixed-overview .period-buttons button {
   font-size: 10px;
 }
 
@@ -2034,6 +2071,13 @@ select {
   }
 
   .budget-total-overview {
+    flex: 0 0 auto;
+    width: calc(100% + 16px);
+    margin: 0 -8px;
+    padding: 0 20px;
+  }
+
+  .sontoku-fixed-overview {
     flex: 0 0 auto;
     width: calc(100% + 16px);
     margin: 0 -8px;

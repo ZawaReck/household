@@ -653,6 +653,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const budgetViewScrollRef = React.useRef<HTMLDivElement>(null);
   const [budgets, setBudgets] = React.useState<BudgetEntry[]>(() => loadBudgets());
   const [budgetDraft, setBudgetDraft] = React.useState<Record<string, number>>({});
+  const [budgetTotalDraft, setBudgetTotalDraft] = React.useState<number | null>(null);
   const [savedBudgetDraft, setSavedBudgetDraft] = React.useState("");
   const [budgetApplyEndMonth, setBudgetApplyEndMonth] = React.useState(currentMonthKey);
 
@@ -702,6 +703,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     setBudgetDraft(Object.fromEntries(
       Object.entries(source).filter(([category]) => !inactiveExpenseCategoryNames.has(category))
     ));
+    setBudgetTotalDraft(entry?.totalBudget ?? inherited?.totalBudget ?? null);
     setBudgetApplyEndMonth((current) => current < budgetMonthKey ? budgetMonthKey : current);
   }, [budgetMonthKey, budgets, inactiveExpenseCategoryNames]);
 
@@ -1543,6 +1545,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     const entry: BudgetEntry = {
       month: budgetMonthKey,
       byCategory: { ...inactiveHistory, ...budgetDraft },
+      totalBudget: hasUnconfiguredBudgetCategories && totalBudget > configuredBudgetTotal
+        ? totalBudget
+        : undefined,
       updatedAtISO: new Date().toISOString(),
     };
     const next = budgets.some((b) => b.month === budgetMonthKey)
@@ -1550,7 +1555,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       : [...budgets, entry];
     setBudgets(next);
     saveBudgets(next);
-    setSavedBudgetDraft(`${budgetMonthKey}:${JSON.stringify(budgetDraft)}`);
+    setSavedBudgetDraft(`${budgetMonthKey}:${JSON.stringify({ byCategory: budgetDraft, totalBudget })}`);
   };
 
   const handleApplyBudgetRange = () => {
@@ -1567,7 +1572,14 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       const inactiveHistory = Object.fromEntries(
         Object.entries(existing?.byCategory ?? {}).filter(([category]) => inactiveExpenseCategoryNames.has(category))
       );
-      byMonth.set(month, { month, byCategory: { ...inactiveHistory, ...budgetDraft }, updatedAtISO: now });
+      byMonth.set(month, {
+        month,
+        byCategory: { ...inactiveHistory, ...budgetDraft },
+        totalBudget: hasUnconfiguredBudgetCategories && totalBudget > configuredBudgetTotal
+          ? totalBudget
+          : undefined,
+        updatedAtISO: now,
+      });
     });
     const next = Array.from(byMonth.values()).sort((a, b) => a.month.localeCompare(b.month));
     setBudgets(next);
@@ -1575,7 +1587,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   };
 
   const configuredBudgetEntries = Object.entries(budgetDraft).filter(([, value]) => value > 0);
-  const totalBudget = configuredBudgetEntries.reduce((sum, [, value]) => sum + value, 0);
+  const configuredBudgetTotal = configuredBudgetEntries.reduce((sum, [, value]) => sum + value, 0);
+  const hasUnconfiguredBudgetCategories = expenseCategories.some((category) => !(budgetDraft[category] > 0));
+  const totalBudget = hasUnconfiguredBudgetCategories
+    ? Math.max(configuredBudgetTotal, budgetTotalDraft ?? configuredBudgetTotal)
+    : configuredBudgetTotal;
+  const unallocatedBudget = Math.max(0, totalBudget - configuredBudgetTotal);
   const totalBudgetActual = Object.values(budgetActualMap).reduce((sum, value) => sum + value, 0);
   const totalBudgetRate = totalBudget > 0 ? (totalBudgetActual / totalBudget) * 100 : null;
 
@@ -2833,12 +2850,34 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
           <div className="budget-total-overview">
             <div className="budget-total-heading">
               <span><strong>Total</strong><small>{budgetMonthKey}</small></span>
-              {savedBudgetDraft === `${budgetMonthKey}:${JSON.stringify(budgetDraft)}` && <span className="portfolio-confirmed-badge" role="status">保存済み</span>}
+              {savedBudgetDraft === `${budgetMonthKey}:${JSON.stringify({ byCategory: budgetDraft, totalBudget })}` && <span className="portfolio-confirmed-badge" role="status">保存済み</span>}
             </div>
             <div className={`budget-summary${(totalBudgetRate ?? 0) > 100 ? " is-over" : ""}`}>
               <div className="budget-summary-values">
                 <span><small>実績</small><strong>{formatYen(totalBudgetActual)}</strong></span>
-                <span><small>予算</small><strong>{totalBudget > 0 ? formatYen(totalBudget) : "未設定"}</strong></span>
+                <span>
+                  <small>予算</small>
+                  {hasUnconfiguredBudgetCategories ? (
+                    <label className="budget-total-input">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={configuredBudgetTotal}
+                        step="1"
+                        aria-label="Total予算"
+                        placeholder="未設定"
+                        value={budgetTotalDraft ?? (configuredBudgetTotal || "")}
+                        onChange={(event) => setBudgetTotalDraft(event.target.value ? Math.max(0, Math.floor(Number(event.target.value))) : null)}
+                        onBlur={() => {
+                          if (budgetTotalDraft != null && budgetTotalDraft < configuredBudgetTotal) setBudgetTotalDraft(configuredBudgetTotal);
+                        }}
+                      />
+                      <em>円</em>
+                    </label>
+                  ) : (
+                    <strong>{totalBudget > 0 ? formatYen(totalBudget) : "未設定"}</strong>
+                  )}
+                </span>
               </div>
               {totalBudgetRate != null && (
                 <>
@@ -2850,6 +2889,60 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     <span>{totalBudgetActual > totalBudget ? `超過 ${formatYen(totalBudgetActual - totalBudget)}` : `残り ${formatYen(totalBudget - totalBudgetActual)}`}</span>
                   </div>
                 </>
+              )}
+              {hasUnconfiguredBudgetCategories && totalBudget > 0 && (
+                <div className="budget-buffer-caption">未設定項目の予算枠 {formatYen(unallocatedBudget)}</div>
+              )}
+            </div>
+          </div>
+        )}
+        {budgetView === "sontoku" && (
+          <div className="sontoku-fixed-overview">
+            <div className="portfolio-section-heading sontoku-heading">
+              <div>
+                <h3>損得カウンター</h3>
+                <p>我慢のモチベーション記録</p>
+              </div>
+              <div
+                ref={sontokuModeDrag.ref}
+                className={`app-segmented-control sontoku-mode-control${sontokuModeDrag.isDragging ? " is-dragging" : ""}`}
+                style={{ "--segment-count": 2, "--segment-index": sontokuMode === "month" ? 0 : 1 } as React.CSSProperties}
+                {...sontokuModeDrag.handlers}
+              >
+                <button type="button" className={sontokuMode === "month" ? "active" : ""} onClick={() => setSontokuMode("month")}>月毎</button>
+                <button type="button" className={sontokuMode === "total" ? "active" : ""} onClick={() => setSontokuMode("total")}>累計</button>
+              </div>
+            </div>
+            {sontokuMode === "total" && <PeriodFilter value={sontokuPeriod} onChange={setSontokuPeriod} />}
+            <div className="sontoku-summary">
+              <span><small>我慢</small><strong className="positive">+{formatYen(sontokuSummary.gain)}</strong></span>
+              <span><small>衝動買い</small><strong className="negative">−{formatYen(sontokuSummary.loss)}</strong></span>
+              <span><small>合計・{sontokuSummary.count}件</small><strong className={sontokuSummary.gain - sontokuSummary.loss >= 0 ? "positive" : "negative"}>{sontokuSummary.gain - sontokuSummary.loss > 0 ? "+" : ""}{formatYen(sontokuSummary.gain - sontokuSummary.loss)}</strong></span>
+            </div>
+            <div className="sontoku-chart">
+              {sontokuMode === "month" ? (
+                sontokuDailyChartData.length === 0 ? <p className="muted">損得データがありません。</p> : (
+                  <ResponsiveContainer width="100%" height={180}>
+                    <BarChart data={sontokuDailyChartData} margin={{ top: 8, right: 6, bottom: 0, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 9 }} tickFormatter={(date) => String(date).slice(5).replace("-", "/")} />
+                      <YAxis width={48} tick={{ fontSize: 8 }} tickFormatter={formatAxisAmount} />
+                      <Tooltip formatter={(value) => formatYen(value)} />
+                      <Bar dataKey="gain" name="我慢" fill="#59A14F" />
+                      <Bar dataKey="loss" name="衝動買い" fill="#E15759" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )
+              ) : sontokuMonthlyChartData.length === 0 ? <p className="muted">損得データがありません。</p> : (
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={sontokuMonthlyChartData} margin={{ top: 8, right: 6, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 9 }} tickFormatter={(month) => String(month).slice(2).replace("-", "/")} />
+                    <YAxis width={48} tick={{ fontSize: 8 }} tickFormatter={formatAxisAmount} />
+                    <Tooltip formatter={(value) => formatYen(value)} />
+                    <Line type="monotone" dataKey="net" name="合計" stroke="#006428" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
               )}
             </div>
           </div>
@@ -2919,73 +3012,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             </div>
           </section>
 
-          <section className="card sontoku-card" hidden={budgetView !== "sontoku"}>
-            <div className="portfolio-section-heading sontoku-heading">
-              <div>
-                <h3>損得カウンター</h3>
-                <p>我慢のモチベーション記録</p>
-              </div>
-              <div
-                ref={sontokuModeDrag.ref}
-                className={`app-segmented-control sontoku-mode-control${sontokuModeDrag.isDragging ? " is-dragging" : ""}`}
-                style={{ "--segment-count": 2, "--segment-index": sontokuMode === "month" ? 0 : 1 } as React.CSSProperties}
-                {...sontokuModeDrag.handlers}
-              >
-                <button
-                  type="button"
-                  className={sontokuMode === "month" ? "active" : ""}
-                  onClick={() => setSontokuMode("month")}
-                >
-                  月毎
-                </button>
-                <button
-                  type="button"
-                  className={sontokuMode === "total" ? "active" : ""}
-                  onClick={() => setSontokuMode("total")}
-                >
-                  累計
-                </button>
-              </div>
-            </div>
-            {sontokuMode === "total" && <PeriodFilter value={sontokuPeriod} onChange={setSontokuPeriod} />}
-
-            <div className="sontoku-summary">
-              <span><small>我慢</small><strong className="positive">+{formatYen(sontokuSummary.gain)}</strong></span>
-              <span><small>衝動買い</small><strong className="negative">−{formatYen(sontokuSummary.loss)}</strong></span>
-              <span><small>合計・{sontokuSummary.count}件</small><strong className={sontokuSummary.gain - sontokuSummary.loss >= 0 ? "positive" : "negative"}>{sontokuSummary.gain - sontokuSummary.loss > 0 ? "+" : ""}{formatYen(sontokuSummary.gain - sontokuSummary.loss)}</strong></span>
-            </div>
-
-            <div className="sontoku-chart">
-              {sontokuMode === "month" ? (
-                sontokuDailyChartData.length === 0 ? (
-                  <p className="muted">損得データがありません。</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={sontokuDailyChartData} margin={{ top: 8, right: 6, bottom: 0, left: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="date" tick={{ fontSize: 9 }} tickFormatter={(date) => String(date).slice(5).replace("-", "/")} />
-                      <YAxis width={48} tick={{ fontSize: 8 }} tickFormatter={formatAxisAmount} />
-                      <Tooltip formatter={(value) => formatYen(value)} />
-                      <Bar dataKey="gain" name="我慢" fill="#59A14F" />
-                      <Bar dataKey="loss" name="衝動買い" fill="#E15759" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )
-              ) : sontokuMonthlyChartData.length === 0 ? (
-                <p className="muted">損得データがありません。</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={180}>
-                  <LineChart data={sontokuMonthlyChartData} margin={{ top: 8, right: 6, bottom: 0, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="month" tick={{ fontSize: 9 }} tickFormatter={(month) => String(month).slice(2).replace("-", "/")} />
-                    <YAxis width={48} tick={{ fontSize: 8 }} tickFormatter={formatAxisAmount} />
-                    <Tooltip formatter={(value) => formatYen(value)} />
-                    <Line type="monotone" dataKey="net" name="合計" stroke="#006428" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-
+          <section className="sontoku-card" hidden={budgetView !== "sontoku"}>
             <form className="sontoku-form" onSubmit={handleSubmitSontoku}>
               <label className="sontoku-field-row">
                 <span>日付</span>

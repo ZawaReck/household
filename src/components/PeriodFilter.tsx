@@ -1,6 +1,7 @@
 /* src/components/PeriodFilter.tsx */
 
 import React from "react";
+import { useSegmentedDrag } from "../hooks/useSegmentedDrag";
 
 export type PeriodPreset = "3" | "6" | "12" | "24" | "custom";
 
@@ -16,6 +17,14 @@ interface Props {
 }
 
 export const PeriodFilter: React.FC<Props> = ({ value, onChange }) => {
+  const presets: PeriodPreset[] = ["3", "6", "12", "24", "custom"];
+  const presetDrag = useSegmentedDrag<HTMLDivElement>({
+    count: presets.length,
+    selectedIndex: Math.max(0, presets.indexOf(value.preset)),
+    onSelect: (index) => onChange({ ...value, preset: presets[index] ?? "12" }),
+    cssVariable: "--segment-position",
+    horizontalPadding: 3,
+  });
   const handlePreset = (preset: PeriodPreset) => {
     onChange({ ...value, preset });
   };
@@ -34,19 +43,24 @@ export const PeriodFilter: React.FC<Props> = ({ value, onChange }) => {
 
   return (
     <div className="period-filter">
-      <div className="period-buttons">
-        {(["3", "6", "12", "24", "custom"] as PeriodPreset[]).map((preset) => (
+      <div
+        ref={presetDrag.ref}
+        className={`app-segmented-control period-buttons${presetDrag.isDragging ? " is-dragging" : ""}`}
+        style={{ "--segment-count": presets.length, "--segment-index": Math.max(0, presets.indexOf(value.preset)) } as React.CSSProperties}
+        {...presetDrag.handlers}
+      >
+        {presets.map((preset) => (
           <button
             key={preset}
             type="button"
             className={value.preset === preset ? "active" : ""}
             onClick={() => handlePreset(preset)}
           >
-            {preset === "custom" ? "カスタム" : `${preset}ヶ月`}
+            {preset === "custom" ? "指定" : preset === "12" ? "1年" : preset === "24" ? "2年" : `${preset}月`}
           </button>
         ))}
       </div>
-      <div className="period-custom">
+      {value.preset === "custom" && <div className="period-custom">
         <label>
           開始月
           <input
@@ -63,7 +77,7 @@ export const PeriodFilter: React.FC<Props> = ({ value, onChange }) => {
             onChange={(e) => handleEnd(e.target.value)}
           />
         </label>
-      </div>
+      </div>}
     </div>
   );
 };
