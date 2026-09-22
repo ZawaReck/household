@@ -600,6 +600,32 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const [finishedPortfolioPieAnimationKey, setFinishedPortfolioPieAnimationKey] = React.useState("");
   const [selectedPortfolioAccount, setSelectedPortfolioAccount] = React.useState("");
   const portfolioAccountRowsRef = React.useRef(new Map<string, HTMLTableRowElement>());
+  const pieTapRef = React.useRef<{
+    pointerId: number;
+    x: number;
+    y: number;
+    select: () => void;
+  } | null>(null);
+  const beginPieTap = React.useCallback((event: React.PointerEvent<SVGElement>, select: () => void) => {
+    pieTapRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      select,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }, []);
+  const completePieTap = React.useCallback((event: React.PointerEvent<SVGElement>) => {
+    const pending = pieTapRef.current;
+    pieTapRef.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    if (!pending || pending.pointerId !== event.pointerId) return;
+    if (Math.hypot(event.clientX - pending.x, event.clientY - pending.y) > 10) return;
+    pending.select();
+  }, []);
+  const cancelPieTap = React.useCallback(() => {
+    pieTapRef.current = null;
+  }, []);
 
   const [categoryMonthKey, setCategoryMonthKey] = React.useState(currentMonthKey);
   const [monthlyCategoryMode, setMonthlyCategoryMode] =
@@ -2006,12 +2032,14 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       onAnimationEnd={() => setFinishedPortfolioPieAnimationKey(portfolioPieAnimationKey)}
                     >
                       {portfolioPieData.map((item, idx) => (
-                        <Cell
-                          key={item.category}
-                          fill={chartColors[idx % chartColors.length]}
-                          cursor="pointer"
-                          onClick={() => handlePortfolioPieSelect(item.category)}
-                        />
+                          <Cell
+                            key={item.category}
+                            fill={chartColors[idx % chartColors.length]}
+                            cursor="pointer"
+                            onPointerDown={(event) => beginPieTap(event, () => handlePortfolioPieSelect(item.category))}
+                            onPointerUp={completePieTap}
+                            onPointerCancel={cancelPieTap}
+                          />
                       ))}
                     </Pie>
                     <Tooltip
@@ -2185,7 +2213,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                             key={item.category}
                             fill={chartColors[idx % chartColors.length]}
                             cursor="pointer"
-                            onClick={() => setSelectedCategory(item.category)}
+                            onPointerDown={(event) => beginPieTap(event, () => setSelectedCategory(item.category))}
+                            onPointerUp={completePieTap}
+                            onPointerCancel={cancelPieTap}
                           />
                         ))}
                       </Pie>

@@ -522,6 +522,12 @@
   scroll-margin-bottom: calc(104px + env(safe-area-inset-bottom));
 }
 
+.graph-mode-category .recharts-pie-sector,
+.graph-mode-portfolio .recharts-pie-sector {
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .graph-mode-portfolio .table-wrap .selected-account-row > td:first-child {
   background: #edf7f0;
 }
