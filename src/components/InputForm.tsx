@@ -1231,25 +1231,31 @@ export const InputForm: React.FC<InputFormProps> = ({
             placeholder="摘要"
             required={type !== "move"}
           />
-          <input
-            ref={amountInputRef}
-            data-calculator-target="amount"
-            type="text"
-            inputMode="none"
-            autoComplete="off"
-            readOnly={usesCustomKeypad}
-            value={displayedNumericValue("amount", amount)}
-            onChange={(e) => updateNumericValue("amount", e.target.value)}
-            onPointerDown={() => activateCalculator("amount")}
-            onFocus={() => activateCalculator("amount")}
-            onBlur={() => { if (!usesCustomKeypad) deactivateCalculator("amount"); }}
-            placeholder="金額"
-            required
-          />
+          <div className={`calculator-input-shell${calculatorTarget === "amount" && usesCustomKeypad ? " is-active" : ""}`}>
+            <input
+              ref={amountInputRef}
+              data-calculator-target="amount"
+              type="text"
+              inputMode="none"
+              autoComplete="off"
+              readOnly={usesCustomKeypad}
+              value={displayedNumericValue("amount", amount)}
+              onChange={(e) => updateNumericValue("amount", e.target.value)}
+              onPointerDown={() => activateCalculator("amount")}
+              onFocus={() => activateCalculator("amount")}
+              onBlur={() => { if (!usesCustomKeypad) deactivateCalculator("amount"); }}
+              placeholder="金額"
+              required
+            />
+            {calculatorTarget === "amount" && usesCustomKeypad && <i className="calculator-caret" aria-hidden="true" />}
+          </div>
         </div>
         {type === "move" && (
           <div className="move-fee-row">
-            <input ref={moveFeeInputRef} data-calculator-target="moveFee" type="text" inputMode="none" autoComplete="off" readOnly={usesCustomKeypad} value={displayedNumericValue("moveFee", moveFee)} onChange={(event) => updateNumericValue("moveFee", event.target.value)} onPointerDown={() => activateCalculator("moveFee")} onFocus={() => activateCalculator("moveFee")} onBlur={() => { if (!usesCustomKeypad) deactivateCalculator("moveFee"); }} placeholder="手数料等" aria-label="手数料等" />
+            <div className={`calculator-input-shell${calculatorTarget === "moveFee" && usesCustomKeypad ? " is-active" : ""}`}>
+              <input ref={moveFeeInputRef} data-calculator-target="moveFee" type="text" inputMode="none" autoComplete="off" readOnly={usesCustomKeypad} value={displayedNumericValue("moveFee", moveFee)} onChange={(event) => updateNumericValue("moveFee", event.target.value)} onPointerDown={() => activateCalculator("moveFee")} onFocus={() => activateCalculator("moveFee")} onBlur={() => { if (!usesCustomKeypad) deactivateCalculator("moveFee"); }} placeholder="手数料等" aria-label="手数料等" />
+              {calculatorTarget === "moveFee" && usesCustomKeypad && <i className="calculator-caret" aria-hidden="true" />}
+            </div>
           </div>
         )}
         <DateWheelPicker value={date} onChange={setDate} />

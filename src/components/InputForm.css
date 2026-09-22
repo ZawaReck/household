@@ -121,6 +121,35 @@
   gap: 10px;
 }
 
+.calculator-input-shell {
+  position: relative;
+  min-width: 0;
+  height: 50px;
+}
+
+.input-form .calculator-input-shell input {
+  height: 100%;
+  text-align: right;
+}
+
+.calculator-caret {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 1.5px;
+  height: 20px;
+  border-radius: 1px;
+  background: #006428;
+  pointer-events: none;
+  transform: translateY(-50%);
+  animation: calculator-caret-blink 1s steps(1, end) infinite;
+}
+
+@keyframes calculator-caret-blink {
+  0%, 48% { opacity: 1; }
+  49%, 100% { opacity: 0; }
+}
+
 /* --- Category / Account block --- */
 .field {
   width: 100%;
@@ -595,6 +624,7 @@
 }
 
 .move-fee-row input { grid-column: 2; }
+.move-fee-row .calculator-input-shell { grid-column: 2; }
 
 .numeric-keypad {
   display: none;
@@ -683,6 +713,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .numeric-keypad { animation: none; }
+  .calculator-caret { animation: none; }
 }
 .receipt-mode-control::before {
   content: "";
@@ -1112,6 +1143,10 @@
     text-align: right;
   }
 
+  .input-form .row-2 .calculator-input-shell {
+    height: 40px;
+  }
+
   .input-form .field {
     order: 5;
     display: flex;
@@ -1232,6 +1267,10 @@
     background: #c6ffdd;
     padding: 0 12px;
     text-align: right;
+  }
+
+  .move-fee-row .calculator-input-shell {
+    height: 40px;
   }
 
   .type-move .move-fields { order: 6; }

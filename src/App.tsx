@@ -31,6 +31,7 @@ import { invalidateChangedCardConfirmations } from "./utils/cardConfirmations";
 import { loadInputDrafts, saveInputDrafts } from "./data/inputDraftStore";
 import './App.css';
 import { useSegmentedDrag } from "./hooks/useSegmentedDrag";
+import { ClearableNumberInput } from "./components/ClearableNumberInput";
 
 const GraphsPage = React.lazy(() => import("./components/GraphsPage").then((module) => ({ default: module.GraphsPage })));
 
@@ -536,7 +537,7 @@ export const App: React.FC = () => {
               </label>
               <label className="view-settings-number">
                 削除の取消時間
-                <input type="number" inputMode="numeric" min="1" max="60" value={deleteUndoSeconds} onChange={(event) => setDeleteUndoSeconds(Math.max(1, Math.min(60, Number(event.target.value) || 5)))} />
+                <ClearableNumberInput inputMode="numeric" min="1" max="60" value={deleteUndoSeconds} emptyValue={5} onValueChange={(value) => setDeleteUndoSeconds(Math.max(1, Math.min(60, value || 5)))} />
                 秒
               </label>
             </section>

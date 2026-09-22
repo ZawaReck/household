@@ -54,6 +54,7 @@ import { accountBalanceAsOf, creditCardOutstandingAsOf } from "../utils/accountB
 import { localDateISO } from "../utils/date";
 import { PickerPanel, SelectionWheel } from "./PickerPanel";
 import { useSegmentedDrag } from "../hooks/useSegmentedDrag";
+import { ClearableNumberInput } from "./ClearableNumberInput";
 import "./GraphsPage.css";
 
 interface Props {
@@ -929,10 +930,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     ])));
   }, [portfolioMonthKey, accountActualState, cardStatuses]);
 
-  const handlePortfolioActualChange = (account: string, value: string) => {
+  const handlePortfolioActualChange = (account: string, value: number) => {
     setPortfolioActualInputs((prev) => ({
       ...prev,
-      [account]: Number(value) || 0,
+      [account]: value,
     }));
   };
 
@@ -2220,11 +2221,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       </div>
                       <label className="portfolio-balance-input">
                         <span>実残高</span>
-                        <input
-                          type="number"
+                        <ClearableNumberInput
                           inputMode="numeric"
                           value={actual}
-                          onChange={(event) => handlePortfolioActualChange(account, event.target.value)}
+                          onValueChange={(value) => handlePortfolioActualChange(account, value)}
                         />
                         <span>円</span>
                       </label>
@@ -2261,7 +2261,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       </div>
                       <label className="portfolio-balance-input">
                         <span>実利用可能額</span>
-                        <input type="number" inputMode="numeric" value={cardAvailableInputs[account.name] ?? available} onChange={(event) => setCardAvailableInputs((current) => ({ ...current, [account.name]: Number(event.target.value) }))} />
+                        <ClearableNumberInput inputMode="numeric" value={cardAvailableInputs[account.name] ?? available} onValueChange={(value) => setCardAvailableInputs((current) => ({ ...current, [account.name]: value }))} />
                         <span>円</span>
                       </label>
                     </section>
@@ -3041,15 +3041,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               </div>
               <label className="sontoku-field-row sontoku-amount-row">
                 <span>金額</span>
-                <input
-                  type="number"
+                <ClearableNumberInput
                   inputMode="numeric"
                   min="1"
                   step="1"
                   value={sontokuForm.amount}
-                  onChange={(e) =>
-                    setSontokuForm((prev) => ({ ...prev, amount: Number(e.target.value) || 0 }))
-                  }
+                  onValueChange={(amount) => setSontokuForm((prev) => ({ ...prev, amount }))}
                 />
                 <span>円</span>
               </label>
@@ -3140,14 +3137,11 @@ const SnapshotForm: React.FC<{
         {assets.map((asset) => (
           <label className="portfolio-balance-input investment-snapshot-input" key={asset.id}>
             <span>{asset.name}</span>
-            <input
-              type="number"
+            <ClearableNumberInput
               inputMode="numeric"
               step="1"
               value={values[asset.id] ?? 0}
-              onChange={(e) =>
-                setValues((prev) => ({ ...prev, [asset.id]: Number(e.target.value) || 0 }))
-              }
+              onValueChange={(value) => setValues((prev) => ({ ...prev, [asset.id]: value }))}
             />
             <span>円</span>
           </label>
