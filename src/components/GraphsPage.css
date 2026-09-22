@@ -507,6 +507,10 @@
   gap: 8px;
 }
 
+.portfolio-detail-scroll {
+  display: contents;
+}
+
 .portfolio-chart-card {
   min-height: 0;
   padding-block: 6px;
@@ -1220,23 +1224,33 @@ select {
 
   .graphs-page-content {
     flex: 1 1 auto;
+    display: flex;
     min-height: 0;
-    padding: 0 0 calc(96px + env(safe-area-inset-bottom));
+    padding: 0;
     overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
+    overflow-y: hidden;
   }
 
   .graphs-section {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
     margin: 0;
     border: 0;
     border-radius: 0;
     box-shadow: none;
+    overflow: hidden;
   }
 
   .graphs-section-body {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
     padding: 0 8px;
+    overflow: hidden;
   }
 
   .graph-mode-category {
@@ -1245,9 +1259,9 @@ select {
 
   .graph-mode-category .graph-context-bar,
   .graph-mode-monthly .graph-context-bar {
-    position: sticky;
-    z-index: 6;
-    top: 0;
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
     width: calc(100% + 16px);
     margin-inline: -8px;
     box-sizing: border-box;
@@ -1260,9 +1274,9 @@ select {
 
   .graph-mode-category .monthly-category-chart,
   .graph-mode-monthly .monthly-category-chart {
-    position: sticky;
-    z-index: 5;
-    top: 50px;
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
     width: calc(100% + 16px);
     margin-inline: -8px;
     box-sizing: border-box;
@@ -1276,9 +1290,9 @@ select {
   }
 
   .graph-mode-portfolio .chart-card {
-    position: sticky;
-    z-index: 5;
-    top: 0;
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
     width: calc(100% + 16px);
     margin-inline: -8px;
     box-sizing: border-box;
@@ -1326,6 +1340,61 @@ select {
   .section-grid {
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+
+  .graph-mode-category .monthly-category-layout,
+  .graph-mode-monthly .monthly-category-layout,
+  .graph-mode-portfolio .portfolio-layout {
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .graph-mode-category .monthly-category-sidebar,
+  .graph-mode-monthly .monthly-category-sidebar,
+  .portfolio-detail-scroll,
+  .graph-mode-invest > .graphs-section-body > .section-grid,
+  .graph-mode-budget > .graphs-section-body {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  .graph-mode-category .monthly-category-sidebar,
+  .graph-mode-monthly .monthly-category-sidebar {
+    flex: 1 1 auto;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .portfolio-detail-scroll {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 8px;
+    margin: 8px -8px 0;
+    padding: 0 8px calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .portfolio-detail-scroll > .card {
+    flex: 0 0 auto;
+  }
+
+  .graph-mode-invest > .graphs-section-body > .chart-card {
+    flex: 0 0 auto;
+  }
+
+  .graph-mode-invest > .graphs-section-body > .section-grid {
+    flex: 1 1 auto;
+    margin: 0;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .graph-mode-budget > .graphs-section-body {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
   }
 
   .section-grid > *,

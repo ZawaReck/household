@@ -2055,6 +2055,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             )}
           </div>
 
+          <div className="portfolio-detail-scroll">
           <section className="card portfolio-balance-card">
             <div className="portfolio-section-heading">
               <div>
@@ -2164,6 +2165,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               </>
             )}
           </section>
+          </div>
         </div>
       </TabPanel>
       )}
