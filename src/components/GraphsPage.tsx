@@ -1726,7 +1726,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       setSelectedCategory("");
       setSelectedPieCategory("");
     },
-    cssVariable: "--graph-mode-index",
+    cssVariable: "--graph-mode-position",
     horizontalPadding: 3,
   });
   const yearlyModeDrag = useSegmentedDrag<HTMLDivElement>({
@@ -1738,28 +1738,28 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       setYearlyOverviewMode(mode);
       setSelectedYearlyCategory("");
     },
-    cssVariable: "--graph-mode-index",
+    cssVariable: "--graph-mode-position",
     horizontalPadding: 3,
   });
   const portfolioModeDrag = useSegmentedDrag<HTMLDivElement>({
     count: 2,
     selectedIndex: portfolioChartMode === "pie" ? 0 : 1,
     onSelect: (index) => setPortfolioChartMode(index === 0 ? "pie" : "stacked"),
-    cssVariable: "--segment-index",
+    cssVariable: "--segment-position",
     horizontalPadding: 3,
   });
   const investmentModeDrag = useSegmentedDrag<HTMLDivElement>({
     count: 3,
     selectedIndex: ["area", "profit", "pie"].indexOf(investmentChartMode),
     onSelect: (index) => setInvestmentChartMode((["area", "profit", "pie"] as const)[index] ?? "area"),
-    cssVariable: "--segment-index",
+    cssVariable: "--segment-position",
     horizontalPadding: 3,
   });
   const investmentPeriodDrag = useSegmentedDrag<HTMLDivElement>({
     count: 4,
     selectedIndex: ["3", "6", "12", "all"].indexOf(investmentPeriodMonths),
     onSelect: (index) => setInvestmentPeriodMonths((["3", "6", "12", "all"] as const)[index] ?? "12"),
-    cssVariable: "--segment-index",
+    cssVariable: "--segment-position",
     horizontalPadding: 3,
   });
   const yearlyOverviewDrag = useSegmentedDrag<HTMLDivElement>({
@@ -1771,28 +1771,28 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       setSelectedYearlyCategory("");
       setYearlyOverviewMode(mode);
     },
-    cssVariable: "--segment-index",
+    cssVariable: "--segment-position",
     horizontalPadding: 3,
   });
   const budgetViewDrag = useSegmentedDrag<HTMLDivElement>({
     count: 2,
     selectedIndex: budgetView === "budget" ? 0 : 1,
     onSelect: (index) => setBudgetView(index === 0 ? "budget" : "sontoku"),
-    cssVariable: "--segment-index",
+    cssVariable: "--segment-position",
     horizontalPadding: 3,
   });
   const sontokuModeDrag = useSegmentedDrag<HTMLDivElement>({
     count: 2,
     selectedIndex: sontokuMode === "month" ? 0 : 1,
     onSelect: (index) => setSontokuMode(index === 0 ? "month" : "total"),
-    cssVariable: "--segment-index",
+    cssVariable: "--segment-position",
     horizontalPadding: 3,
   });
   const sontokuKindDrag = useSegmentedDrag<HTMLDivElement>({
     count: 2,
     selectedIndex: sontokuForm.kind === "gain" ? 0 : 1,
     onSelect: (index) => setSontokuForm((prev) => ({ ...prev, kind: index === 0 ? "gain" : "loss" })),
-    cssVariable: "--segment-index",
+    cssVariable: "--segment-position",
     horizontalPadding: 3,
   });
   React.useEffect(() => {

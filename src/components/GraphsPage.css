@@ -467,7 +467,7 @@
   height: 28px;
   border-radius: 14px;
   background: #006428;
-  transform: translateX(calc(var(--graph-mode-index, 0) * 100%));
+  transform: translateX(calc(var(--graph-mode-position, var(--graph-mode-index, 0)) * 100%));
   transition: transform 260ms cubic-bezier(.2, .72, .25, 1);
 }
 
@@ -887,7 +887,7 @@
   height: 28px;
   border-radius: 14px;
   background: #006428;
-  transform: translateX(calc(var(--segment-index) * 100%));
+  transform: translateX(calc(var(--segment-position, var(--segment-index, 0)) * 100%));
   transition: transform 260ms cubic-bezier(.2, .72, .25, 1);
   will-change: transform;
 }
