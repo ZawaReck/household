@@ -3,7 +3,7 @@ import type { Account } from "../src/types/Account";
 import type { ScheduledMove } from "../src/types/ScheduledMove";
 import type { Transaction } from "../src/types/Transaction";
 import { sumExpenseByCategoryAllocatedTax, sumIncomeExpenseByMonth } from "../src/utils/analytics";
-import { reconcileCardPayments } from "../src/utils/cardPayments";
+import { pendingCardPaymentAmountInMonth, reconcileCardPayments } from "../src/utils/cardPayments";
 import { reconcileMonthlyAdjustments } from "../src/utils/monthlyAdjustments";
 import { reconcileScheduledMoves } from "../src/utils/scheduledMoves";
 import { reconcileReceiptTaxAdjustments } from "../src/utils/receiptTaxes";
@@ -153,6 +153,9 @@ describe("automatic moves", () => {
     const first = reconcileCardPayments([use], [bank, card]);
     const payment = first.find((item) => item.system?.kind === "card_payment");
     expect(payment).toMatchObject({ amount: 1_000, date: "2026-02-27", source: "銀行", destination: "カード" });
+    expect(pendingCardPaymentAmountInMonth(first, "card", "2026-02", "2026-02-10")).toBe(1_000);
+    expect(pendingCardPaymentAmountInMonth(first, "card", "2026-02", "2026-02-27")).toBe(0);
+    expect(pendingCardPaymentAmountInMonth(first, "card", "2026-03", "2026-02-10")).toBe(0);
     expect(reconcileCardPayments(first, [bank, card])).toEqual(first);
   });
 

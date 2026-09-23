@@ -56,6 +56,7 @@ import { localDateISO } from "../utils/date";
 import { PickerPanel, SelectionWheel } from "./PickerPanel";
 import { useSegmentedDrag } from "../hooks/useSegmentedDrag";
 import { ClearableNumberInput } from "./ClearableNumberInput";
+import { pendingCardPaymentAmountInMonth } from "../utils/cardPayments";
 import "./GraphsPage.css";
 
 interface Props {
@@ -1071,17 +1072,18 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     saveAccountActualState(nextState);
   };
 
-  const pendingCardTotal = (asOf: string) => activeCardAccounts.reduce((cardTotal, card) => {
-      const outstanding = creditCardOutstandingAsOf(card, transactions, asOf);
-      return cardTotal + Math.max(0, outstanding);
-    }, 0);
-
   const portfolioDisplayValues = Object.fromEntries(accountNames.map((account) => [
     account,
     portfolioActualInputs[account] ?? displayedEstimatedBalances[account] ?? 0,
   ]));
   const portfolioAssetTotal = Object.values(portfolioDisplayValues).reduce((sum, value) => sum + value, 0);
-  const selectedPendingCardTotal = includePendingCardPayments ? pendingCardTotal(portfolioBalanceDate) : 0;
+  const selectedPendingCardPayments = activeCardAccounts.map((account) => ({
+    account,
+    amount: pendingCardPaymentAmountInMonth(transactions, account.id, portfolioMonthKey, portfolioBalanceDate),
+  }));
+  const selectedPendingCardTotal = includePendingCardPayments
+    ? selectedPendingCardPayments.reduce((total, item) => total + item.amount, 0)
+    : 0;
 
   const portfolioPieRawData = accountNames
     .map((account) => {
@@ -2180,10 +2182,21 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             <label className="portfolio-option-row">
               <span>
                 <strong>カード引落予定を差し引く</strong>
-                {includePendingCardPayments && <small>−{formatYen(selectedPendingCardTotal)}</small>}
               </span>
               <input type="checkbox" checked={includePendingCardPayments} onChange={(event) => setIncludePendingCardPayments(event.target.checked)} />
             </label>
+            {includePendingCardPayments && (
+              <div className="portfolio-pending-card-list">
+                {selectedPendingCardPayments.some(({ amount }) => amount > 0) ? selectedPendingCardPayments
+                  .filter(({ amount }) => amount > 0)
+                  .map(({ account, amount }) => (
+                    <div key={account.id}>
+                      <span>{account.name}</span>
+                      <strong>−{formatYen(amount)}</strong>
+                    </div>
+                  )) : <p>この月の未実行のカード引落予定はありません</p>}
+              </div>
+            )}
 
             {!selectedInvestmentSnapshotIsExact && <p className="muted portfolio-balance-note">投資口座は直近の評価額を仮表示しています。この月を確定すると月末評価額として保存されます。</p>}
             {accountNames.length === 0 ? (

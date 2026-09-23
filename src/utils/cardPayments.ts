@@ -26,6 +26,22 @@ const statementMonthFor = (date: string, closingDay: number) => {
   return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
 };
 
+export const pendingCardPaymentAmountInMonth = (
+  transactions: Transaction[],
+  cardAccountId: string,
+  monthKey: string,
+  asOf: string,
+) => transactions.reduce((total, transaction) => {
+  if (
+    transaction.type !== "move" ||
+    transaction.system?.kind !== "card_payment" ||
+    transaction.system.cardAccountId !== cardAccountId ||
+    !transaction.date.startsWith(`${monthKey}-`) ||
+    transaction.date <= asOf
+  ) return total;
+  return total + transaction.amount;
+}, 0);
+
 export const reconcileCardPayments = (transactions: Transaction[], accounts: Account[]) => {
   const cards = accounts.filter((account) => account.isActive && account.kind === "credit_card" && account.creditCard);
   const paymentAccountByCardId = new Map(cards.flatMap((card) => {

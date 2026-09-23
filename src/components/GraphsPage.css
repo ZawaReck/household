@@ -691,6 +691,25 @@
   transform: translateX(18px);
 }
 
+.portfolio-pending-card-list {
+  display: grid;
+  gap: 6px;
+  padding: 8px 0 10px;
+  border-bottom: 1px solid #e5ece7;
+  color: #42614d;
+  font-size: 11px;
+}
+
+.portfolio-pending-card-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.portfolio-pending-card-list strong { color: #c62828; font-variant-numeric: tabular-nums; }
+.portfolio-pending-card-list p { margin: 0; color: #77867c; }
+
 .portfolio-balance-note {
   margin: 8px 0 0;
   font-size: 10px;
