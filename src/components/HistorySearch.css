@@ -93,6 +93,18 @@
   text-align: center;
 }
 
+.history-search-load-more {
+  display: block;
+  width: calc(100% - 24px);
+  min-height: 42px;
+  margin: 12px;
+  border: 1px solid #9db7a6;
+  border-radius: 10px;
+  background: #edf5ef;
+  color: #245e2d;
+  font-weight: 700;
+}
+
 @media (max-width: 767px) {
   .history-search-backdrop {
     align-items: stretch;

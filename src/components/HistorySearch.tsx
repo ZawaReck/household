@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import type { Transaction } from "../types/Transaction";
 import { TransactionHistory } from "./TransactionHistory";
 import "./HistorySearch.css";
@@ -24,28 +24,59 @@ export const HistorySearch = ({
   const [account, setAccount] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const categories = useMemo(() => Array.from(new Set(transactions.map((item) => item.category).filter(Boolean))).sort((a, b) => a.localeCompare(b, "ja")), [transactions]);
-  const accounts = useMemo(() => Array.from(new Set(transactions.flatMap((item) => [item.source, item.destination]).filter(Boolean))).sort((a, b) => a.localeCompare(b, "ja")), [transactions]);
+  const [visibleCount, setVisibleCount] = useState(80);
+  const deferredQuery = useDeferredValue(query);
+  const searchData = useMemo(() => {
+    const categorySet = new Set<string>();
+    const accountSet = new Set<string>();
+    const indexed = transactions.map((transaction, index) => {
+      if (transaction.category) categorySet.add(transaction.category);
+      if (transaction.source) accountSet.add(transaction.source);
+      if (transaction.destination) accountSet.add(transaction.destination);
+      return {
+        transaction,
+        index,
+        text: [
+          transaction.name,
+          transaction.memo,
+          transaction.category,
+          transaction.source,
+          transaction.destination,
+          String(transaction.amount),
+        ].filter(Boolean).join("\n").toLocaleLowerCase("ja"),
+      };
+    }).sort((a, b) => b.transaction.date.localeCompare(a.transaction.date) || b.index - a.index);
+    return {
+      indexed,
+      categories: Array.from(categorySet).sort((a, b) => a.localeCompare(b, "ja")),
+      accounts: Array.from(accountSet).sort((a, b) => a.localeCompare(b, "ja")),
+    };
+  }, [transactions]);
+  const { categories, accounts } = searchData;
 
   const results = useMemo(() => {
-    const normalized = query.trim().toLocaleLowerCase("ja");
-    return transactions.filter((transaction) => {
+    const normalized = deferredQuery.trim().toLocaleLowerCase("ja");
+    return searchData.indexed.filter(({ transaction, text }) => {
       if (type !== "all" && transaction.type !== type) return false;
       if (category !== "all" && transaction.category !== category) return false;
       if (account !== "all" && transaction.source !== account && transaction.destination !== account) return false;
       if (dateFrom && transaction.date < dateFrom) return false;
       if (dateTo && transaction.date > dateTo) return false;
       if (!normalized) return true;
-      return [
-        transaction.name,
-        transaction.memo,
-        transaction.category,
-        transaction.source,
-        transaction.destination,
-        String(transaction.amount),
-      ].some((value) => value?.toLocaleLowerCase("ja").includes(normalized));
-    });
-  }, [account, category, dateFrom, dateTo, query, transactions, type]);
+      return text.includes(normalized);
+    }).map(({ transaction }) => transaction);
+  }, [account, category, dateFrom, dateTo, deferredQuery, searchData, type]);
+
+  useEffect(() => setVisibleCount(80), [account, category, dateFrom, dateTo, deferredQuery, type]);
+
+  const visibleResults = useMemo(() => {
+    const limited = results.slice(0, visibleCount);
+    const boundaryGroupId = limited[limited.length - 1]?.groupId;
+    if (!boundaryGroupId || limited.length >= results.length) return limited;
+    let end = limited.length;
+    while (end < results.length && results[end].groupId === boundaryGroupId) end += 1;
+    return results.slice(0, end);
+  }, [results, visibleCount]);
 
   return (
     <div className="history-search-backdrop" role="presentation" onClick={onClose}>
@@ -97,15 +128,24 @@ export const HistorySearch = ({
             <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
           </label>
         </div>
-        <div className="history-search-result-summary">{results.length.toLocaleString()}件</div>
+        <div className="history-search-result-summary">
+          {results.length.toLocaleString()}件中 {visibleResults.length.toLocaleString()}件表示
+        </div>
         <div className="history-search-results">
           {results.length > 0 ? (
-            <TransactionHistory
-              monthlyData={results}
-              onDeleteTransaction={onDeleteTransaction}
-              onEditTransaction={onEditTransaction}
-              onSelectGroup={onSelectGroup}
-            />
+            <>
+              <TransactionHistory
+                monthlyData={visibleResults}
+                onDeleteTransaction={onDeleteTransaction}
+                onEditTransaction={onEditTransaction}
+                onSelectGroup={onSelectGroup}
+              />
+              {visibleResults.length < results.length && (
+                <button className="history-search-load-more" type="button" onClick={() => setVisibleCount((count) => count + 80)}>
+                  次の80件を表示
+                </button>
+              )}
+            </>
           ) : (
             <p className="history-search-empty">条件に一致する履歴はありません。</p>
           )}
