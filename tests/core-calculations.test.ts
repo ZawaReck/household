@@ -14,6 +14,7 @@ import { importHouseholdCsv } from "../src/utils/csvImport";
 import { syncFingerprint } from "../src/utils/syncFingerprint";
 import { historyEntryFlowTop } from "../src/utils/historyScroll";
 import { investmentFlowsAsOf, investmentOpeningProfit } from "../src/utils/investments";
+import { accountBalanceAsOf, totalAssetBalanceAsOf } from "../src/utils/accountBalances";
 
 const transaction = (partial: Partial<Transaction> & Pick<Transaction, "id" | "type" | "amount" | "date">): Transaction => ({
   name: "test",
@@ -91,6 +92,29 @@ describe("investment opening flows", () => {
     expect(flows.cumulativeDeposits).toBe(210);
     expect(flows.cumulativeWithdrawals).toBe(110);
     expect(110 + flows.cumulativeWithdrawals - flows.cumulativeDeposits).toBe(10);
+  });
+});
+
+describe("account opening balances", () => {
+  it("does not expose a balance before its opening date or recount opening-day transactions", () => {
+    const wallet = account({ id: "wallet", name: "財布", kind: "cash", openingBalance: 5_721, openingDate: "2026-09-23" });
+    const openingDay = transaction({ id: "opening-day", type: "expense", amount: 100, date: "2026-09-23", source: "財布" });
+    const nextDay = transaction({ id: "next-day", type: "expense", amount: 200, date: "2026-09-24", source: "財布" });
+
+    expect(accountBalanceAsOf(wallet, [openingDay, nextDay], "2026-09-22")).toBe(0);
+    expect(accountBalanceAsOf(wallet, [openingDay, nextDay], "2026-09-23")).toBe(5_721);
+    expect(accountBalanceAsOf(wallet, [openingDay, nextDay], "2026-09-24")).toBe(5_521);
+  });
+
+  it("combines regular balances and investment snapshots while excluding cards", () => {
+    const accounts = [
+      account({ id: "wallet", name: "財布", kind: "cash", openingBalance: 100, openingDate: "2026-09-23" }),
+      account({ id: "nisa", name: "NISA口座", kind: "investment", openingBalance: 200, openingDate: "2026-09-23" }),
+      account({ id: "card", name: "カード", kind: "credit_card", openingBalance: 0, openingDate: "2026-09-23" }),
+    ];
+    const snapshots = [{ id: "snapshot", date: "2026-09-23", values: { nisa: 250 } }];
+
+    expect(totalAssetBalanceAsOf(accounts, [], snapshots, "2026-09-23")).toBe(350);
   });
 });
 

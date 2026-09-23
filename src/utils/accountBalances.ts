@@ -1,7 +1,9 @@
 import type { Account } from "../types/Account";
 import type { Transaction } from "../types/Transaction";
+import type { InvestmentSnapshot } from "../types/Investment";
 
 export const accountBalanceAsOf = (account: Account, transactions: Transaction[], asOf: string) => {
+  if (asOf < account.openingDate) return 0;
   return transactions
     .filter((transaction) => transaction.date > account.openingDate && transaction.date <= asOf)
     .reduce((balance, transaction) => {
@@ -14,6 +16,28 @@ export const accountBalanceAsOf = (account: Account, transactions: Transaction[]
       return balance;
     }, account.openingBalance);
 };
+
+const isAccountVisibleAsOf = (account: Account, asOf: string) =>
+  account.openingDate <= asOf && (account.isActive || Boolean(account.disabledAt && asOf < account.disabledAt));
+
+export const investmentBalanceAsOf = (account: Account, snapshots: InvestmentSnapshot[], asOf: string) => {
+  if (!isAccountVisibleAsOf(account, asOf)) return 0;
+  const snapshot = [...snapshots]
+    .filter((item) => item.date <= asOf && item.values[account.id] != null)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  return snapshot?.values[account.id] ?? account.openingBalance;
+};
+
+export const totalAssetBalanceAsOf = (
+  accounts: Account[],
+  transactions: Transaction[],
+  snapshots: InvestmentSnapshot[],
+  asOf: string,
+) => accounts.reduce((total, account) => {
+  if (!isAccountVisibleAsOf(account, asOf) || account.kind === "credit_card") return total;
+  if (account.kind === "investment") return total + investmentBalanceAsOf(account, snapshots, asOf);
+  return total + accountBalanceAsOf(account, transactions, asOf);
+}, 0);
 
 export const hasFutureAccountActivity = (account: Account, transactions: Transaction[], today: string) =>
   transactions.some(

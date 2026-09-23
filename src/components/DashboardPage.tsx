@@ -10,9 +10,10 @@ import { InputForm } from "./InputForm";
 import { TransactionHistory } from "./TransactionHistory";
 import { HistorySearch } from "./HistorySearch";
 import { MonthEndReminder } from "./MonthEndReminder";
-import { isIncludedInRegularAnalytics } from "../utils/analytics";
 import { localDateISO } from "../utils/date";
 import { historyEntryFlowTop } from "../utils/historyScroll";
+import { loadInvestmentState } from "../data/investmentStore";
+import { totalAssetBalanceAsOf } from "../utils/accountBalances";
 import './DashboardPage.css';
 
 interface Props {
@@ -155,14 +156,16 @@ export const DashboardPage: React.FC<Props> = (props) => {
 		return transactionDate.getFullYear() === year && transactionDate.getMonth() === month;
 	}), [props.transactions, year, month]);
 
-	//2. 繰越金計算
-	const openingBalance = props.transactions
-		.filter((transaction) => new Date(transaction.date) < new Date(year, month, 1) && isIncludedInRegularAnalytics(transaction, props.includeExcludedAnalytics))
-		.reduce((sum, transaction) => {
-			if (transaction.type === "income") return sum + transaction.amount;
-			if (transaction.type === "expense") return sum - transaction.amount;
-			return sum;
-		}, 0);
+	// 2. 口座開始残高と投資評価額を含む総資産。月次In/Out/Totalとは独立して表示する。
+	const investmentSnapshots = loadInvestmentState().snapshots;
+	const monthStartBoundary = new Date(year, month, 0);
+	const openingAsOf = `${monthStartBoundary.getFullYear()}-${String(monthStartBoundary.getMonth() + 1).padStart(2, "0")}-${String(monthStartBoundary.getDate()).padStart(2, "0")}`;
+	const today = localDateISO();
+	const monthEnd = new Date(year, month + 1, 0);
+	const monthEndISO = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, "0")}-${String(monthEnd.getDate()).padStart(2, "0")}`;
+	const balanceAsOf = year === new Date().getFullYear() && month === new Date().getMonth() ? today : monthEndISO;
+	const openingBalance = totalAssetBalanceAsOf(props.accounts, props.transactions, investmentSnapshots, openingAsOf);
+	const balance = totalAssetBalanceAsOf(props.accounts, props.transactions, investmentSnapshots, balanceAsOf);
 
 		const [selectedDate, setSelectedDate] = React.useState(
 			localDateISO()
@@ -356,6 +359,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 						<SummaryView
 							monthlyData={monthlyData}
 							openingBalance={openingBalance}
+							balance={balance}
 							includeExcludedAnalytics={props.includeExcludedAnalytics}
 					/>
 				</div>

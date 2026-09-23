@@ -420,6 +420,15 @@ export const App: React.FC = () => {
         : [...current, updatedAccount];
     });
   };
+  const handleReorderAccounts = (orderedIds: string[]) => {
+    const order = new Map(orderedIds.map((id, index) => [id, index]));
+    const updatedAt = new Date().toISOString();
+    setAccounts((current) => current.map((account) => ({
+      ...account,
+      inputOrder: order.get(account.id) ?? account.inputOrder,
+      updatedAt,
+    })));
+  };
   const handleSaveCategory = (updatedCategory: Category) => {
     const previous = categories.find((category) => category.id === updatedCategory.id);
     if (previous && previous.name !== updatedCategory.name) {
@@ -525,7 +534,7 @@ export const App: React.FC = () => {
               <div className="settings-drawer-title"><strong>設定</strong><span className="settings-version">v{__APP_VERSION__}</span><span className={`settings-sync-status sync-${syncStatus}`}>{syncLabels[syncStatus]}</span></div>
               <button type="button" onClick={closeSettings}>×</button>
             </div>
-            <AccountSettings accounts={accounts} transactions={transactions} onSave={handleSaveAccount} />
+            <AccountSettings accounts={accounts} transactions={transactions} onSave={handleSaveAccount} onReorder={handleReorderAccounts} />
             <CategorySettings categories={categories} onSave={handleSaveCategory} onMerge={handleMergeCategory} />
             <ScheduledMoveSettings accounts={accounts} schedules={scheduledMoves} onChange={setScheduledMoves} />
             <NotificationSettings />

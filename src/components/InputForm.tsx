@@ -88,23 +88,31 @@ export const InputForm: React.FC<InputFormProps> = ({
     switchDraftType(nextType);
   };
 
+  const orderedAccounts = React.useMemo(() => accounts
+    .map((account, index) => ({ account, index }))
+    .sort((a, b) => (a.account.inputOrder ?? a.index) - (b.account.inputOrder ?? b.index))
+    .map(({ account }) => account), [accounts]);
   const activeAccountNames = React.useMemo(
-    () => accounts.filter((account) => account.isActive).map((account) => account.name),
-    [accounts]
+    () => orderedAccounts.filter((account) => account.isActive).map((account) => account.name),
+    [orderedAccounts]
   );
   const paymentAccountNames = React.useMemo(
-    () => accounts
+    () => orderedAccounts
       .filter((account) => account.isActive && account.kind !== "credit_card")
       .map((account) => account.name),
-    [accounts]
+    [orderedAccounts]
   );
   const sourceOptions = type === "expense" ? activeAccountNames : paymentAccountNames;
-  const categoryOptions = React.useMemo(() => categories
-    .filter((item) => item.isActive && item.type === (type === "income" ? "income" : "expense"))
-    .map((item) => item.name), [categories, type]);
+  const activeExpenseCategoryNames = React.useMemo(() => categories
+    .filter((item) => item.isActive && item.type === "expense")
+    .map((item) => item.name), [categories]);
+  const activeIncomeCategoryNames = React.useMemo(() => categories
+    .filter((item) => item.isActive && item.type === "income")
+    .map((item) => item.name), [categories]);
+  const categoryOptions = type === "income" ? activeIncomeCategoryNames : activeExpenseCategoryNames;
 
-  const defaultExpenseCategory = categoryOptions[0] ?? expenseCategoryOptions[0];
-  const defaultIncomeCategory = categoryOptions[0] ?? incomeCategoryOptions[0];
+  const defaultExpenseCategory = activeExpenseCategoryNames[0] ?? expenseCategoryOptions[0];
+  const defaultIncomeCategory = activeIncomeCategoryNames[0] ?? incomeCategoryOptions[0];
   const defaultSource = activeAccountNames[0] ?? "";
   const defaultMoveSource = paymentAccountNames[0] ?? "";
   const defaultMoveDestination = paymentAccountNames[1] ?? paymentAccountNames[0] ?? "";

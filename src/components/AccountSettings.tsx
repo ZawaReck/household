@@ -17,6 +17,7 @@ type Props = {
   accounts: Account[];
   transactions: Transaction[];
   onSave: (account: Account) => void;
+  onReorder: (orderedIds: string[]) => void;
 };
 
 const kindLabels: Record<AccountKind, string> = {
@@ -50,9 +51,21 @@ const cardDefaults = () => ({
   paymentDelayMonths: 1,
 });
 
-export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSave }) => {
+export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSave, onReorder }) => {
   const [draft, setDraft] = React.useState<Account | null>(null);
   const today = todayISO();
+  const orderedAccounts = React.useMemo(() => accounts
+    .map((account, index) => ({ account, index }))
+    .sort((a, b) => (a.account.inputOrder ?? a.index) - (b.account.inputOrder ?? b.index))
+    .map(({ account }) => account), [accounts]);
+
+  const moveAccount = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= orderedAccounts.length) return;
+    const next = orderedAccounts.map((account) => account.id);
+    [next[index], next[target]] = [next[target], next[index]];
+    onReorder(next);
+  };
 
   const save = () => {
     if (!draft || !draft.name.trim()) { window.alert("口座名を入力してください。"); return; }
@@ -169,12 +182,16 @@ export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSav
       </div>
 
       <div className="account-list">
-        {accounts.map((account) => (
+        {orderedAccounts.map((account, index) => (
           <article key={account.id} className={`account-row ${account.isActive ? "" : "is-inactive"}`}>
             <button type="button" className="account-edit" onClick={() => setDraft(account)}>
               <strong>{account.name}</strong>
               <span>{kindLabels[account.kind]} · 開始残高 {account.openingBalance.toLocaleString()}円</span>
             </button>
+            <div className="account-order-controls" aria-label={`${account.name}の入力候補順`}>
+              <button type="button" aria-label={`${account.name}を上へ`} disabled={index === 0} onClick={() => moveAccount(index, -1)}>↑</button>
+              <button type="button" aria-label={`${account.name}を下へ`} disabled={index === orderedAccounts.length - 1} onClick={() => moveAccount(index, 1)}>↓</button>
+            </div>
             <button type="button" className="account-toggle" onClick={() => toggleActive(account)}>
               {account.isActive ? "無効化" : "有効化"}
             </button>

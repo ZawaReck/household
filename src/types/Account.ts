@@ -21,6 +21,8 @@ export type Account = {
   initialWithdrawals?: number;
   openingDate: string;
   isActive: boolean;
+  /** 入力画面の口座選択に使う表示順。小さいほど前。 */
+  inputOrder?: number;
   /** 無効化した日。過去時点の資産表示で使用する。 */
   disabledAt?: string;
   creditCard?: CreditCardSettings;
