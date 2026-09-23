@@ -10,7 +10,7 @@ import {
   isEpochReplacementPending,
 } from "../data/dataEpoch";
 import { syncFingerprint } from "../utils/syncFingerprint";
-import { markNavigationIntent } from "../data/navigationIntent";
+import { markCurrentRouteAsInternal } from "../data/internalNavigation";
 
 type RemoteRecord = { key: string; value: unknown; updatedAt: string; deletedAt?: string | null };
 type SyncMeta = { lastPull: string; updatedAt: Record<string, string>; observed: Record<string, string | null> };
@@ -96,7 +96,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
           });
           localStorage.removeItem(META_KEY);
           adoptDataEpoch(mismatch.dataEpoch);
-          markNavigationIntent(`${window.location.pathname}${window.location.search}${window.location.hash}`);
+          markCurrentRouteAsInternal();
           window.location.reload();
           return;
         }
@@ -152,7 +152,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.setItem(META_KEY, JSON.stringify(meta));
         setStatus("synced");
         if (appliedRemote) {
-          markNavigationIntent(`${window.location.pathname}${window.location.search}${window.location.hash}`);
+          markCurrentRouteAsInternal();
           window.location.reload();
         }
         else setReady(true);

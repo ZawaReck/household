@@ -1,7 +1,7 @@
 /* src/App.tsx */
 
 import React, {useState, useEffect} from "react";
-import { BrowserRouter as Router, Route, Routes, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, NavLink, useLocation } from "react-router-dom";
 import { InputForm } from "./components/InputForm";
 import { DashboardPage } from "./components/DashboardPage";
 import { AccountSettings } from "./components/AccountSettings";
@@ -30,50 +30,34 @@ import { reconcileMonthlyAdjustments } from "./utils/monthlyAdjustments";
 import { invalidateChangedCardConfirmations } from "./utils/cardConfirmations";
 import { loadInputDrafts, saveInputDrafts } from "./data/inputDraftStore";
 import './App.css';
-import { useSegmentedDrag } from "./hooks/useSegmentedDrag";
 import { ClearableNumberInput } from "./components/ClearableNumberInput";
-import { clearNavigationIntent, markNavigationIntent } from "./data/navigationIntent";
+import { internalNavigationHref } from "./data/internalNavigation";
 
 const GraphsPage = React.lazy(() => import("./components/GraphsPage").then((module) => ({ default: module.GraphsPage })));
 
 const MobileBottomNav: React.FC = () => {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
   const activeIndex = pathname === "/add" ? 0 : pathname.startsWith("/graphs") ? 2 : 1;
-  const selectPage = React.useCallback((index: number) => {
-    if (index === activeIndex) {
-      if (index === 0) window.dispatchEvent(new Event("household:reselect-input"));
-      if (index === 1) window.dispatchEvent(new Event("household:reselect-calendar"));
-      return;
-    }
-    const target = (["/add", "/", "/graphs"] as const)[index] ?? "/";
-    markNavigationIntent(target);
-    navigate(target, { replace: true, flushSync: true });
-    window.setTimeout(clearNavigationIntent, 1_500);
-  }, [activeIndex, navigate]);
   React.useEffect(() => {
     document.documentElement.dataset.appPage = activeIndex === 0 ? "input" : activeIndex === 1 ? "calendar" : "graphs";
     return () => { delete document.documentElement.dataset.appPage; };
   }, [activeIndex]);
-  const drag = useSegmentedDrag<HTMLElement>({
-    count: 3,
-    selectedIndex: activeIndex,
-    onSelect: selectPage,
-    cssVariable: "--nav-position",
-    horizontalPadding: 4,
-    selectOnPointerDown: false,
-  });
+  const handleReselect = (index: number, event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (index !== activeIndex) return;
+    event.preventDefault();
+    if (index === 0) window.dispatchEvent(new Event("household:reselect-input"));
+    if (index === 1) window.dispatchEvent(new Event("household:reselect-calendar"));
+  };
   return (
     <nav
-      ref={drag.ref}
-      className={`mobile-bottom-nav ${drag.isDragging ? "is-dragging" : ""}`}
+      className="mobile-bottom-nav"
       aria-label="メインナビゲーション"
       style={{ "--nav-index": activeIndex } as React.CSSProperties}
-      {...drag.handlers}
+      onContextMenu={(event) => event.preventDefault()}
     >
-      <button type="button" className={activeIndex === 0 ? "active" : ""} aria-current={activeIndex === 0 ? "page" : undefined} onPointerDown={() => selectPage(0)} onClick={() => selectPage(0)}>入力</button>
-      <button type="button" className={activeIndex === 1 ? "active" : ""} aria-current={activeIndex === 1 ? "page" : undefined} onPointerDown={() => selectPage(1)} onClick={() => selectPage(1)}>カレンダー</button>
-      <button type="button" className={activeIndex === 2 ? "active" : ""} aria-current={activeIndex === 2 ? "page" : undefined} onPointerDown={() => selectPage(2)} onClick={() => selectPage(2)}>グラフ</button>
+      <a href={internalNavigationHref("/add")} className={activeIndex === 0 ? "active" : ""} aria-current={activeIndex === 0 ? "page" : undefined} onClick={(event) => handleReselect(0, event)}>入力</a>
+      <a href={internalNavigationHref("/")} className={activeIndex === 1 ? "active" : ""} aria-current={activeIndex === 1 ? "page" : undefined} onClick={(event) => handleReselect(1, event)}>カレンダー</a>
+      <a href={internalNavigationHref("/graphs")} className={activeIndex === 2 ? "active" : ""} aria-current={activeIndex === 2 ? "page" : undefined} onClick={(event) => handleReselect(2, event)}>グラフ</a>
     </nav>
   );
 };

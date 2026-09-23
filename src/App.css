@@ -127,8 +127,8 @@ header {
     will-change: transform;
   }
   .mobile-bottom-nav.is-dragging::before { transition: none; }
-  .mobile-bottom-nav button { position: relative; z-index: 1; display: grid; place-items: center; height: 43px; padding: 0; border: 0; border-radius: 22px; color: #006428; background: transparent; text-align: center; font: inherit; font-size: 15px; font-weight: 400; -webkit-touch-callout: none; user-select: none; }
-  .mobile-bottom-nav button.active { color: #f9fffb; background: transparent; }
+  .mobile-bottom-nav a { position: relative; z-index: 1; display: grid; place-items: center; height: 43px; padding: 0; border: 0; border-radius: 22px; color: #006428; background: transparent; text-align: center; text-decoration: none; font: inherit; font-size: 15px; font-weight: 400; -webkit-touch-callout: none; user-select: none; }
+  .mobile-bottom-nav a.active { color: #f9fffb; background: transparent; }
   .mobile-settings-trigger {
     position: fixed;
     z-index: 41;
@@ -276,7 +276,7 @@ header {
   cursor: pointer;
 }
 
-.mobile-bottom-nav button {
+.mobile-bottom-nav a {
   transition: color 220ms ease, background-color 260ms ease, transform 260ms ease;
 }
 
@@ -286,7 +286,7 @@ header {
   .settings-backdrop.is-closing,
   .settings-backdrop.is-closing .settings-drawer,
   .mobile-bottom-nav::before,
-  .mobile-bottom-nav button {
+  .mobile-bottom-nav a {
     animation-duration: 1ms;
     transition-duration: 1ms;
   }
