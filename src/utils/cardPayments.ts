@@ -44,7 +44,7 @@ export const reconcileCardPayments = (transactions: Transaction[], accounts: Acc
 
     const buckets = new Map<string, { amount: number; statementYear: number; statementMonth: number; paymentDay: number; paymentDelayMonths: number }>();
     for (const transaction of transactions) {
-      if (transaction.type !== "expense" || transaction.source !== card.name || transaction.system) continue;
+      if ((transaction.type !== "expense" && transaction.type !== "move") || transaction.source !== card.name || transaction.system) continue;
       const cycle = transaction.cardCycle?.cardAccountId === card.id ? transaction.cardCycle : {
         cardAccountId: card.id,
         closingDay: settings.closingDay,

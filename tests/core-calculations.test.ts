@@ -14,7 +14,7 @@ import { importHouseholdCsv } from "../src/utils/csvImport";
 import { syncFingerprint } from "../src/utils/syncFingerprint";
 import { historyEntryFlowTop } from "../src/utils/historyScroll";
 import { investmentFlowsAsOf, investmentOpeningProfit } from "../src/utils/investments";
-import { accountBalanceAsOf, totalAssetBalanceAsOf } from "../src/utils/accountBalances";
+import { accountBalanceAsOf, creditCardOutstandingAsOf, totalAssetBalanceAsOf } from "../src/utils/accountBalances";
 
 const transaction = (partial: Partial<Transaction> & Pick<Transaction, "id" | "type" | "amount" | "date">): Transaction => ({
   name: "test",
@@ -154,6 +154,35 @@ describe("automatic moves", () => {
     const payment = first.find((item) => item.system?.kind === "card_payment");
     expect(payment).toMatchObject({ amount: 1_000, date: "2026-02-27", source: "銀行", destination: "カード" });
     expect(reconcileCardPayments(first, [bank, card])).toEqual(first);
+  });
+
+  it("treats a card-funded Move as card usage and includes it in the automatic payment", () => {
+    const bank = account({ id: "bank", name: "銀行", kind: "bank" });
+    const paypay = account({ id: "paypay", name: "PayPay", kind: "electronic_money" });
+    const card = account({
+      id: "card",
+      name: "カード",
+      kind: "credit_card",
+      creditCard: { limit: 100_000, closingDay: 31, paymentDay: 27, paymentDelayMonths: 1, defaultPaymentAccountId: "bank" },
+    });
+    const charge = transaction({
+      id: "charge",
+      type: "move",
+      amount: 5_000,
+      date: "2026-09-23",
+      source: "カード",
+      destination: "PayPay",
+      cardCycle: { cardAccountId: "card", closingDay: 31, paymentDay: 27, paymentDelayMonths: 1 },
+    });
+
+    const reconciled = reconcileCardPayments([charge], [bank, paypay, card]);
+    expect(reconciled.find((item) => item.system?.kind === "card_payment")).toMatchObject({
+      amount: 5_000,
+      date: "2026-10-27",
+      source: "銀行",
+      destination: "カード",
+    });
+    expect(creditCardOutstandingAsOf(card, reconciled, "2026-09-30")).toBe(5_000);
   });
 
   it("keeps historical card payments after the card is disabled", () => {

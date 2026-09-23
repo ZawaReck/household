@@ -242,7 +242,7 @@ export const App: React.FC = () => {
     }, [deleteUndoSeconds]);
 
   const handleAddTransaction = (transaction: Omit<Transaction, "id">) => {
-    const card = transaction.type === "expense"
+    const card = transaction.type === "expense" || transaction.type === "move"
       ? accounts.find((account) => account.kind === "credit_card" && account.name === transaction.source && account.creditCard)
       : undefined;
     const newTransaction: Transaction = {
@@ -314,7 +314,7 @@ export const App: React.FC = () => {
   };
 
   const handleUpdateTransaction = (updatedTransaction: Transaction) => {
-    const card = updatedTransaction.type === "expense"
+    const card = updatedTransaction.type === "expense" || updatedTransaction.type === "move"
       ? accounts.find((account) => account.kind === "credit_card" && account.name === updatedTransaction.source && account.creditCard)
       : undefined;
     const previous = transactions.find((transaction) => transaction.id === updatedTransaction.id);

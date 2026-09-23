@@ -50,7 +50,7 @@ export const creditCardOutstandingAsOf = (account: Account, transactions: Transa
   transactions.reduce((outstanding, transaction) => {
     if (transaction.date > asOf) return outstanding;
     if (
-      transaction.type === "expense" &&
+      (transaction.type === "expense" || transaction.type === "move") &&
       !transaction.system &&
       transaction.source === account.name &&
       (transaction.date > account.openingDate || transaction.cardCycle?.cardAccountId === account.id)

@@ -96,13 +96,16 @@ export const InputForm: React.FC<InputFormProps> = ({
     () => orderedAccounts.filter((account) => account.isActive).map((account) => account.name),
     [orderedAccounts]
   );
-  const paymentAccountNames = React.useMemo(
+  const nonCardAccountNames = React.useMemo(
     () => orderedAccounts
       .filter((account) => account.isActive && account.kind !== "credit_card")
       .map((account) => account.name),
     [orderedAccounts]
   );
-  const sourceOptions = type === "expense" ? activeAccountNames : paymentAccountNames;
+  const creditCardAccountNames = React.useMemo(() => new Set(orderedAccounts
+    .filter((account) => account.isActive && account.kind === "credit_card")
+    .map((account) => account.name)), [orderedAccounts]);
+  const sourceOptions = type === "expense" ? activeAccountNames : nonCardAccountNames;
   const activeExpenseCategoryNames = React.useMemo(() => categories
     .filter((item) => item.isActive && item.type === "expense")
     .map((item) => item.name), [categories]);
@@ -114,8 +117,8 @@ export const InputForm: React.FC<InputFormProps> = ({
   const defaultExpenseCategory = activeExpenseCategoryNames[0] ?? expenseCategoryOptions[0];
   const defaultIncomeCategory = activeIncomeCategoryNames[0] ?? incomeCategoryOptions[0];
   const defaultSource = activeAccountNames[0] ?? "";
-  const defaultMoveSource = paymentAccountNames[0] ?? "";
-  const defaultMoveDestination = paymentAccountNames[1] ?? paymentAccountNames[0] ?? "";
+  const defaultMoveSource = activeAccountNames[0] ?? "";
+  const defaultMoveDestination = nonCardAccountNames.find((name) => name !== defaultMoveSource) ?? nonCardAccountNames[0] ?? "";
 
   const [category, setCategory] = React.useState(defaultExpenseCategory);
   const [amount, setAmount] = React.useState("");
@@ -299,9 +302,9 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   useEffect(() => {
     if (!activeAccountNames.includes(source)) setSource(defaultSource);
-    if (!paymentAccountNames.includes(sourceMove)) setSourceMove(defaultMoveSource);
-    if (!paymentAccountNames.includes(destination)) setDestination(defaultMoveDestination);
-  }, [activeAccountNames, defaultMoveDestination, defaultMoveSource, defaultSource, destination, paymentAccountNames, source, sourceMove]);
+    if (!activeAccountNames.includes(sourceMove)) setSourceMove(defaultMoveSource);
+    if (!nonCardAccountNames.includes(destination)) setDestination(defaultMoveDestination);
+  }, [activeAccountNames, defaultMoveDestination, defaultMoveSource, defaultSource, destination, nonCardAccountNames, source, sourceMove]);
 
   const [isSourcePickerOpen, setIsSourcePickerOpen] = React.useState(false);
   const [openMovePicker, setOpenMovePicker] = React.useState<null | "destination" | "sourceMove">(null);
@@ -790,6 +793,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "日付を入力してください。";
     if (type === "move" && (!sourceMove || !destination)) return "移動元と移動先を選択してください。";
     if (type === "move" && sourceMove === destination) return "移動元と移動先には別の口座を選択してください。";
+    if (type === "move" && creditCardAccountNames.has(destination)) return "クレジットカードは移動先に指定できません。";
     if (type !== "move" && !source) return type === "income" ? "入金先を選択してください。" : "拠出元を選択してください。";
     if (type !== "move" && !category) return "カテゴリを選択してください。";
     if (type === "move" && moveFee.trim() !== "") {
@@ -1188,7 +1192,7 @@ export const InputForm: React.FC<InputFormProps> = ({
         <label>引落日<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
         <label>引落元
           <select value={sourceMove} onChange={(event) => setSourceMove(event.target.value)}>
-            {paymentAccountNames.map((account) => <option key={account} value={account}>{account}</option>)}
+            {nonCardAccountNames.map((account) => <option key={account} value={account}>{account}</option>)}
           </select>
         </label>
         <div className="form-buttons receipt-buttons">
@@ -1405,7 +1409,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
               {openMovePicker === "sourceMove" && (
                 <WheelPickerInline
-                  options={paymentAccountNames}
+                  options={activeAccountNames}
                   value={sourceMove}
                   title="移動元"
                   onChange={(v) => setSourceMove(v)}
@@ -1428,7 +1432,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
               {openMovePicker === "destination" && (
                 <WheelPickerInline
-                  options={paymentAccountNames}
+                  options={nonCardAccountNames}
                   value={destination}
                   title="移動先"
                   onChange={(v) => setDestination(v)}
