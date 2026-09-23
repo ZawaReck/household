@@ -10,7 +10,6 @@ import {
   isEpochReplacementPending,
 } from "../data/dataEpoch";
 import { syncFingerprint } from "../utils/syncFingerprint";
-import { preserveRouteForSyncReload } from "../data/reloadRoute";
 
 type RemoteRecord = { key: string; value: unknown; updatedAt: string; deletedAt?: string | null };
 type SyncMeta = { lastPull: string; updatedAt: Record<string, string>; observed: Record<string, string | null> };
@@ -96,7 +95,6 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
           });
           localStorage.removeItem(META_KEY);
           adoptDataEpoch(mismatch.dataEpoch);
-          preserveRouteForSyncReload();
           window.location.reload();
           return;
         }
@@ -151,10 +149,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         localStorage.setItem(META_KEY, JSON.stringify(meta));
         setStatus("synced");
-        if (appliedRemote) {
-          preserveRouteForSyncReload();
-          window.location.reload();
-        }
+        if (appliedRemote) window.location.reload();
         else setReady(true);
         } catch { setStatus("error"); setReady(true); }
       } finally {
