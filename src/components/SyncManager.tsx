@@ -14,6 +14,17 @@ import { syncFingerprint } from "../utils/syncFingerprint";
 type RemoteRecord = { key: string; value: unknown; updatedAt: string; deletedAt?: string | null };
 type SyncMeta = { lastPull: string; updatedAt: Record<string, string>; observed: Record<string, string | null> };
 const META_KEY = "syncMeta.v1";
+const SYNC_TIMEOUT_MS = 20_000;
+
+const syncFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), SYNC_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
+};
 
 const loadMeta = (): SyncMeta => {
   try { return JSON.parse(localStorage.getItem(META_KEY) ?? "") as SyncMeta; }
@@ -35,8 +46,11 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
     let stopped = false;
     let running = false;
     let rerun = false;
-    const sync = async () => {
-      if (running) { rerun = true; return; }
+    const sync = async (queueIfRunning = true) => {
+      if (running) {
+        if (queueIfRunning) rerun = true;
+        return;
+      }
       running = true;
       try {
         if (!navigator.onLine || stopped) { setStatus("offline"); setReady(true); return; }
@@ -50,7 +64,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
             const raw = localStorage.getItem(key);
             return { key, value: raw == null ? null : JSON.parse(raw), updatedAt: now, deletedAt: raw == null ? now : null };
           });
-          const replace = await fetch("/api/sync", {
+          const replace = await syncFetch("/api/sync", {
             method: "PUT",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ records, dataEpoch, replaceEpoch: true }),
@@ -68,7 +82,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
           setReady(true);
           return;
         }
-        const response = await fetch(`/api/sync?since=${encodeURIComponent(meta.lastPull)}`, {
+        const response = await syncFetch(`/api/sync?since=${encodeURIComponent(meta.lastPull)}`, {
           headers: { "x-data-epoch": dataEpoch },
         });
         if (response.status === 401) { handleUnauthorized(); return; }
@@ -129,7 +143,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
           pending.push({ key, value: raw == null ? null : JSON.parse(raw), updatedAt: now, deletedAt: raw == null ? now : null });
         }
         if (pending.length) {
-          const push = await fetch("/api/sync", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ records: pending, dataEpoch }) });
+          const push = await syncFetch("/api/sync", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ records: pending, dataEpoch }) });
           if (push.status === 401) { handleUnauthorized(); return; }
           if (!push.ok) throw new Error("push_failed");
         }
@@ -142,25 +156,26 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
         running = false;
         if (rerun && !stopped) {
           rerun = false;
-          void sync();
+          void sync(false);
         }
       }
     };
     void sync();
-    const timer = window.setInterval(sync, 5000);
+    const timer = window.setInterval(() => { void sync(false); }, 5000);
     let localChangeTimer: number | undefined;
     const handleLocalChange = () => {
       setStatus("syncing");
       if (localChangeTimer) window.clearTimeout(localChangeTimer);
       localChangeTimer = window.setTimeout(sync, 150);
     };
-    window.addEventListener("online", sync);
+    const handleOnline = () => { void sync(); };
+    window.addEventListener("online", handleOnline);
     window.addEventListener("household-local-change", handleLocalChange);
     return () => {
       stopped = true;
       window.clearInterval(timer);
       if (localChangeTimer) window.clearTimeout(localChangeTimer);
-      window.removeEventListener("online", sync);
+      window.removeEventListener("online", handleOnline);
       window.removeEventListener("household-local-change", handleLocalChange);
     };
   }, [disabled]);
