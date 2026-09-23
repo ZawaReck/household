@@ -13,6 +13,7 @@ import { invalidateChangedCardConfirmations } from "../src/utils/cardConfirmatio
 import { importHouseholdCsv } from "../src/utils/csvImport";
 import { syncFingerprint } from "../src/utils/syncFingerprint";
 import { historyEntryFlowTop } from "../src/utils/historyScroll";
+import { investmentFlowsAsOf, investmentOpeningProfit } from "../src/utils/investments";
 
 const transaction = (partial: Partial<Transaction> & Pick<Transaction, "id" | "type" | "amount" | "date">): Transaction => ({
   name: "test",
@@ -51,6 +52,45 @@ describe("analytics", () => {
     ];
     expect(sumIncomeExpenseByMonth(items, ["2026-09"])[0].expense).toBe(100);
     expect(sumIncomeExpenseByMonth(items, ["2026-09"], true)[0].expense).toBe(600);
+  });
+});
+
+describe("investment opening flows", () => {
+  it("keeps opening deposits and withdrawals separate when calculating profit", () => {
+    const nisa = account({
+      id: "nisa",
+      name: "NISA口座",
+      kind: "investment",
+      openingBalance: 1_174_215,
+      initialDeposits: 1_139_866,
+      initialWithdrawals: 208_000,
+      openingDate: "2026-09-23",
+    });
+
+    expect(investmentOpeningProfit(nisa)).toBe(242_349);
+    expect(investmentFlowsAsOf(nisa, [], "2026-09-23")).toMatchObject({
+      cumulativeDeposits: 1_139_866,
+      cumulativeWithdrawals: 208_000,
+    });
+  });
+
+  it("counts a later withdrawal and redeposit separately without changing profit", () => {
+    const asset = account({
+      id: "investment",
+      name: "投資口座",
+      kind: "investment",
+      openingBalance: 110,
+      initialDeposits: 100,
+      initialWithdrawals: 0,
+    });
+    const flows = investmentFlowsAsOf(asset, [
+      transaction({ id: "withdraw", type: "move", amount: 110, date: "2026-02-01", source: "投資口座", destination: "銀行" }),
+      transaction({ id: "redeposit", type: "move", amount: 110, date: "2026-02-02", source: "銀行", destination: "投資口座" }),
+    ], "2026-02-02");
+
+    expect(flows.cumulativeDeposits).toBe(210);
+    expect(flows.cumulativeWithdrawals).toBe(110);
+    expect(110 + flows.cumulativeWithdrawals - flows.cumulativeDeposits).toBe(10);
   });
 });
 

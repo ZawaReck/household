@@ -10,14 +10,22 @@ type Seed = { id: string; name: string; kind: AccountKind; creditCard?: boolean 
 const seeds: Seed[] = [
   { id: "wallet", name: "財布", kind: "cash" },
   { id: "paypay", name: "PayPay", kind: "electronic_money" },
+  { id: "trial-prepaid", name: "Trialプリカ", kind: "electronic_money" },
   { id: "paypay-card", name: "PayPayクレカ", kind: "credit_card", creditCard: true },
   { id: "suica", name: "Suica", kind: "electronic_money" },
   { id: "olive-card", name: "oliveクレカ", kind: "credit_card", creditCard: true },
   { id: "paypay-bank", name: "PayPay銀行", kind: "bank" },
   { id: "jp-bank", name: "ゆうちょ銀行", kind: "bank" },
+  { id: "cash-on-hand", name: "手元現金", kind: "cash" },
+  { id: "stored-banknotes", name: "保管紙幣", kind: "cash" },
+  { id: "other-cash", name: "その他", kind: "cash" },
   { id: "nisa", name: "NISA口座", kind: "investment" },
   { id: "taxable", name: "特定口座", kind: "investment" },
   { id: "crypto", name: "暗号資産", kind: "investment" },
+  { id: "paypay-yen-term", name: "PayPay円定期預金", kind: "investment" },
+  { id: "paypay-usd-deposit", name: "PayPayドル預金", kind: "investment" },
+  { id: "jp-yen-term", name: "ゆうちょ円定期預金", kind: "investment" },
+  { id: "paypay-points-invest", name: "PayPayポイント運用", kind: "investment" },
 ];
 
 export const createDefaultAccounts = (date = todayISO()): Account[] =>

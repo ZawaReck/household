@@ -11,6 +11,7 @@ import "./AccountSettings.css";
 import { localDateISO } from "../utils/date";
 import { loadInvestmentState } from "../data/investmentStore";
 import { ClearableNumberInput } from "./ClearableNumberInput";
+import { investmentOpeningFlows, investmentOpeningProfit } from "../utils/investments";
 
 type Props = {
   accounts: Account[];
@@ -75,7 +76,11 @@ export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSav
         return;
       }
     }
-    if (draft.kind === "investment" && !Number.isInteger(draft.initialProfit ?? 0)) { window.alert("開始時点損益は円単位の整数で入力してください。"); return; }
+    if (draft.kind === "investment") {
+      const opening = investmentOpeningFlows(draft);
+      if (!Number.isInteger(opening.deposits) || opening.deposits < 0) { window.alert("開始時点累計入金は0円以上の整数で入力してください。"); return; }
+      if (!Number.isInteger(opening.withdrawals) || opening.withdrawals < 0) { window.alert("開始時点累計出金は0円以上の整数で入力してください。"); return; }
+    }
     if (draft.kind === "credit_card") {
       const settings = draft.creditCard;
       if (!settings || !Number.isInteger(settings.limit) || settings.limit < 0) { window.alert("利用限度額は0円以上の整数で入力してください。"); return; }
@@ -90,7 +95,21 @@ export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSav
         return;
       }
     }
-    onSave({ ...draft, name: draft.name.trim(), updatedAt: new Date().toISOString() });
+    const investmentOpening = draft.kind === "investment" ? investmentOpeningFlows(draft) : undefined;
+    onSave({
+      ...draft,
+      name: draft.name.trim(),
+      ...(investmentOpening ? {
+        initialDeposits: investmentOpening.deposits,
+        initialWithdrawals: investmentOpening.withdrawals,
+        initialProfit: draft.openingBalance + investmentOpening.withdrawals - investmentOpening.deposits,
+      } : {
+        initialDeposits: undefined,
+        initialWithdrawals: undefined,
+        initialProfit: undefined,
+      }),
+      updatedAt: new Date().toISOString(),
+    });
     setDraft(null);
   };
 
@@ -174,7 +193,11 @@ export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSav
           </label>
           <label>開始残高<ClearableNumberInput inputMode="numeric" step="1" value={draft.openingBalance} onValueChange={(openingBalance) => setDraft({ ...draft, openingBalance })} /></label>
           {draft.kind === "investment" && (
-            <label>開始時点損益<ClearableNumberInput inputMode="numeric" step="1" value={draft.initialProfit ?? 0} onValueChange={(initialProfit) => setDraft({ ...draft, initialProfit })} /></label>
+            <>
+              <label>開始時点累計入金<ClearableNumberInput inputMode="numeric" min="0" step="1" value={investmentOpeningFlows(draft).deposits} onValueChange={(initialDeposits) => setDraft({ ...draft, initialDeposits })} /></label>
+              <label>開始時点累計出金<ClearableNumberInput inputMode="numeric" min="0" step="1" value={investmentOpeningFlows(draft).withdrawals} onValueChange={(initialWithdrawals) => setDraft({ ...draft, initialWithdrawals })} /></label>
+              <span className="account-investment-opening-profit">開始時点損益 {investmentOpeningProfit(draft).toLocaleString()}円</span>
+            </>
           )}
           <label>開始基準日<input type="date" value={draft.openingDate} onChange={(event) => setDraft({ ...draft, openingDate: event.target.value })} /></label>
           {draft.kind === "credit_card" && draft.creditCard && (

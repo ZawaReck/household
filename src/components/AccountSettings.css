@@ -11,6 +11,7 @@
 .account-editor { display: grid; gap: 10px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #d2e2d5; }
 .account-editor label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; }
 .account-editor input, .account-editor select { box-sizing: border-box; width: 100%; min-height: 38px; border: 1px solid #b8d7c0; border-radius: 8px; padding: 7px; color: #245e2d; }
+.account-investment-opening-profit { padding: 8px 10px; border-radius: 8px; font-size: 12px; font-weight: 700; background: #d7e3db; }
 .account-editor-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .account-editor-actions button:first-child { background: #708076; }
 .card-settings-fields { display: grid; gap: 10px; margin: 0; padding: 12px; border: 1px solid #b8d7c0; border-radius: 8px; }

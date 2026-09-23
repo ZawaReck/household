@@ -37,6 +37,7 @@ import {
   isIncludedInRegularAnalytics,
 } from "../utils/analytics";
 import { loadInvestmentState, saveInvestmentState } from "../data/investmentStore";
+import { investmentFlowsAsOf, investmentOpeningFlows } from "../utils/investments";
 import { loadBudgets, saveBudgets } from "../data/budgetStore";
 import { expenseCategoryOptions, incomeCategoryOptions } from "../data/categoryOptions";
 import {
@@ -744,13 +745,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const investmentAssets: InvestmentAsset[] = React.useMemo(() => investmentAccounts.map((account) => ({
     id: account.id,
     name: account.name,
-    initialPrincipal: account.openingBalance - (account.initialProfit ?? 0),
+    initialPrincipal: investmentOpeningFlows(account).deposits,
     openingValue: account.openingBalance,
   })), [investmentAccounts]);
   const historicalInvestmentAssets: InvestmentAsset[] = React.useMemo(() => historicalInvestmentAccounts.map((account) => ({
     id: account.id,
     name: account.name,
-    initialPrincipal: account.openingBalance - (account.initialProfit ?? 0),
+    initialPrincipal: investmentOpeningFlows(account).deposits,
     openingValue: account.openingBalance,
   })), [historicalInvestmentAccounts]);
 
@@ -783,18 +784,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     return snapshot?.values[account.id] ?? account.openingBalance;
   }, [investmentSnapshots]);
 
-  const investmentFlows = (account: Account, date: string) => {
-    if (date < account.openingDate) return { deposits: 0, withdrawals: 0, cumulativeDeposits: 0 };
-    let deposits = 0;
-    let withdrawals = 0;
-    transactions.forEach((transaction) => {
-      if (transaction.type !== "move" || transaction.date <= account.openingDate || transaction.date > date) return;
-      if (transaction.destination === account.name) deposits += transaction.amount;
-      if (transaction.source === account.name) withdrawals += transaction.amount;
-    });
-    const initialPrincipal = account.openingBalance - (account.initialProfit ?? 0);
-    return { deposits, withdrawals, cumulativeDeposits: initialPrincipal + deposits };
-  };
+  const investmentFlows = (account: Account, date: string) => investmentFlowsAsOf(account, transactions, date);
 
   const investmentChartData = visibleInvestmentSnapshots.map((snapshot) => {
     const point: Record<string, number | string> = { date: snapshot.date };
@@ -820,7 +810,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       if (!isAccountVisibleOn(account, snapshot.date)) return acc;
       const flow = investmentFlows(account, snapshot.date);
       acc.deposits += flow.cumulativeDeposits;
-      acc.withdrawals += flow.withdrawals;
+      acc.withdrawals += flow.cumulativeWithdrawals;
       return acc;
     }, { deposits: 0, withdrawals: 0 });
     const profit = totalValue + totals.withdrawals - totals.deposits;
@@ -1917,7 +1907,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 {investmentAccounts.map((account) => {
                   const flow = investmentFlows(account, snapshotDateForTable);
                   const current = investmentValueAt(account, snapshotDateForTable);
-                  const profit = current + flow.withdrawals - flow.cumulativeDeposits;
+                  const profit = current + flow.cumulativeWithdrawals - flow.cumulativeDeposits;
                   const rate = flow.cumulativeDeposits > 0 ? (profit / flow.cumulativeDeposits) * 100 : null;
                   const ratio = latestInvestmentTotal !== 0 ? (current / latestInvestmentTotal) * 100 : null;
                   const colorIndex = historicalInvestmentAccounts.findIndex((item) => item.id === account.id);
@@ -1940,7 +1930,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       </div>
                       <div className="investment-flow-grid">
                         <span><small>累計入金</small>{formatYen(flow.cumulativeDeposits)}</span>
-                        <span><small>累計出金</small>{formatYen(flow.withdrawals)}</span>
+                        <span><small>累計出金</small>{formatYen(flow.cumulativeWithdrawals)}</span>
                         <span><small>構成比</small>{ratio == null ? "—" : `${ratio.toFixed(1)}%`}</span>
                       </div>
                     </section>

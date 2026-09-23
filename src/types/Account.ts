@@ -15,6 +15,10 @@ export type Account = {
   openingBalance: number;
   /** 投資口座のみ。運用開始日時点の評価損益。 */
   initialProfit?: number;
+  /** 投資口座のみ。運用開始日以前を含む累計入金額。 */
+  initialDeposits?: number;
+  /** 投資口座のみ。運用開始日以前を含む累計出金額。 */
+  initialWithdrawals?: number;
   openingDate: string;
   isActive: boolean;
   /** 無効化した日。過去時点の資産表示で使用する。 */
