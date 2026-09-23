@@ -242,15 +242,17 @@ describe("backup and sync merging", () => {
 
 describe("CSV import", () => {
   it("creates stable row IDs and maps known legacy categories", () => {
-    const csv = "金額,日付,メモ,カテゴリ\n-1200,2026-09-01,書籍,趣味\n300000,2026-09-02,給与,月給";
+    const csv = "金額,日付,メモ,カテゴリ\n-1200,2026/09/01,書籍,趣味\n300000,2026-09-02,給与,月給";
     const first = importHouseholdCsv(csv);
     const second = importHouseholdCsv(csv);
     expect(first.invalidRows).toEqual([]);
     expect(first.transactions.map(({ id }) => id)).toEqual(second.transactions.map(({ id }) => id));
     expect(first.transactions).toMatchObject([
-      { type: "expense", amount: 1200, name: "書籍", category: "趣味費", source: "" },
+      { type: "expense", amount: 1200, date: "2026-09-01", name: "書籍", category: "趣味費", source: "" },
       { type: "income", amount: 300000, name: "給与", category: "月収", source: "" },
     ]);
+    expect(first.transactions[0]).not.toHaveProperty("updatedAt");
+    expect(first.transactions[0]).not.toHaveProperty("classification");
   });
 
   it("requires explicit exclusion for zero and fractional yen rows", () => {

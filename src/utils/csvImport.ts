@@ -32,6 +32,8 @@ const splitCsvLine = (line: string) => {
   return fields.map((field) => field.trim());
 };
 
+const normalizeDate = (value: string) => value.replaceAll("/", "-");
+
 const isValidDate = (value: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year, month, day] = value.split("-").map(Number);
@@ -45,19 +47,19 @@ export const importHouseholdCsv = (raw: string): { transactions: Transaction[]; 
   const invalidRows: InvalidCsvRow[] = [];
   const transactions: Transaction[] = [];
   rows.forEach((line, index) => {
-    const [amountRaw, date, memo = "", categoryRaw = "その他"] = splitCsvLine(line);
+    const [amountRaw, dateRaw, memo = "", categoryRaw = "その他"] = splitCsvLine(line);
     const amount = Number(amountRaw.replace(/,/g, ""));
+    const date = normalizeDate(dateRaw);
     const errors: string[] = [];
     if (!Number.isFinite(amount)) errors.push("金額が数値ではありません");
     else if (!Number.isInteger(amount) || amount === 0) errors.push("金額は0以外の円整数である必要があります");
-    if (!isValidDate(date)) errors.push("日付が YYYY-MM-DD の実在日ではありません");
+    if (!isValidDate(date)) errors.push("日付が YYYY-MM-DD または YYYY/MM/DD の実在日ではありません");
     if (errors.length > 0) {
       invalidRows.push({ rowNumber: index + 2, raw: line, reason: errors.join(" / ") });
       return;
     }
     transactions.push({
       id: stableRowId(`${index + 2}\u0000${line}`),
-      updatedAt: new Date().toISOString(),
       type: amount < 0 ? "expense" : "income",
       amount: Math.abs(amount),
       date,
@@ -67,7 +69,6 @@ export const importHouseholdCsv = (raw: string): { transactions: Transaction[]; 
       destination: "",
       memo: "",
       isSpecial: false,
-      classification: "normal",
     });
   });
   return { transactions, invalidRows };
