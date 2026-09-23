@@ -7,6 +7,7 @@ type SegmentedDragOptions = {
   cssVariable: `--${string}`;
   horizontalPadding?: number;
   disabled?: boolean;
+  selectOnPointerDown?: boolean;
 };
 
 export const useSegmentedDrag = <T extends HTMLElement>({
@@ -16,6 +17,7 @@ export const useSegmentedDrag = <T extends HTMLElement>({
   cssVariable,
   horizontalPadding = 0,
   disabled = false,
+  selectOnPointerDown = true,
 }: SegmentedDragOptions) => {
   const ref = React.useRef<T>(null);
   const gesture = React.useRef<{
@@ -89,7 +91,7 @@ export const useSegmentedDrag = <T extends HTMLElement>({
         };
         suppressClick.current = true;
         event.currentTarget.style.setProperty(cssVariable, String(position));
-        onSelect(Math.round(position));
+        if (selectOnPointerDown) onSelect(Math.round(position));
       },
       onPointerMove: (event: React.PointerEvent<T>) => {
         const current = gesture.current;

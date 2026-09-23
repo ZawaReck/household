@@ -8,11 +8,19 @@ import { AuthGate } from './components/AuthGate.tsx'
 import { SyncManager } from './components/SyncManager.tsx'
 import { hydrateOfflineStorage } from './data/offlineStore.ts'
 import { backupKeys } from './utils/backup.ts'
+import { consumeNavigationIntent } from './data/navigationIntent.ts'
 
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches
   || (navigator as Navigator & { standalone?: boolean }).standalone === true
 
 document.documentElement.dataset.standalonePwa = isStandalone ? 'true' : 'false'
+
+const navigationIntent = consumeNavigationIntent()
+if (navigationIntent) {
+  window.history.replaceState(null, '', navigationIntent)
+} else if (isStandalone && window.location.pathname !== '/add') {
+  window.history.replaceState(null, '', '/add')
+}
 
 const renderApp = () => createRoot(document.getElementById('root')!).render(
   <StrictMode><AuthGate><SyncManager><App /></SyncManager></AuthGate></StrictMode>,
