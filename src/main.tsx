@@ -8,13 +8,17 @@ import { AuthGate } from './components/AuthGate.tsx'
 import { SyncManager } from './components/SyncManager.tsx'
 import { hydrateOfflineStorage } from './data/offlineStore.ts'
 import { backupKeys } from './utils/backup.ts'
+import { consumeSyncReloadRoute } from './data/reloadRoute.ts'
 
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches
   || (navigator as Navigator & { standalone?: boolean }).standalone === true
 
 document.documentElement.dataset.standalonePwa = isStandalone ? 'true' : 'false'
 
-if (isStandalone && window.location.pathname !== '/add') {
+const syncReloadRoute = consumeSyncReloadRoute()
+if (syncReloadRoute) {
+  window.history.replaceState(null, '', syncReloadRoute)
+} else if (isStandalone && window.location.pathname !== '/add') {
   window.history.replaceState(null, '', '/add')
 }
 
