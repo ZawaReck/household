@@ -1,4 +1,5 @@
 import type { TaxRate, Transaction } from "../types/Transaction";
+import { stableTransactions } from "./stableTransactions";
 
 const normalizeTaxRate = (rate: unknown): TaxRate => rate === 0 || rate === 8 ? rate : 10;
 
@@ -56,5 +57,5 @@ export const reconcileReceiptTaxAdjustments = (transactions: Transaction[]) => {
     desiredAdjustments.push(desired);
   });
 
-  return [...baseTransactions, ...desiredAdjustments];
+  return stableTransactions(transactions, [...baseTransactions, ...desiredAdjustments]);
 };

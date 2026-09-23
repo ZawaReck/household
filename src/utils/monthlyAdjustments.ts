@@ -3,6 +3,7 @@ import type { Transaction } from "../types/Transaction";
 import type { AccountActualState } from "../data/accountActualStore";
 import { monthEndISO } from "./analytics";
 import { accountBalanceAsOf } from "./accountBalances";
+import { stableTransactions } from "./stableTransactions";
 
 const adjustment = (account: string, month: string, net: number): Transaction => ({
   id: `adj_${month}_${account}`,
@@ -40,5 +41,5 @@ export const reconcileMonthlyAdjustments = (
       if (net !== 0) rebuilt.push(adjustment(account.name, month, net));
     });
   });
-  return rebuilt;
+  return stableTransactions(transactions, rebuilt);
 };

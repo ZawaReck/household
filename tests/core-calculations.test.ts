@@ -36,6 +36,26 @@ const account = (partial: Partial<Account> & Pick<Account, "id" | "name" | "kind
   ...partial,
 });
 
+describe("coexisting automatic transactions", () => {
+  it("stops changing state once card payments, tax and monthly adjustments are reconciled", () => {
+    const accounts = [account({ id: "bank", name: "銀行", kind: "bank" }), account({ id: "card", name: "カード", kind: "credit_card", creditCard: { limit: 200000, closingDay: 31, paymentDay: 27, paymentDelayMonths: 1, defaultPaymentAccountId: "bank" } })];
+    const state = { byMonth: { "2026-09": { "銀行": 1000 } }, confirmedByMonth: {}, basisDateByMonth: {}, cardLimitByMonth: {} };
+    const initial = [transaction({ id: "purchase", type: "expense", amount: 100, date: "2026-09-01", source: "カード", groupId: "receipt", taxMode: "exclusive", taxRate: 10, taxBaseAmount: 100 })];
+    const stable = reconcileMonthlyAdjustments(reconcileCardPayments(reconcileReceiptTaxAdjustments(initial), accounts), accounts, state);
+    expect(reconcileCardPayments(stable, accounts)).toBe(stable);
+    expect(reconcileReceiptTaxAdjustments(stable)).toBe(stable);
+    expect(reconcileMonthlyAdjustments(stable, accounts, state)).toBe(stable);
+    const edited = stable.map((item) => item.id === "purchase" ? { ...item, amount: 200, taxBaseAmount: 200 } : item);
+    const recalculated = reconcileMonthlyAdjustments(reconcileCardPayments(reconcileReceiptTaxAdjustments(edited), accounts), accounts, state);
+    expect(recalculated.map((item) => item.id)).toEqual(stable.map((item) => item.id));
+    expect(recalculated.find((item) => item.system?.kind === "card_payment")?.amount).toBe(220);
+    expect(recalculated.find((item) => item.isTaxAdjustment)?.amount).toBe(20);
+    const removed = recalculated.filter((item) => item.id !== "purchase");
+    const cleaned = reconcileMonthlyAdjustments(reconcileCardPayments(reconcileReceiptTaxAdjustments(removed), accounts), accounts, state);
+    expect(cleaned.map((item) => item.system?.kind)).toEqual(["monthly_adjustment"]);
+  });
+});
+
 describe("analytics", () => {
   it("rounds external tax after summing each category and tax rate", () => {
     const items = [

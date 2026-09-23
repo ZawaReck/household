@@ -1,6 +1,7 @@
 import type { Account } from "../types/Account";
 import type { Transaction } from "../types/Transaction";
 import { isBusinessDay } from "@modelgeek/japanese-holidays";
+import { stableTransactions } from "./stableTransactions";
 
 const dateISO = (date: Date) => {
   const year = date.getFullYear();
@@ -117,5 +118,5 @@ export const reconcileCardPayments = (transactions: Transaction[], accounts: Acc
       system: { ...next.system!, manualDate: current.system?.manualDate, manualSource: current.system?.manualSource },
     };
   });
-  return [...manualAndHistorical, ...generated];
+  return stableTransactions(transactions, [...manualAndHistorical, ...generated]);
 };

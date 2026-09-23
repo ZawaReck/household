@@ -1,7 +1,7 @@
 /* src/App.tsx */
 
 import React, {useState, useEffect} from "react";
-import { BrowserRouter as Router, Route, Routes, NavLink, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { InputForm } from "./components/InputForm";
 import { DashboardPage } from "./components/DashboardPage";
 import { AccountSettings } from "./components/AccountSettings";
@@ -31,33 +31,38 @@ import { invalidateChangedCardConfirmations } from "./utils/cardConfirmations";
 import { loadInputDrafts, saveInputDrafts } from "./data/inputDraftStore";
 import './App.css';
 import { ClearableNumberInput } from "./components/ClearableNumberInput";
-import { internalNavigationHref } from "./data/internalNavigation";
+import { useSegmentedDrag } from "./hooks/useSegmentedDrag";
 
 const GraphsPage = React.lazy(() => import("./components/GraphsPage").then((module) => ({ default: module.GraphsPage })));
 
 const MobileBottomNav: React.FC = () => {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const activeIndex = pathname === "/add" ? 0 : pathname.startsWith("/graphs") ? 2 : 1;
   React.useEffect(() => {
     document.documentElement.dataset.appPage = activeIndex === 0 ? "input" : activeIndex === 1 ? "calendar" : "graphs";
     return () => { delete document.documentElement.dataset.appPage; };
   }, [activeIndex]);
-  const handleReselect = (index: number, event: React.MouseEvent<HTMLAnchorElement>) => {
-    if (index !== activeIndex) return;
-    event.preventDefault();
-    if (index === 0) window.dispatchEvent(new Event("household:reselect-input"));
-    if (index === 1) window.dispatchEvent(new Event("household:reselect-calendar"));
-  };
+  const selectPage = React.useCallback((index: number) => {
+    if (index === activeIndex) {
+      if (index === 0) window.dispatchEvent(new Event("household:reselect-input"));
+      if (index === 1) window.dispatchEvent(new Event("household:reselect-calendar"));
+      return;
+    }
+    navigate((["/add", "/", "/graphs"] as const)[index] ?? "/", { replace: true });
+  }, [activeIndex, navigate]);
+  const drag = useSegmentedDrag<HTMLElement>({ count: 3, selectedIndex: activeIndex, onSelect: selectPage, cssVariable: "--nav-position", horizontalPadding: 4 });
   return (
     <nav
-      className="mobile-bottom-nav"
+      ref={drag.ref}
+      className={`mobile-bottom-nav ${drag.isDragging ? "is-dragging" : ""}`}
       aria-label="メインナビゲーション"
       style={{ "--nav-index": activeIndex } as React.CSSProperties}
-      onContextMenu={(event) => event.preventDefault()}
+      {...drag.handlers}
     >
-      <a href={internalNavigationHref("/add")} className={activeIndex === 0 ? "active" : ""} aria-current={activeIndex === 0 ? "page" : undefined} onClick={(event) => handleReselect(0, event)}>入力</a>
-      <a href={internalNavigationHref("/")} className={activeIndex === 1 ? "active" : ""} aria-current={activeIndex === 1 ? "page" : undefined} onClick={(event) => handleReselect(1, event)}>カレンダー</a>
-      <a href={internalNavigationHref("/graphs")} className={activeIndex === 2 ? "active" : ""} aria-current={activeIndex === 2 ? "page" : undefined} onClick={(event) => handleReselect(2, event)}>グラフ</a>
+      <button type="button" className={activeIndex === 0 ? "active" : ""} aria-current={activeIndex === 0 ? "page" : undefined} onClick={() => selectPage(0)}>入力</button>
+      <button type="button" className={activeIndex === 1 ? "active" : ""} aria-current={activeIndex === 1 ? "page" : undefined} onClick={() => selectPage(1)}>カレンダー</button>
+      <button type="button" className={activeIndex === 2 ? "active" : ""} aria-current={activeIndex === 2 ? "page" : undefined} onClick={() => selectPage(2)}>グラフ</button>
     </nav>
   );
 };
