@@ -11,6 +11,7 @@ import { mergeValues } from "../src/utils/backup";
 import { applyDeletionTombstones } from "../src/data/deletionStore";
 import { invalidateChangedCardConfirmations } from "../src/utils/cardConfirmations";
 import { importHouseholdCsv } from "../src/utils/csvImport";
+import { syncFingerprint } from "../src/utils/syncFingerprint";
 import { historyEntryFlowTop } from "../src/utils/historyScroll";
 
 const transaction = (partial: Partial<Transaction> & Pick<Transaction, "id" | "type" | "amount" | "date">): Transaction => ({
@@ -259,6 +260,17 @@ describe("CSV import", () => {
     const result = importHouseholdCsv("金額,日付,メモ,カテゴリ\n0,2026-09-01,zero,その他\n1.5,2026-09-02,fraction,その他");
     expect(result.transactions).toEqual([]);
     expect(result.invalidRows).toHaveLength(2);
+  });
+});
+
+describe("sync metadata", () => {
+  it("stores a compact fingerprint instead of duplicating the synchronized value", () => {
+    const value = JSON.stringify(Array.from({ length: 10_000 }, (_, index) => ({ index, name: `item-${index}` })));
+    const fingerprint = syncFingerprint(value);
+    expect(fingerprint).toBe(syncFingerprint(value));
+    expect(fingerprint).not.toBe(syncFingerprint(`${value}x`));
+    expect(fingerprint?.length).toBeLessThan(40);
+    expect(syncFingerprint(null)).toBeNull();
   });
 });
 

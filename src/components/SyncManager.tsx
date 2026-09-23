@@ -9,6 +9,7 @@ import {
   getOrCreateDataEpoch,
   isEpochReplacementPending,
 } from "../data/dataEpoch";
+import { syncFingerprint } from "../utils/syncFingerprint";
 
 type RemoteRecord = { key: string; value: unknown; updatedAt: string; deletedAt?: string | null };
 type SyncMeta = { lastPull: string; updatedAt: Record<string, string>; observed: Record<string, string | null> };
@@ -58,7 +59,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
           if (!replace.ok) throw new Error("epoch_replace_failed");
           records.forEach((record) => {
             meta.updatedAt[record.key] = now;
-            meta.observed[record.key] = localStorage.getItem(record.key);
+            meta.observed[record.key] = syncFingerprint(localStorage.getItem(record.key));
           });
           meta.lastPull = "";
           localStorage.setItem(META_KEY, JSON.stringify(meta));
@@ -90,7 +91,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
           if (!backupKeys.includes(record.key) || record.updatedAt <= (meta.updatedAt[record.key] ?? "")) continue;
           const previousRaw = localStorage.getItem(record.key);
           const hasObserved = Object.prototype.hasOwnProperty.call(meta.observed, record.key);
-          const localDirty = hasObserved ? meta.observed[record.key] !== previousRaw : previousRaw !== null;
+          const localDirty = hasObserved ? meta.observed[record.key] !== syncFingerprint(previousRaw) : previousRaw !== null;
           if (record.deletedAt && !localDirty) {
             localStorage.removeItem(record.key);
             void writeOfflineValue(record.key, null);
@@ -103,7 +104,7 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
             void writeOfflineValue(record.key, nextValue);
           }
           meta.updatedAt[record.key] = record.updatedAt;
-          if (!localDirty) meta.observed[record.key] = localStorage.getItem(record.key);
+          if (!localDirty) meta.observed[record.key] = syncFingerprint(localStorage.getItem(record.key));
           if (previousRaw !== localStorage.getItem(record.key)) appliedRemote = true;
         }
         const tombstones = loadDeletionTombstones();
@@ -121,8 +122,9 @@ export const SyncManager: React.FC<{ children: React.ReactNode }> = ({ children 
         const pending: RemoteRecord[] = [];
         for (const key of backupKeys) {
           const raw = localStorage.getItem(key);
-          if (meta.observed[key] === raw && meta.updatedAt[key]) continue;
-          meta.observed[key] = raw;
+          const fingerprint = syncFingerprint(raw);
+          if (meta.observed[key] === fingerprint && meta.updatedAt[key]) continue;
+          meta.observed[key] = fingerprint;
           meta.updatedAt[key] = now;
           pending.push({ key, value: raw == null ? null : JSON.parse(raw), updatedAt: now, deletedAt: raw == null ? now : null });
         }
