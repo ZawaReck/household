@@ -44,7 +44,11 @@ export const useSegmentedDrag = <T extends HTMLElement>({
     const element = ref.current;
     if (!current || !element) return;
     gesture.current = null;
-    if (element.hasPointerCapture(current.pointerId)) element.releasePointerCapture(current.pointerId);
+    try {
+      if (element.hasPointerCapture(current.pointerId)) element.releasePointerCapture(current.pointerId);
+    } catch {
+      // Safari can discard a touch pointer before React receives pointerup.
+    }
     if (commit && current.dragged && current.direction === "horizontal") {
       const nextIndex = Math.round(current.position);
       suppressClick.current = true;
@@ -84,7 +88,6 @@ export const useSegmentedDrag = <T extends HTMLElement>({
           dragged: false,
         };
         suppressClick.current = true;
-        event.currentTarget.setPointerCapture(event.pointerId);
         event.currentTarget.style.setProperty(cssVariable, String(position));
         onSelect(Math.round(position));
       },
@@ -95,6 +98,13 @@ export const useSegmentedDrag = <T extends HTMLElement>({
         const deltaY = event.clientY - current.startY;
         if (current.direction === "pending" && Math.max(Math.abs(deltaX), Math.abs(deltaY)) >= 5) {
           current.direction = Math.abs(deltaX) > Math.abs(deltaY) * 1.1 ? "horizontal" : "vertical";
+          if (current.direction === "horizontal") {
+            try {
+              event.currentTarget.setPointerCapture(event.pointerId);
+            } catch {
+              // Tracking can continue while the pointer remains over the control.
+            }
+          }
         }
         if (current.direction !== "horizontal") return;
         event.preventDefault();
