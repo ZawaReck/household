@@ -117,7 +117,11 @@ const sortByDefaultCategoryOrder = (
   });
 };
 
-const MonthlyValueBarShape: React.FC<Partial<BarShapeProps> & { showLabel: boolean }> = ({
+const MonthlyValueBarShape: React.FC<Partial<BarShapeProps> & {
+  showLabel: boolean;
+  onClick?: React.MouseEventHandler<SVGGElement>;
+  cursor?: React.CSSProperties["cursor"];
+}> = ({
   x,
   y,
   width,
@@ -127,6 +131,8 @@ const MonthlyValueBarShape: React.FC<Partial<BarShapeProps> & { showLabel: boole
   stroke,
   strokeWidth,
   showLabel,
+  onClick,
+  cursor,
 }) => {
   if (![x, y, width, height].every((item) => Number.isFinite(Number(item)))) return null;
   const resolved = Number(Array.isArray(value) ? value.at(-1) : value ?? 0);
@@ -141,7 +147,7 @@ const MonthlyValueBarShape: React.FC<Partial<BarShapeProps> & { showLabel: boole
   const labelFontSize = getMonthlyValueLabelFontSize(label);
 
   return (
-    <g>
+    <g onClick={onClick} style={cursor ? { cursor } : undefined}>
       <rect
         x={rectX}
         y={normalizedY}
@@ -551,13 +557,6 @@ const CategoryMonthlyTrendChart: React.FC<{
                 onAnimationEnd={() => {
                   setFinishedDataAnimationKey(dataAnimationKey);
                 }}
-                onClick={(entry) => {
-                  const month = String(entry?.payload?.month ?? "");
-                  if (month && onMonthSelect) {
-                    skipNextAutoAlignRef.current = true;
-                    onMonthSelect(month);
-                  }
-                }}
                 shape={<MonthlyValueBarShape showLabel={finishedDataAnimationKey === dataAnimationKey} />}
               >
                 {data.map((entry) => (
@@ -565,6 +564,10 @@ const CategoryMonthlyTrendChart: React.FC<{
                     key={`${category}-${entry.month}`}
                     fill={colorOverride ?? getBarColorByMode(mode, entry.value)}
                     cursor={onMonthSelect ? "pointer" : undefined}
+                    onClick={onMonthSelect ? () => {
+                      skipNextAutoAlignRef.current = true;
+                      onMonthSelect(entry.month);
+                    } : undefined}
                   />
                 ))}
               </Bar>
@@ -1460,14 +1463,19 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     yearlyCategorySummary.items.every((item) => item.value > 0);
   const yearlyOverviewSeries = sumIncomeExpenseByMonth(transactions, categoryTrendMonths, includeExcludedAnalytics);
   const yearlyCategoryTransactions = selectedYearlyCategory
-    ? yearlyTransactions
+    ? transactions
         .filter((transaction) => {
+          if (getMonthKey(transaction.date) !== yearlyChartAnchorMonthKey) return false;
           if (transaction.isTaxAdjustment || !isIncludedInRegularAnalytics(transaction, includeExcludedAnalytics)) return false;
           if (yearlyCategoryMode === "net") return transaction.type === (selectedYearlyCategory === "収入" ? "income" : "expense");
           return transaction.type === yearlyCategoryMode && (transaction.category || "未分類") === selectedYearlyCategory;
         })
         .sort((a, b) => b.date.localeCompare(a.date))
     : [];
+  const handleYearlyBarMonthSelect = React.useCallback((monthKey: string) => {
+    setYearlyCategoryYear(monthKey.slice(0, 4));
+    setYearlyChartAnchorMonthKey(monthKey);
+  }, []);
 
   const renderCategoryTransactions = (items: Transaction[], title: string, embedded = false) => {
     const grouped = items.reduce<Array<{ date: string; items: Transaction[] }>>((groups, transaction) => {
@@ -2584,7 +2592,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             </div>
             {selectedYearlyCategory && renderCategoryTransactions(
               yearlyCategoryTransactions,
-              `${yearlyCategoryYear}年 ${selectedYearlyCategory} の取引明細`,
+              `${yearlyChartAnchorMonthKey} ${selectedYearlyCategory} の取引明細`,
               true,
             )}
           </div>
@@ -2640,6 +2648,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     colorOverride={selectedYearlyCategoryColor}
                     focusMonthKey={yearlyChartAnchorMonthKey}
                     height={190}
+                    onMonthSelect={handleYearlyBarMonthSelect}
                   />
                 )}
               </>
@@ -2823,6 +2832,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   mode={yearlyBarMode}
                   focusMonthKey={yearlyChartAnchorMonthKey}
                   height={190}
+                  onMonthSelect={handleYearlyBarMonthSelect}
                 />
               </>
                 );
