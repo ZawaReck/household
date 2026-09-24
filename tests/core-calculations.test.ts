@@ -14,7 +14,9 @@ import { importHouseholdCsv } from "../src/utils/csvImport";
 import { syncFingerprint } from "../src/utils/syncFingerprint";
 import { historyEntryFlowTop } from "../src/utils/historyScroll";
 import { investmentFlowsAsOf, investmentOpeningProfit } from "../src/utils/investments";
-import { accountBalanceAsOf, creditCardOutstandingAsOf, totalAssetBalanceAsOf } from "../src/utils/accountBalances";
+import { accountBalanceAsOf, creditCardOutstandingAsOf, investmentBalanceAsOf, totalAssetBalanceAsOf } from "../src/utils/accountBalances";
+import { buildInvestmentProfitCalendarEntry, investmentProfitForMonth } from "../src/utils/investmentCalendar";
+import { isIncludedInRegularAnalytics } from "../src/utils/analytics";
 
 const transaction = (partial: Partial<Transaction> & Pick<Transaction, "id" | "type" | "amount" | "date">): Transaction => ({
   name: "test",
@@ -135,6 +137,44 @@ describe("account opening balances", () => {
     const snapshots = [{ id: "snapshot", date: "2026-09-23", values: { nisa: 250 } }];
 
     expect(totalAssetBalanceAsOf(accounts, [], snapshots, "2026-09-23")).toBe(350);
+  });
+
+  it("applies only moves after the latest investment snapshot", () => {
+    const nisa = account({ id: "nisa", name: "NISA口座", kind: "investment", openingBalance: 100, openingDate: "2026-09-01" });
+    const snapshots = [{ id: "snapshot", date: "2026-09-10", values: { nisa: 150 } }];
+    const transactions = [
+      transaction({ id: "before", type: "move", amount: 20, date: "2026-09-05", source: "銀行", destination: "NISA口座" }),
+      transaction({ id: "same-day", type: "move", amount: 30, date: "2026-09-10", source: "銀行", destination: "NISA口座" }),
+      transaction({ id: "deposit", type: "move", amount: 40, date: "2026-09-11", source: "銀行", destination: "NISA口座" }),
+      transaction({ id: "withdrawal", type: "move", amount: 10, date: "2026-09-12", source: "NISA口座", destination: "銀行" }),
+    ];
+
+    expect(investmentBalanceAsOf(nisa, transactions, snapshots, "2026-09-12")).toBe(180);
+  });
+
+  it("builds one read-only month-end investment profit entry", () => {
+    const nisa = account({ id: "nisa", name: "NISA口座", kind: "investment", openingBalance: 100, openingDate: "2026-08-01" });
+    const snapshots = [
+      { id: "august", date: "2026-08-31", values: { nisa: 100 } },
+      { id: "september", date: "2026-09-20", values: { nisa: 135 } },
+    ];
+    const transactions = [
+      transaction({ id: "deposit", type: "move", amount: 20, date: "2026-09-10", source: "銀行", destination: "NISA口座" }),
+      transaction({ id: "after-snapshot", type: "move", amount: 10, date: "2026-09-25", source: "銀行", destination: "NISA口座" }),
+    ];
+
+    expect(investmentProfitForMonth([nisa], transactions, snapshots, "2026-09")).toBe(15);
+    const entry = buildInvestmentProfitCalendarEntry([nisa], transactions, snapshots, "2026-09");
+    expect(entry).toMatchObject({
+      id: "investment-profit:2026-09",
+      date: "2026-09-30",
+      name: "投資損益",
+      type: "income",
+      amount: 15,
+      system: { kind: "investment_profit", key: "2026-09" },
+    });
+    expect(isIncludedInRegularAnalytics(entry!, false)).toBe(false);
+    expect(isIncludedInRegularAnalytics(entry!, true)).toBe(false);
   });
 });
 

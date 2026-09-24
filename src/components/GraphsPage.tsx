@@ -51,7 +51,7 @@ import {
 } from "../data/accountActualStore";
 import { PeriodFilter } from "./PeriodFilter";
 import type { PeriodValue } from "./PeriodFilter";
-import { accountBalanceAsOf, creditCardOutstandingAsOf } from "../utils/accountBalances";
+import { accountBalanceAsOf, creditCardOutstandingAsOf, investmentBalanceAsOf } from "../utils/accountBalances";
 import { localDateISO } from "../utils/date";
 import { PickerPanel, SelectionWheel } from "./PickerPanel";
 import { useSegmentedDrag } from "../hooks/useSegmentedDrag";
@@ -601,7 +601,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   );
   const [investmentChartMode, setInvestmentChartMode] = React.useState<"area" | "profit" | "pie">("area");
   const [investmentPeriodMonths, setInvestmentPeriodMonths] = React.useState<"3" | "6" | "12" | "all">("12");
-  const [investmentMonthKey, setInvestmentMonthKey] = React.useState(currentMonthKey);
+  const [investmentMonthKey, setInvestmentMonthKey] = React.useState(() => {
+    const requested = new URLSearchParams(window.location.search).get("month") ?? "";
+    return /^\d{4}-\d{2}$/.test(requested) ? requested : currentMonthKey;
+  });
   const [finishedInvestmentPieAnimationKey, setFinishedInvestmentPieAnimationKey] = React.useState("");
 
   const [portfolioMonthKey, setPortfolioMonthKey] = React.useState(() => {
@@ -792,12 +795,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const latestSnapshot = visibleInvestmentSnapshots[visibleInvestmentSnapshots.length - 1];
   const snapshotDateForTable = investmentAsOf;
   const investmentValueAt = React.useCallback((account: Account, date: string) => {
-    if (date < account.openingDate) return 0;
-    const snapshot = [...investmentSnapshots]
-      .filter((item) => item.date <= date && item.values[account.id] != null)
-      .sort((a, b) => b.date.localeCompare(a.date))[0];
-    return snapshot?.values[account.id] ?? account.openingBalance;
-  }, [investmentSnapshots]);
+    return investmentBalanceAsOf(account, transactions, investmentSnapshots, date);
+  }, [investmentSnapshots, transactions]);
 
   const investmentFlows = (account: Account, date: string) => investmentFlowsAsOf(account, transactions, date);
 
@@ -1967,6 +1966,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               assets={investmentAssets}
               defaultDate={investmentAsOf}
               snapshots={investmentSnapshots}
+              valueAt={(assetId, date) => {
+                const account = investmentAccounts.find((item) => item.id === assetId);
+                return account ? investmentValueAt(account, date) : 0;
+              }}
               onSave={handleSaveSnapshot}
             />
             <p className="muted investment-update-note">口座の追加・開始残高・開始時点損益は設定から変更できます。</p>
@@ -3143,8 +3146,9 @@ const SnapshotForm: React.FC<{
   assets: InvestmentAsset[];
   defaultDate: string;
   snapshots: Array<{ date: string; values: Record<string, number> }>;
+  valueAt: (assetId: string, date: string) => number;
   onSave: (date: string, values: Record<string, number>) => void;
-}> = ({ assets, defaultDate, snapshots, onSave }) => {
+}> = ({ assets, defaultDate, snapshots, valueAt, onSave }) => {
   const [date, setDate] = React.useState(defaultDate);
   const [values, setValues] = React.useState<Record<string, number>>({});
   const [savedValues, setSavedValues] = React.useState("");
@@ -3152,11 +3156,9 @@ const SnapshotForm: React.FC<{
   React.useEffect(() => {
     setValues(Object.fromEntries(assets.map((asset) => [
       asset.id,
-      [...snapshots]
-        .filter((snapshot) => snapshot.date <= date && snapshot.values[asset.id] != null)
-        .sort((a, b) => b.date.localeCompare(a.date))[0]?.values[asset.id] ?? asset.openingValue ?? 0,
+      valueAt(asset.id, date),
     ])));
-  }, [assets, date, snapshots]);
+  }, [assets, date, snapshots, valueAt]);
 
   return (
     <form

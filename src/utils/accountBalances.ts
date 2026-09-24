@@ -20,12 +20,24 @@ export const accountBalanceAsOf = (account: Account, transactions: Transaction[]
 const isAccountVisibleAsOf = (account: Account, asOf: string) =>
   account.openingDate <= asOf && (account.isActive || Boolean(account.disabledAt && asOf < account.disabledAt));
 
-export const investmentBalanceAsOf = (account: Account, snapshots: InvestmentSnapshot[], asOf: string) => {
+export const investmentBalanceAsOf = (
+  account: Account,
+  transactions: Transaction[],
+  snapshots: InvestmentSnapshot[],
+  asOf: string,
+) => {
   if (!isAccountVisibleAsOf(account, asOf)) return 0;
   const snapshot = [...snapshots]
     .filter((item) => item.date <= asOf && item.values[account.id] != null)
     .sort((a, b) => b.date.localeCompare(a.date))[0];
-  return snapshot?.values[account.id] ?? account.openingBalance;
+  const basisDate = snapshot?.date ?? account.openingDate;
+  const basisValue = snapshot?.values[account.id] ?? account.openingBalance;
+  return transactions.reduce((balance, transaction) => {
+    if (transaction.type !== "move" || transaction.date <= basisDate || transaction.date > asOf) return balance;
+    if (transaction.destination === account.name) return balance + transaction.amount;
+    if (transaction.source === account.name) return balance - transaction.amount;
+    return balance;
+  }, basisValue);
 };
 
 export const totalAssetBalanceAsOf = (
@@ -35,7 +47,7 @@ export const totalAssetBalanceAsOf = (
   asOf: string,
 ) => accounts.reduce((total, account) => {
   if (!isAccountVisibleAsOf(account, asOf) || account.kind === "credit_card") return total;
-  if (account.kind === "investment") return total + investmentBalanceAsOf(account, snapshots, asOf);
+  if (account.kind === "investment") return total + investmentBalanceAsOf(account, transactions, snapshots, asOf);
   return total + accountBalanceAsOf(account, transactions, asOf);
 }, 0);
 

@@ -14,6 +14,7 @@ import { localDateISO } from "../utils/date";
 import { historyEntryFlowTop } from "../utils/historyScroll";
 import { loadInvestmentState } from "../data/investmentStore";
 import { totalAssetBalanceAsOf } from "../utils/accountBalances";
+import { buildInvestmentProfitCalendarEntry } from "../utils/investmentCalendar";
 import './DashboardPage.css';
 
 interface Props {
@@ -150,20 +151,32 @@ export const DashboardPage: React.FC<Props> = (props) => {
 	const year = currentDate.getFullYear();
 	const month = currentDate.getMonth();
 
-	//１．今月のデータ抽出
-	const monthlyData = React.useMemo(() => props.transactions.filter((transaction) => {
+	const investmentSnapshots = loadInvestmentState().snapshots;
+	const selectedMonthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+	const today = localDateISO();
+	const selectedMonthEnd = new Date(year, month + 1, 0);
+	const monthEndISO = `${selectedMonthEnd.getFullYear()}-${String(selectedMonthEnd.getMonth() + 1).padStart(2, "0")}-${String(selectedMonthEnd.getDate()).padStart(2, "0")}`;
+	const balanceAsOf = selectedMonthKey === today.slice(0, 7) ? today : monthEndISO;
+
+	// 1. 永続取引に、月末表示専用の投資損益を1件だけ合成する。
+	const monthlyData = React.useMemo(() => {
+		const persisted = props.transactions.filter((transaction) => {
 		const transactionDate = new Date(transaction.date);
 		return transactionDate.getFullYear() === year && transactionDate.getMonth() === month;
-	}), [props.transactions, year, month]);
+		});
+		const investmentProfit = buildInvestmentProfitCalendarEntry(
+			props.accounts,
+			props.transactions,
+			investmentSnapshots,
+			selectedMonthKey,
+			balanceAsOf,
+		);
+		return investmentProfit ? [...persisted, investmentProfit] : persisted;
+	}, [balanceAsOf, investmentSnapshots, month, props.accounts, props.transactions, selectedMonthKey, year]);
 
 	// 2. 口座開始残高と投資評価額を含む総資産。月次In/Out/Totalとは独立して表示する。
-	const investmentSnapshots = loadInvestmentState().snapshots;
 	const monthStartBoundary = new Date(year, month, 0);
 	const openingAsOf = `${monthStartBoundary.getFullYear()}-${String(monthStartBoundary.getMonth() + 1).padStart(2, "0")}-${String(monthStartBoundary.getDate()).padStart(2, "0")}`;
-	const today = localDateISO();
-	const monthEnd = new Date(year, month + 1, 0);
-	const monthEndISO = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, "0")}-${String(monthEnd.getDate()).padStart(2, "0")}`;
-	const balanceAsOf = year === new Date().getFullYear() && month === new Date().getMonth() ? today : monthEndISO;
 	const openingBalance = totalAssetBalanceAsOf(props.accounts, props.transactions, investmentSnapshots, openingAsOf);
 	const balance = totalAssetBalanceAsOf(props.accounts, props.transactions, investmentSnapshots, balanceAsOf);
 

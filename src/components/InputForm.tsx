@@ -1,6 +1,7 @@
 /* src/components/InputForm.tsx */
 
 import React, { useEffect } from "react";
+import { Link } from "react-router-dom";
 import type { Transaction } from "../types/Transaction";
 import type { TaxMode, TaxRate, TransactionClassification } from "../types/Transaction";
 import type { Account } from "../types/Account";
@@ -1205,6 +1206,11 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   if (editingTransaction?.system?.kind === "monthly_adjustment") {
     return <div className="input-form system-move-editor"><h3>月末残高の自動調整</h3><p>{editingTransaction.date} · {editingTransaction.source} · {editingTransaction.amount.toLocaleString()}円</p><p className="muted">この記録は月末残高の再確認によってのみ再計算できます。</p><div className="form-buttons receipt-buttons"><button type="button" onClick={() => setEditingTransaction(null)}>閉じる</button></div></div>;
+  }
+
+  if (editingTransaction?.system?.kind === "investment_profit") {
+    const sign = editingTransaction.type === "expense" ? "−" : "+";
+    return <div className="input-form system-move-editor"><h3>投資損益</h3><p>{editingTransaction.date} · {sign}{editingTransaction.amount.toLocaleString()}円</p><p className="muted">{editingTransaction.memo}。カレンダー表示専用の明細で、残高や収支には重ねて加算されません。</p><div className="form-buttons receipt-buttons"><Link to={`/graphs?tab=invest&month=${editingTransaction.system.key}`} onClick={() => setEditingTransaction(null)}>投資グラフを開く</Link><button type="button" onClick={() => setEditingTransaction(null)}>閉じる</button></div></div>;
   }
 
   const tabIndex = type === "expense" ? 0 : type === "income" ? 1 : 2;

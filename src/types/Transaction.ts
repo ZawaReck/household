@@ -4,7 +4,7 @@ export type TaxMode = "inclusive" | "exclusive";
 export type TaxRate = 0 | 8 | 10;
 export type TransactionClassification = "normal" | "settled" | "special";
 export type SystemTransaction = {
-  kind: "card_payment" | "monthly_adjustment" | "scheduled_move";
+  kind: "card_payment" | "monthly_adjustment" | "scheduled_move" | "investment_profit";
   key: string;
   cardAccountId?: string;
   scheduleId?: string;

@@ -6,7 +6,8 @@ export const transactionClassification = (transaction: Transaction) =>
   transaction.classification ?? (transaction.isSpecial ? "special" : "normal");
 
 export const isIncludedInRegularAnalytics = (transaction: Transaction, includeExcluded = false) =>
-  includeExcluded || transactionClassification(transaction) === "normal";
+  transaction.system?.kind !== "investment_profit" &&
+  (includeExcluded || transactionClassification(transaction) === "normal");
 
 export const getMonthKey = (dateISO: string) => dateISO.slice(0, 7);
 

@@ -245,7 +245,8 @@
   margin-top: 8px;
 }
 
-.form-buttons button {
+.form-buttons button,
+.form-buttons a {
   height: 40px;
   border-radius: 10px;
   border: none;
@@ -254,15 +255,22 @@
   font-size: 15px;
   font-weight: 400;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
-.form-buttons button:hover {
+.form-buttons button:hover,
+.form-buttons a:hover {
   filter: brightness(1.05);
 }
 
 /* 「削除」「キャンセル」は控えめに */
 .form-buttons button:nth-child(2),
-.form-buttons button:nth-child(3) {
+.form-buttons button:nth-child(3),
+.form-buttons a:nth-child(2),
+.form-buttons a:nth-child(3) {
   background: #245E2D;
   opacity: 0.9;
 }
