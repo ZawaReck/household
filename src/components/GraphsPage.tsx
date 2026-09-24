@@ -797,6 +797,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const investmentValueAt = React.useCallback((account: Account, date: string) => {
     return investmentBalanceAsOf(account, transactions, investmentSnapshots, date);
   }, [investmentSnapshots, transactions]);
+  const investmentSnapshotValueAt = React.useCallback((assetId: string, date: string) => {
+    const account = investmentAccounts.find((item) => item.id === assetId);
+    return account ? investmentValueAt(account, date) : 0;
+  }, [investmentAccounts, investmentValueAt]);
 
   const investmentFlows = (account: Account, date: string) => investmentFlowsAsOf(account, transactions, date);
 
@@ -1962,10 +1966,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               assets={investmentAssets}
               defaultDate={investmentAsOf}
               snapshots={investmentSnapshots}
-              valueAt={(assetId, date) => {
-                const account = investmentAccounts.find((item) => item.id === assetId);
-                return account ? investmentValueAt(account, date) : 0;
-              }}
+              valueAt={investmentSnapshotValueAt}
               onSave={handleSaveSnapshot}
             />
             <p className="muted investment-update-note">口座の追加・開始残高・開始時点損益は設定から変更できます。</p>
