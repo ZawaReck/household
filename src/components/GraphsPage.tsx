@@ -25,7 +25,7 @@ import {
   Bar,
   ReferenceLine,
 } from "recharts";
-import type { BarShapeProps, PieLabelRenderProps, TooltipContentProps } from "recharts";
+import type { BarShapeProps, PieLabelRenderProps } from "recharts";
 import {
   getMonthKey,
   listMonthKeysBetween,
@@ -199,13 +199,22 @@ const renderCategoryPieLabel = (props: PieLabelRenderProps) => {
   );
 };
 
-const renderCategoryPieTooltip = ({ active, payload }: TooltipContentProps<number, string>) => {
-  if (!active || !payload || payload.length === 0) return null;
+type PieHoldHintValue = { category: string; value: number; percent: number; color: string };
 
-  const item = payload[0]?.payload;
-  if (!item || Number(item.percent ?? 0) > 0.1) return null;
-
-  return <div className="pie-text-tooltip">{item.category}</div>;
+const PieHoldHint = ({ value }: { value: PieHoldHintValue | null }) => {
+  if (!value) return null;
+  const percent = value.percent < 0.01
+    ? `${(value.percent * 100).toFixed(2)}%`
+    : `${(value.percent * 100).toFixed(1)}%`;
+  return (
+    <div className="pie-hold-hint" role="status">
+      <span className="pie-hold-hint-dot" style={{ backgroundColor: value.color }} />
+      <span className="pie-hold-hint-copy">
+        <strong>{value.category}</strong>
+        <small>{formatYen(value.value)}・{percent}</small>
+      </span>
+    </div>
+  );
 };
 
 const getNiceStep = (value: number) => {
@@ -611,6 +620,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const [portfolioChartMode, setPortfolioChartMode] = React.useState<"pie" | "stacked">("pie");
   const [finishedPortfolioPieAnimationKey, setFinishedPortfolioPieAnimationKey] = React.useState("");
   const [selectedPortfolioAccount, setSelectedPortfolioAccount] = React.useState("");
+  const [pieHoldHint, setPieHoldHint] = React.useState<PieHoldHintValue | null>(null);
+  const showPieHoldHint = React.useCallback((item: { category: string; value: number; percent: number }, color: string) => {
+    setPieHoldHint(item.percent <= 0.1 ? { ...item, color } : null);
+  }, []);
+  const hidePieHoldHint = React.useCallback(() => setPieHoldHint(null), []);
   const portfolioAccountRowsRef = React.useRef(new Map<string, HTMLElement>());
   const pieTapRef = React.useRef<{
     pointerId: number;
@@ -2055,17 +2069,20 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   >
                     {investmentPieChartData.map((asset) => {
                       const index = historicalInvestmentAssets.findIndex((item) => item.name === asset.category);
-                      return <Cell key={asset.category} fill={chartColors[(index >= 0 ? index : 0) % chartColors.length]} />;
+                      const color = chartColors[(index >= 0 ? index : 0) % chartColors.length];
+                      return <Cell
+                        key={asset.category}
+                        fill={color}
+                        onPointerDown={() => showPieHoldHint(asset, color)}
+                        onPointerUp={hidePieHoldHint}
+                        onPointerCancel={hidePieHoldHint}
+                        onPointerLeave={hidePieHoldHint}
+                      />;
                     })}
                   </Pie>
-                  <Tooltip
-                    cursor={false}
-                    content={renderCategoryPieTooltip}
-                    isAnimationActive={false}
-                    wrapperStyle={{ outline: "none" }}
-                  />
                 </PieChart>
               </ResponsiveContainer>
+              <PieHoldHint value={pieHoldHint} />
             </div>
           )}
         </div>
@@ -2116,20 +2133,25 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                             key={item.category}
                             fill={chartColors[idx % chartColors.length]}
                             cursor="pointer"
-                            onPointerDown={(event) => beginPieTap(event, () => handlePortfolioPieSelect(item.category))}
-                            onPointerUp={completePieTap}
-                            onPointerCancel={cancelPieTap}
+                            onPointerDown={(event) => {
+                              showPieHoldHint(item, chartColors[idx % chartColors.length]);
+                              beginPieTap(event, () => handlePortfolioPieSelect(item.category));
+                            }}
+                            onPointerUp={(event) => {
+                              hidePieHoldHint();
+                              completePieTap(event);
+                            }}
+                            onPointerCancel={() => {
+                              hidePieHoldHint();
+                              cancelPieTap();
+                            }}
+                            onPointerLeave={hidePieHoldHint}
                           />
                       ))}
                     </Pie>
-                    <Tooltip
-                      cursor={false}
-                      content={renderCategoryPieTooltip}
-                      isAnimationActive={false}
-                      wrapperStyle={{ outline: "none" }}
-                    />
                   </PieChart>
                 </ResponsiveContainer>
+                <PieHoldHint value={pieHoldHint} />
               </div>
             )) : portfolioChartAccountNames.length === 0 ? (
               <p className="muted">データがありません。</p>
@@ -2434,23 +2456,28 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                             key={item.category}
                             fill={chartColors[idx % chartColors.length]}
                             cursor="pointer"
-                            onPointerDown={(event) => beginPieTap(event, () => {
-                              setSelectedCategory("");
-                              setSelectedPieCategory(item.category);
-                            })}
-                            onPointerUp={completePieTap}
-                            onPointerCancel={cancelPieTap}
+                            onPointerDown={(event) => {
+                              showPieHoldHint(item, chartColors[idx % chartColors.length]);
+                              beginPieTap(event, () => {
+                                setSelectedCategory("");
+                                setSelectedPieCategory(item.category);
+                              });
+                            }}
+                            onPointerUp={(event) => {
+                              hidePieHoldHint();
+                              completePieTap(event);
+                            }}
+                            onPointerCancel={() => {
+                              hidePieHoldHint();
+                              cancelPieTap();
+                            }}
+                            onPointerLeave={hidePieHoldHint}
                           />
                         ))}
                       </Pie>
-                      <Tooltip
-                        cursor={false}
-                        content={renderCategoryPieTooltip}
-                        isAnimationActive={false}
-                        wrapperStyle={{ outline: "none" }}
-                      />
                     </PieChart>
                   </ResponsiveContainer>
+                  <PieHoldHint value={pieHoldHint} />
                 </div>
               </>
             ) : monthlyCategorySummary.items.length === 0 ? (
@@ -2701,18 +2728,20 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                         labelLine={false}
                         label={renderCategoryPieLabel}
                       >
-                        {yearlyPieData.map((_, idx) => (
-                          <Cell key={idx} fill={chartColors[idx % chartColors.length]} />
+                        {yearlyPieData.map((item, idx) => (
+                          <Cell
+                            key={item.category}
+                            fill={chartColors[idx % chartColors.length]}
+                            onPointerDown={() => showPieHoldHint(item, chartColors[idx % chartColors.length])}
+                            onPointerUp={hidePieHoldHint}
+                            onPointerCancel={hidePieHoldHint}
+                            onPointerLeave={hidePieHoldHint}
+                          />
                         ))}
                       </Pie>
-                      <Tooltip
-                        cursor={false}
-                        content={renderCategoryPieTooltip}
-                        isAnimationActive={false}
-                        wrapperStyle={{ outline: "none" }}
-                      />
                     </PieChart>
                   </ResponsiveContainer>
+                  <PieHoldHint value={pieHoldHint} />
                 </div>
               </>
             ) : yearlyOverviewMode === "pie" && yearlyCategorySummary.items.length > 0 ? (

@@ -386,25 +386,67 @@
   position: relative;
 }
 
-.pie-text-tooltip {
-  color: #24332c;
-  font-size: 1rem;
-  font-weight: 600;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  padding: 0;
-  animation: pie-hover-pop 120ms ease-out;
+.pie-hold-hint {
+  position: absolute;
+  z-index: 4;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  width: max-content;
+  max-width: min(250px, calc(100% - 40px));
+  box-sizing: border-box;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 13px;
+  border: 1px solid rgb(0 100 40 / 16%);
+  border-radius: 15px;
+  background: rgb(249 255 251 / 94%);
+  box-shadow: 0 5px 18px rgb(24 69 41 / 18%);
+  color: #173c25;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  animation: pie-hold-hint-in 130ms cubic-bezier(.2, .75, .25, 1) both;
 }
 
-@keyframes pie-hover-pop {
+.pie-hold-hint-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border: 2px solid rgb(255 255 255 / 88%);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 18%);
+}
+
+.pie-hold-hint-copy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  line-height: 1.2;
+}
+
+.pie-hold-hint-copy strong {
+  overflow-wrap: anywhere;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.pie-hold-hint-copy small {
+  color: #597064;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@keyframes pie-hold-hint-in {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translate(-50%, -47%) scale(.96);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 
