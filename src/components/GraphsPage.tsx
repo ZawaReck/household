@@ -890,9 +890,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
 
   const portfolioAsOf = monthEndISO(portfolioMonthKey);
   React.useEffect(() => {
-    const saved = accountActualState.basisDateByMonth[portfolioMonthKey];
-    setPortfolioBalanceDate(saved ?? (portfolioMonthKey === currentMonthKey ? todayISO : portfolioAsOf));
-  }, [accountActualState.basisDateByMonth, currentMonthKey, portfolioAsOf, portfolioMonthKey, todayISO]);
+    setPortfolioBalanceDate(portfolioMonthKey === currentMonthKey ? todayISO : portfolioAsOf);
+  }, [currentMonthKey, portfolioAsOf, portfolioMonthKey, todayISO]);
   const estimatedBalances = React.useMemo(
     () => calcRegularBalances(transactions, portfolioBalanceDate),
     [transactions, portfolioBalanceDate, calcRegularBalances]
@@ -921,13 +920,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   );
 
   React.useEffect(() => {
-    const monthActuals = accountActualState.byMonth[portfolioMonthKey] ?? {};
     const fallback: Record<string, number> = {};
     accountNames.forEach((acc) => {
-      fallback[acc] = investmentValuesForPortfolio[acc] ?? monthActuals[acc] ?? estimatedBalances[acc] ?? 0;
+      fallback[acc] = displayedEstimatedBalances[acc] ?? 0;
     });
     setPortfolioActualInputs(fallback);
-  }, [portfolioMonthKey, accountActualState, accountNames, estimatedBalances, investmentValuesForPortfolio]);
+  }, [portfolioMonthKey, accountNames, displayedEstimatedBalances]);
 
   React.useEffect(() => {
     const saved = accountActualState.byMonth[portfolioMonthKey] ?? {};
@@ -947,6 +945,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const buildAdjustmentTransaction = (
     account: string,
     monthKey: string,
+    basisDate: string,
     net: number
   ): Transaction => {
     const date = monthEndISO(monthKey);
@@ -960,10 +959,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       category: "その他",
       source: account,
       destination: "",
-      memo: "月末実残高照合による自動調整",
+      memo: "実残高照合による自動調整",
       isSpecial: false,
       classification: "normal",
-      system: { kind: "monthly_adjustment", key: `${monthKey}:${account}` },
+      system: { kind: "monthly_adjustment", key: `${monthKey}:${account}`, basisDate },
     };
   };
 
@@ -985,7 +984,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
         const actual = Number(actuals[account] ?? 0);
         const net = actual - (estimated[account] ?? 0);
         if (net === 0) return;
-        adjustments.push(buildAdjustmentTransaction(account, monthKey, net));
+        adjustments.push(buildAdjustmentTransaction(account, monthKey, basisDate, net));
       });
       return [...kept, ...adjustments];
     });
@@ -1085,10 +1084,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     saveAccountActualState(nextState);
   };
 
-  const portfolioDisplayValues = Object.fromEntries(accountNames.map((account) => [
-    account,
-    portfolioActualInputs[account] ?? displayedEstimatedBalances[account] ?? 0,
-  ]));
+  const portfolioDisplayValues = displayedEstimatedBalances;
   const portfolioAssetTotal = Object.values(portfolioDisplayValues).reduce((sum, value) => sum + value, 0);
   const selectedPendingCardPayments = activeCardAccounts.map((account) => ({
     account,
@@ -2252,7 +2248,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                         <span className="portfolio-account-ratio">{ratio.toFixed(1)}%</span>
                       </div>
                       <div className="portfolio-account-values">
-                        <span>推定 {formatYen(estimated)}</span>
+                        <span>帳簿残高 {formatYen(estimated)}</span>
                         <span className={diff >= 0 ? "positive" : "negative"}>差額 {diff > 0 ? "+" : ""}{formatYen(diff)}</span>
                       </div>
                       <label className="portfolio-balance-input">

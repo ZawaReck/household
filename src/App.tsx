@@ -120,7 +120,7 @@ export const App: React.FC = () => {
     useEffect(() => {
       setTransactions((current) => {
         const receiptReconciled = reconcileReceiptTaxAdjustments(current);
-        const next = reconcileMonthlyAdjustments(receiptReconciled, accounts, loadAccountActualState());
+        const next = reconcileMonthlyAdjustments(receiptReconciled, accounts, loadAccountActualState(), localDateISO().slice(0, 7));
         return JSON.stringify(next) === JSON.stringify(current) ? current : next;
       });
     }, [accounts, transactions]);
@@ -223,7 +223,10 @@ export const App: React.FC = () => {
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const visibleTransactions = showFutureTransactions
       ? transactions
-      : transactions.filter((transaction) => transaction.date <= today);
+      : transactions.filter((transaction) =>
+        transaction.date <= today ||
+        (transaction.system?.kind === "monthly_adjustment" && (transaction.system.basisDate ?? transaction.date) <= today)
+      );
 
     useEffect(() => {
       localStorage.setItem("showFutureTransactions", String(showFutureTransactions));

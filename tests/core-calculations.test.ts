@@ -41,19 +41,19 @@ const account = (partial: Partial<Account> & Pick<Account, "id" | "name" | "kind
 describe("coexisting automatic transactions", () => {
   it("stops changing state once card payments, tax and monthly adjustments are reconciled", () => {
     const accounts = [account({ id: "bank", name: "銀行", kind: "bank" }), account({ id: "card", name: "カード", kind: "credit_card", creditCard: { limit: 200000, closingDay: 31, paymentDay: 27, paymentDelayMonths: 1, defaultPaymentAccountId: "bank" } })];
-    const state = { byMonth: { "2026-09": { "銀行": 1000 } }, confirmedByMonth: {}, basisDateByMonth: {}, cardLimitByMonth: {} };
+    const state = { byMonth: { "2026-09": { "銀行": 1000 } }, confirmedByMonth: { "2026-09": ["銀行"] }, basisDateByMonth: {}, cardLimitByMonth: {} };
     const initial = [transaction({ id: "purchase", type: "expense", amount: 100, date: "2026-09-01", source: "カード", groupId: "receipt", taxMode: "exclusive", taxRate: 10, taxBaseAmount: 100 })];
-    const stable = reconcileMonthlyAdjustments(reconcileCardPayments(reconcileReceiptTaxAdjustments(initial), accounts), accounts, state);
+    const stable = reconcileMonthlyAdjustments(reconcileCardPayments(reconcileReceiptTaxAdjustments(initial), accounts), accounts, state, "2026-10");
     expect(reconcileCardPayments(stable, accounts)).toBe(stable);
     expect(reconcileReceiptTaxAdjustments(stable)).toBe(stable);
-    expect(reconcileMonthlyAdjustments(stable, accounts, state)).toBe(stable);
+    expect(reconcileMonthlyAdjustments(stable, accounts, state, "2026-10")).toBe(stable);
     const edited = stable.map((item) => item.id === "purchase" ? { ...item, amount: 200, taxBaseAmount: 200 } : item);
-    const recalculated = reconcileMonthlyAdjustments(reconcileCardPayments(reconcileReceiptTaxAdjustments(edited), accounts), accounts, state);
+    const recalculated = reconcileMonthlyAdjustments(reconcileCardPayments(reconcileReceiptTaxAdjustments(edited), accounts), accounts, state, "2026-10");
     expect(recalculated.map((item) => item.id)).toEqual(stable.map((item) => item.id));
     expect(recalculated.find((item) => item.system?.kind === "card_payment")?.amount).toBe(220);
     expect(recalculated.find((item) => item.isTaxAdjustment)?.amount).toBe(20);
     const removed = recalculated.filter((item) => item.id !== "purchase");
-    const cleaned = reconcileMonthlyAdjustments(reconcileCardPayments(reconcileReceiptTaxAdjustments(removed), accounts), accounts, state);
+    const cleaned = reconcileMonthlyAdjustments(reconcileCardPayments(reconcileReceiptTaxAdjustments(removed), accounts), accounts, state, "2026-10");
     expect(cleaned.map((item) => item.system?.kind)).toEqual(["monthly_adjustment"]);
   });
 });
@@ -354,14 +354,33 @@ describe("month-end reconciliation", () => {
       confirmedByMonth: { "2026-01": ["財布"] },
       basisDateByMonth: { "2026-01": "2026-01-31" },
     };
-    const first = reconcileMonthlyAdjustments([initial], [wallet], state);
+    const first = reconcileMonthlyAdjustments([initial], [wallet], state, "2026-02");
     expect(first.find((item) => item.system?.kind === "monthly_adjustment")).toMatchObject({ type: "expense", amount: 50 });
-    expect(reconcileMonthlyAdjustments(first, [wallet], state)).toEqual(first);
+    expect(reconcileMonthlyAdjustments(first, [wallet], state, "2026-02")).toEqual(first);
 
     const edited = first.map((item) => item.id === "expense" ? { ...item, amount: 200 } : item);
-    const rebuilt = reconcileMonthlyAdjustments(edited, [wallet], state);
+    const rebuilt = reconcileMonthlyAdjustments(edited, [wallet], state, "2026-02");
     expect(rebuilt.filter((item) => item.system?.kind === "monthly_adjustment")).toHaveLength(1);
     expect(rebuilt.find((item) => item.system?.kind === "monthly_adjustment")).toMatchObject({ type: "income", amount: 50 });
+  });
+
+  it("keeps the current-month adjustment fixed until the next explicit balance update", () => {
+    const wallet = account({ id: "wallet", name: "財布", kind: "cash", openingBalance: 1_000 });
+    const initial = transaction({ id: "expense", type: "expense", amount: 100, date: "2026-09-10" });
+    const state = {
+      byMonth: { "2026-09": { 財布: 850 } },
+      confirmedByMonth: { "2026-09": ["財布"] },
+      basisDateByMonth: { "2026-09": "2026-09-20" },
+      cardLimitByMonth: {},
+    };
+    const initiallyAdjusted = reconcileMonthlyAdjustments([initial], [wallet], state, "2026-10");
+    expect(initiallyAdjusted.find((item) => item.system?.kind === "monthly_adjustment")).toMatchObject({ type: "expense", amount: 50, system: { basisDate: "2026-09-20" } });
+    expect(accountBalanceAsOf(wallet, initiallyAdjusted, "2026-09-20")).toBe(850);
+
+    const receiptFound = initiallyAdjusted.map((item) => item.id === "expense" ? { ...item, amount: 200 } : item);
+    const unchangedAdjustment = reconcileMonthlyAdjustments(receiptFound, [wallet], state, "2026-09");
+    expect(unchangedAdjustment.find((item) => item.system?.kind === "monthly_adjustment")).toMatchObject({ type: "expense", amount: 50 });
+    expect(accountBalanceAsOf(wallet, unchangedAdjustment, "2026-09-30")).toBe(750);
   });
 });
 

@@ -8,6 +8,7 @@ export type SystemTransaction = {
   key: string;
   cardAccountId?: string;
   scheduleId?: string;
+  basisDate?: string;
   manualDate?: boolean;
   manualSource?: boolean;
 };

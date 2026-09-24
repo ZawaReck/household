@@ -5,7 +5,12 @@ import type { InvestmentSnapshot } from "../types/Investment";
 export const accountBalanceAsOf = (account: Account, transactions: Transaction[], asOf: string) => {
   if (asOf < account.openingDate) return 0;
   return transactions
-    .filter((transaction) => transaction.date > account.openingDate && transaction.date <= asOf)
+    .filter((transaction) => {
+      const effectiveDate = transaction.system?.kind === "monthly_adjustment"
+        ? transaction.system.basisDate ?? transaction.date
+        : transaction.date;
+      return effectiveDate > account.openingDate && effectiveDate <= asOf;
+    })
     .reduce((balance, transaction) => {
       if (transaction.type === "income" && transaction.source === account.name) return balance + transaction.amount;
       if (transaction.type === "expense" && transaction.source === account.name) return balance - transaction.amount;
