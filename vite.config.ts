@@ -2,11 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { rmSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 
-const commitCount = Number(execFileSync('git', ['rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).trim())
-const appVersion = `0.3.${Math.max(0, commitCount - 235)}`
+const appVersion = '1.0.0'
 
 // https://vite.dev/config/
 export default defineConfig({
