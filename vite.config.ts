@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const appVersion = '1.0.2'
+const appVersion = '1.0.3'
 
 // https://vite.dev/config/
 export default defineConfig({

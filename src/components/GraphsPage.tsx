@@ -51,7 +51,7 @@ import {
 } from "../data/accountActualStore";
 import { PeriodFilter } from "./PeriodFilter";
 import type { PeriodValue } from "./PeriodFilter";
-import { accountBalanceAsOf, creditCardOutstandingAsOf, investmentBalanceAsOf } from "../utils/accountBalances";
+import { accountBalanceAsOf, calendarAssetBalanceAsOf, creditCardOutstandingAsOf, investmentBalanceAsOf } from "../utils/accountBalances";
 import { localDateISO } from "../utils/date";
 import { PickerPanel, SelectionWheel } from "./PickerPanel";
 import { useSegmentedDrag } from "../hooks/useSegmentedDrag";
@@ -1133,6 +1133,15 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     () => [...portfolioChartRegularAccountNames, ...portfolioChartInvestmentAccounts.map((account) => account.name)],
     [portfolioChartInvestmentAccounts, portfolioChartRegularAccountNames],
   );
+  const preOperationAssetLabel = "開始前資産";
+  const portfolioOperationStartDate = accountMaster
+    .filter((account) => account.kind !== "credit_card")
+    .map((account) => account.openingDate)
+    .filter(Boolean)
+    .sort()[0];
+  const portfolioChartSeriesNames = portfolioOperationStartDate
+    ? [...portfolioChartAccountNames, preOperationAssetLabel]
+    : portfolioChartAccountNames;
 
   const portfolioMonths = Array.from(new Set([
     ...allMonthKeys,
@@ -1143,6 +1152,20 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const portfolioRange = listMonthKeysBetween(portfolioMonths[0], portfolioMonths[portfolioMonths.length - 1]);
   const portfolioAreaData = portfolioRange.map((month) => {
     const asOf = monthEndISO(month);
+    if (portfolioOperationStartDate && asOf < portfolioOperationStartDate) {
+      const point: Record<string, number | string> = {
+        month,
+        [preOperationAssetLabel]: calendarAssetBalanceAsOf(
+          accountMaster,
+          transactions,
+          investmentSnapshots,
+          asOf,
+          includeExcludedAnalytics,
+        ),
+      };
+      portfolioChartAccountNames.forEach((account) => { point[account] = 0; });
+      return point;
+    }
     const fallback = calcAccountBalancesAsOf(transactions, asOf, portfolioChartRegularAccountNames);
     const balances = Object.fromEntries(portfolioChartRegularAccountNames.map((name) => {
       const account = accountMaster.find((item) => item.name === name && item.kind !== "credit_card" && item.kind !== "investment");
@@ -1155,6 +1178,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     });
     const point: Record<string, number | string> = { month };
     portfolioChartAccountNames.forEach((account) => { point[account] = balances[account] ?? 0; });
+    if (portfolioOperationStartDate) point[preOperationAssetLabel] = 0;
     return point;
   });
   React.useEffect(() => {
@@ -2153,7 +2177,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 </ResponsiveContainer>
                 <PieHoldHint value={pieHoldHint} />
               </div>
-            )) : portfolioChartAccountNames.length === 0 ? (
+            )) : portfolioChartSeriesNames.length === 0 ? (
               <p className="muted">データがありません。</p>
             ) : (
               <ResponsiveContainer width="100%" height={190}>
@@ -2170,13 +2194,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   />
                   <YAxis width={48} tick={{ fontSize: 8 }} tickFormatter={formatAxisAmount} />
                   <Tooltip formatter={(value) => formatYen(value)} />
-                  {portfolioChartAccountNames.map((account, idx) => (
+                  {portfolioChartSeriesNames.map((account, idx) => (
                     <Bar
                       key={account}
                       dataKey={account}
                       name={account}
                       stackId="1"
-                      fill={chartColors[idx % chartColors.length]}
+                      fill={account === preOperationAssetLabel ? "#7a9b84" : chartColors[idx % chartColors.length]}
                     />
                   ))}
                 </BarChart>

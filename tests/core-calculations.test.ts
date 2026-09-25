@@ -14,7 +14,7 @@ import { importHouseholdCsv } from "../src/utils/csvImport";
 import { syncFingerprint } from "../src/utils/syncFingerprint";
 import { historyEntryFlowTop } from "../src/utils/historyScroll";
 import { investmentFlowsAsOf, investmentOpeningProfit } from "../src/utils/investments";
-import { accountBalanceAsOf, creditCardOutstandingAsOf, investmentBalanceAsOf, totalAssetBalanceAsOf } from "../src/utils/accountBalances";
+import { accountBalanceAsOf, calendarAssetBalanceAsOf, creditCardOutstandingAsOf, investmentBalanceAsOf, totalAssetBalanceAsOf } from "../src/utils/accountBalances";
 import { buildInvestmentProfitCalendarEntry, investmentProfitForMonth } from "../src/utils/investmentCalendar";
 import { isIncludedInRegularAnalytics } from "../src/utils/analytics";
 
@@ -137,6 +137,28 @@ describe("account opening balances", () => {
     const snapshots = [{ id: "snapshot", date: "2026-09-23", values: { nisa: 250 } }];
 
     expect(totalAssetBalanceAsOf(accounts, [], snapshots, "2026-09-23")).toBe(350);
+  });
+
+  it("reconstructs calendar balances backwards from the operation start without changing current balances", () => {
+    const wallet = account({ id: "wallet", name: "財布", kind: "cash", openingBalance: 1_000, openingDate: "2026-09-23" });
+    const historical = [
+      transaction({ id: "august", type: "expense", amount: 50, date: "2026-08-10", source: "" }),
+      transaction({ id: "september-income", type: "income", amount: 100, date: "2026-09-10", source: "" }),
+      transaction({ id: "september-special", type: "expense", amount: 200, date: "2026-09-15", source: "", classification: "special" }),
+      transaction({ id: "opening-day", type: "expense", amount: 20, date: "2026-09-23", source: "" }),
+      transaction({ id: "after-opening", type: "income", amount: 30, date: "2026-09-24", source: "財布" }),
+    ];
+
+    expect(calendarAssetBalanceAsOf([wallet], historical, [], "2026-07-31")).toBe(970);
+    expect(calendarAssetBalanceAsOf([wallet], historical, [], "2026-08-31")).toBe(920);
+    expect(calendarAssetBalanceAsOf([wallet], historical, [], "2026-09-22")).toBe(1_020);
+    expect(calendarAssetBalanceAsOf([wallet], historical, [], "2026-08-31", true)).toBe(1_120);
+    expect(calendarAssetBalanceAsOf([wallet], historical, [], "2026-09-24")).toBe(1_030);
+
+    const editedHistorical = historical.map((item) => item.id === "august" ? { ...item, amount: 80 } : item);
+    expect(calendarAssetBalanceAsOf([wallet], editedHistorical, [], "2026-07-31")).toBe(1_000);
+    expect(calendarAssetBalanceAsOf([wallet], editedHistorical, [], "2026-08-31")).toBe(920);
+    expect(calendarAssetBalanceAsOf([wallet], editedHistorical, [], "2026-09-24")).toBe(1_030);
   });
 
   it("applies only moves after the latest investment snapshot", () => {

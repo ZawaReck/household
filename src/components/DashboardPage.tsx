@@ -13,7 +13,7 @@ import { MonthEndReminder } from "./MonthEndReminder";
 import { localDateISO } from "../utils/date";
 import { historyEntryFlowTop } from "../utils/historyScroll";
 import { loadInvestmentState } from "../data/investmentStore";
-import { totalAssetBalanceAsOf } from "../utils/accountBalances";
+import { calendarAssetBalanceAsOf } from "../utils/accountBalances";
 import { buildInvestmentProfitCalendarEntry } from "../utils/investmentCalendar";
 import './DashboardPage.css';
 
@@ -177,8 +177,20 @@ export const DashboardPage: React.FC<Props> = (props) => {
 	// 2. 口座開始残高と投資評価額を含む総資産。月次In/Out/Totalとは独立して表示する。
 	const monthStartBoundary = new Date(year, month, 0);
 	const openingAsOf = `${monthStartBoundary.getFullYear()}-${String(monthStartBoundary.getMonth() + 1).padStart(2, "0")}-${String(monthStartBoundary.getDate()).padStart(2, "0")}`;
-	const openingBalance = totalAssetBalanceAsOf(props.accounts, props.transactions, investmentSnapshots, openingAsOf);
-	const balance = totalAssetBalanceAsOf(props.accounts, props.transactions, investmentSnapshots, balanceAsOf);
+	const openingBalance = calendarAssetBalanceAsOf(
+		props.accounts,
+		props.transactions,
+		investmentSnapshots,
+		openingAsOf,
+		props.includeExcludedAnalytics,
+	);
+	const balance = calendarAssetBalanceAsOf(
+		props.accounts,
+		props.transactions,
+		investmentSnapshots,
+		balanceAsOf,
+		props.includeExcludedAnalytics,
+	);
 
 		const [selectedDate, setSelectedDate] = React.useState(
 			localDateISO()

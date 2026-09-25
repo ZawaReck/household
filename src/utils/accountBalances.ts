@@ -1,6 +1,7 @@
 import type { Account } from "../types/Account";
 import type { Transaction } from "../types/Transaction";
 import type { InvestmentSnapshot } from "../types/Investment";
+import { isIncludedInRegularAnalytics } from "./analytics";
 
 export const accountBalanceAsOf = (account: Account, transactions: Transaction[], asOf: string) => {
   if (asOf < account.openingDate) return 0;
@@ -55,6 +56,40 @@ export const totalAssetBalanceAsOf = (
   if (account.kind === "investment") return total + investmentBalanceAsOf(account, transactions, snapshots, asOf);
   return total + accountBalanceAsOf(account, transactions, asOf);
 }, 0);
+
+/**
+ * カレンダー用総資産。運用開始前は開始日時点の総資産を基準に、
+ * カレンダーの月次収支と同じ対象取引を逆向きに適用して復元する。
+ */
+export const calendarAssetBalanceAsOf = (
+  accounts: Account[],
+  transactions: Transaction[],
+  snapshots: InvestmentSnapshot[],
+  asOf: string,
+  includeExcluded = false,
+) => {
+  const operationStartDate = accounts
+    .filter((account) => account.kind !== "credit_card")
+    .map((account) => account.openingDate)
+    .filter(Boolean)
+    .sort()[0];
+  if (!operationStartDate || asOf >= operationStartDate) {
+    return totalAssetBalanceAsOf(accounts, transactions, snapshots, asOf);
+  }
+
+  const openingTotal = totalAssetBalanceAsOf(accounts, transactions, snapshots, operationStartDate);
+  const netChangeAfter = transactions.reduce((total, transaction) => {
+    if (
+      transaction.date <= asOf ||
+      transaction.date > operationStartDate ||
+      !isIncludedInRegularAnalytics(transaction, includeExcluded)
+    ) return total;
+    if (transaction.type === "income") return total + transaction.amount;
+    if (transaction.type === "expense") return total - transaction.amount;
+    return total;
+  }, 0);
+  return openingTotal - netChangeAfter;
+};
 
 export const hasFutureAccountActivity = (account: Account, transactions: Transaction[], today: string) =>
   transactions.some(
