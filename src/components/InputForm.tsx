@@ -1,10 +1,20 @@
 /* src/components/InputForm.tsx */
 
 import React, { useEffect } from "react";
+import { Link } from "react-router-dom";
 import type { Transaction } from "../types/Transaction";
-import type { TaxMode, TaxRate } from "../types/Transaction";
+import type { TaxMode, TaxRate, TransactionClassification } from "../types/Transaction";
+import type { Account } from "../types/Account";
+import type { Category } from "../types/Category";
+import type { InputDraft } from "../types/InputDraft";
+import { expenseCategoryOptions, incomeCategoryOptions } from "../data/categoryOptions";
+import { hydrateInputDraftsFromIndexedDB, loadInputDrafts, saveInputDrafts } from "../data/inputDraftStore";
+import { localDateISO } from "../utils/date";
+import { loadBudgets } from "../data/budgetStore";
+import { getMonthKey, isIncludedInRegularAnalytics, sumExpenseByCategoryAllocatedTax } from "../utils/analytics";
 import { WheelPickerInline } from "./WheelPickerInline";
 import { DateWheelPicker } from "./DateWheelPicker";
+import { useSegmentedDrag } from "../hooks/useSegmentedDrag";
 import "./InputForm.css";
 import "./TransactionHistory.css";
 
@@ -12,33 +22,52 @@ interface InputFormProps {
   onAddTransaction: (transaction: Omit<Transaction, "id">) => void;
   onUpdateTransaction: (transaction: Transaction) => void;
   onDeleteTransaction: (id: string) => void;
+  onDeleteReceipt: (groupId: string) => boolean;
   editingTransaction: Transaction | null;
   setEditingTransaction: (transaction: Transaction | null) => void;
   selectedDate: string;
   monthlyData: Transaction[];
+  accounts: Account[];
+  categories: Category[];
   activeGroupId?: string | null;
   setActiveGroupId?: (groupId: string | null) => void;
   activeGroupDate?: string | null;
   setActiveGroupDate?: (date: string | null) => void;
+  draftScope?: string;
+  onEditingDirtyChange?: (dirty: boolean) => void;
 }
 
 type DraftTx = Omit<Transaction, "id">;
+type EntryMode = "individual" | "receipt_inclusive" | "receipt_exclusive";
+type CalculatorTarget = "amount" | "moveFee";
+type CalculatorOperator = "+" | "-" | "×";
 
+const FULL_RECEIPT_SWIPE_RATIO = 0.8;
+const RECEIPT_SWIPE_SETTLE_MS = 320;
 const normalizeTaxRate = (v: unknown): TaxRate => (v === 0 || v === 8 ? v : 10);
 const normalizeTaxMode = (v: unknown): TaxMode => (v === "exclusive" ? "exclusive" : "inclusive");
+const calculateNumericInput = (left: number, right: number, operator: CalculatorOperator) => {
+  const result = operator === "+" ? left + right : operator === "-" ? left - right : left * right;
+  return Math.round((result + Number.EPSILON) * 1e10) / 1e10;
+};
 
 export const InputForm: React.FC<InputFormProps> = ({
   onAddTransaction,
   onUpdateTransaction,
   onDeleteTransaction,
+  onDeleteReceipt,
   editingTransaction,
   setEditingTransaction,
   selectedDate,
   monthlyData,
+  accounts,
+  categories,
   activeGroupId: activeGroupIdProp,
   setActiveGroupId: setActiveGroupIdProp,
   activeGroupDate: activeGroupDateProp,
   setActiveGroupDate: setActiveGroupDateProp,
+  draftScope = "input",
+  onEditingDirtyChange,
 }) => {
   const [type, setType] = React.useState<"expense" | "income" | "move">("expense");
 
@@ -50,28 +79,47 @@ export const InputForm: React.FC<InputFormProps> = ({
   const activeGroupDate = activeGroupDateProp ?? localActiveGroupDate;
   const setActiveGroupDate = setActiveGroupDateProp ?? setLocalActiveGroupDate;
 
-  const todayISO = () => new Date().toISOString().slice(0, 10);
+  const todayISO = () => localDateISO();
 
   const handleTabClick = (nextType: "expense" | "income" | "move") => {
     setEditingTransaction(null);
     setEditingReceiptIndex(null);
-    setReceiptItems([]);
     setActiveGroupId(null);
     setActiveGroupDate(null);
-    setType(nextType);
-    resetForm(nextType, { dateValue: todayISO() });
+    switchDraftType(nextType);
   };
 
-  const sourceOptions = ["財布", "QR", "IC", "クレカ1", "クレカ2", "銀行", "ポイント"];
-  const expenseCategoryOptions = ["食料品費", "外食費", "教養費", "趣味費", "雑貨費", "交通費旅費", "服飾費", "医療関係費", "交際費", "その他"];
-  const incomeCategoryOptions = ["月収", "臨時収入", "副次収入", "その他"];
-  const categoryOptions = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
+  const orderedAccounts = React.useMemo(() => accounts
+    .map((account, index) => ({ account, index }))
+    .sort((a, b) => (a.account.inputOrder ?? a.index) - (b.account.inputOrder ?? b.index))
+    .map(({ account }) => account), [accounts]);
+  const activeAccountNames = React.useMemo(
+    () => orderedAccounts.filter((account) => account.isActive).map((account) => account.name),
+    [orderedAccounts]
+  );
+  const nonCardAccountNames = React.useMemo(
+    () => orderedAccounts
+      .filter((account) => account.isActive && account.kind !== "credit_card")
+      .map((account) => account.name),
+    [orderedAccounts]
+  );
+  const creditCardAccountNames = React.useMemo(() => new Set(orderedAccounts
+    .filter((account) => account.isActive && account.kind === "credit_card")
+    .map((account) => account.name)), [orderedAccounts]);
+  const sourceOptions = type === "expense" ? activeAccountNames : nonCardAccountNames;
+  const activeExpenseCategoryNames = React.useMemo(() => categories
+    .filter((item) => item.isActive && item.type === "expense")
+    .map((item) => item.name), [categories]);
+  const activeIncomeCategoryNames = React.useMemo(() => categories
+    .filter((item) => item.isActive && item.type === "income")
+    .map((item) => item.name), [categories]);
+  const categoryOptions = type === "income" ? activeIncomeCategoryNames : activeExpenseCategoryNames;
 
-  const defaultExpenseCategory = expenseCategoryOptions[0];
-  const defaultIncomeCategory = incomeCategoryOptions[0];
-  const defaultSource = sourceOptions[1];
-  const defaultMoveSource = sourceOptions[5];
-  const defaultMoveDestination = sourceOptions[1];
+  const defaultExpenseCategory = activeExpenseCategoryNames[0] ?? expenseCategoryOptions[0];
+  const defaultIncomeCategory = activeIncomeCategoryNames[0] ?? incomeCategoryOptions[0];
+  const defaultSource = activeAccountNames[0] ?? "";
+  const defaultMoveSource = activeAccountNames[0] ?? "";
+  const defaultMoveDestination = nonCardAccountNames.find((name) => name !== defaultMoveSource) ?? nonCardAccountNames[0] ?? "";
 
   const [category, setCategory] = React.useState(defaultExpenseCategory);
   const [amount, setAmount] = React.useState("");
@@ -80,22 +128,437 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [source, setSource] = React.useState(defaultSource); // 拠出元（非move）
   const [sourceMove, setSourceMove] = React.useState(defaultMoveSource); // 移動元（move）
   const [memo, setMemo] = React.useState("");
+  const [classification, setClassification] = React.useState<TransactionClassification>("normal");
   const [destination, setDestination] = React.useState(defaultMoveDestination); // 移動先（move）
+  const [moveFee, setMoveFee] = React.useState("");
+  const [calculatorTarget, setCalculatorTarget] = React.useState<CalculatorTarget | null>(null);
+  const [calculatorCursor, setCalculatorCursor] = React.useState<{ target: CalculatorTarget; index: number } | null>(null);
+  const [calculatorLeft, setCalculatorLeft] = React.useState<number | null>(null);
+  const [calculatorOperator, setCalculatorOperator] = React.useState<CalculatorOperator | null>(null);
+  const [usesCustomKeypad, setUsesCustomKeypad] = React.useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
+  const amountInputRef = React.useRef<HTMLInputElement>(null);
+  const moveFeeInputRef = React.useRef<HTMLInputElement>(null);
+  const numericKeypadRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const query = window.matchMedia("(max-width: 767px)");
+    const update = () => setUsesCustomKeypad(query.matches);
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  React.useEffect(() => {
+    const returnToTodayWhenEmpty = () => {
+      if (name.trim() || amount.trim()) return;
+      const currentDate = todayISO();
+      if (date !== currentDate) setDate(currentDate);
+    };
+    window.addEventListener("household:reselect-input", returnToTodayWhenEmpty);
+    return () => window.removeEventListener("household:reselect-input", returnToTodayWhenEmpty);
+  }, [amount, date, name]);
+
+  const resetCalculator = React.useCallback(() => {
+    setCalculatorLeft(null);
+    setCalculatorOperator(null);
+  }, []);
+
+  const activateCalculator = (target: CalculatorTarget) => {
+    if (calculatorTarget !== target) resetCalculator();
+    if (calculatorTarget !== target) {
+      const value = target === "amount" ? amount : moveFee;
+      setCalculatorCursor({ target, index: value.length });
+    }
+    setCalculatorTarget(target);
+  };
+
+  const setCalculatorValue = React.useCallback((value: string, cursorIndex = value.length) => {
+    if (calculatorTarget === "amount") setAmount(value);
+    if (calculatorTarget === "moveFee") setMoveFee(value);
+    if (calculatorTarget) setCalculatorCursor({ target: calculatorTarget, index: Math.max(0, Math.min(value.length, cursorIndex)) });
+  }, [calculatorTarget]);
+
+  const calculatorSymbol = calculatorOperator === "-" ? "−" : calculatorOperator;
+  const calculatorPrefix = calculatorLeft != null && calculatorSymbol ? `${calculatorLeft} ${calculatorSymbol} ` : "";
+  const displayedNumericValue = (target: CalculatorTarget, value: string) => (
+    calculatorTarget === target && calculatorPrefix ? `${calculatorPrefix}${value}` : value
+  );
+  const calculatorCursorIndex = React.useCallback((target: CalculatorTarget, value: string) =>
+    calculatorCursor?.target === target
+      ? Math.max(0, Math.min(value.length, calculatorCursor.index))
+      : value.length, [calculatorCursor]);
+  const calculatorCaretSuffix = (target: CalculatorTarget, value: string) =>
+    value.slice(calculatorCursorIndex(target, value));
+
+  const syncCalculatorCursor = (target: CalculatorTarget, input: HTMLInputElement) => {
+    if (!usesCustomKeypad) return;
+    const value = target === "amount" ? amount : moveFee;
+    const prefixLength = calculatorTarget === target ? calculatorPrefix.length : 0;
+    const selectedIndex = (input.selectionStart ?? input.value.length) - prefixLength;
+    setCalculatorCursor({ target, index: Math.max(0, Math.min(value.length, selectedIndex)) });
+  };
+
+  const updateNumericValue = (target: CalculatorTarget, displayedValue: string) => {
+    const setter = target === "amount" ? setAmount : setMoveFee;
+    if (calculatorTarget !== target || !calculatorPrefix) {
+      if (/^-?\d*$/.test(displayedValue)) setter(displayedValue);
+      return;
+    }
+    if (displayedValue.startsWith(calculatorPrefix)) {
+      setter(displayedValue.slice(calculatorPrefix.length));
+      return;
+    }
+    const fallback = /^-?\d*$/.test(displayedValue) ? displayedValue : String(calculatorLeft ?? "");
+    resetCalculator();
+    setter(fallback);
+  };
+
+  const deactivateCalculator = React.useCallback((target: CalculatorTarget) => {
+    if (calculatorTarget !== target) return;
+    const rawValue = target === "amount" ? amount : moveFee;
+    const currentValue = rawValue.trim() === "" ? null : Number(rawValue);
+    if (calculatorLeft != null && calculatorOperator != null) {
+      const settledValue = currentValue != null && Number.isFinite(currentValue)
+        ? calculateNumericInput(calculatorLeft, currentValue, calculatorOperator)
+        : calculatorLeft;
+      if (target === "amount") setAmount(String(settledValue));
+      else setMoveFee(String(settledValue));
+    }
+    resetCalculator();
+    setCalculatorTarget(null);
+    setCalculatorCursor(null);
+  }, [amount, calculatorLeft, calculatorOperator, calculatorTarget, moveFee, resetCalculator]);
+
+  React.useEffect(() => {
+    if (!usesCustomKeypad || !calculatorTarget) return;
+
+    const closeWhenPressedOutside = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (numericKeypadRef.current?.contains(target)) return;
+      if (target instanceof HTMLElement && target.closest("[data-calculator-target]")) return;
+      deactivateCalculator(calculatorTarget);
+    };
+
+    document.addEventListener("pointerdown", closeWhenPressedOutside, true);
+    return () => document.removeEventListener("pointerdown", closeWhenPressedOutside, true);
+  }, [calculatorTarget, deactivateCalculator, usesCustomKeypad]);
+
+  const runCalculatorKey = React.useCallback((key: CalculatorOperator | "=") => {
+    const rawValue = calculatorTarget === "amount" ? amount : calculatorTarget === "moveFee" ? moveFee : "";
+    const currentValue = rawValue.trim() === "" ? null : Number(rawValue);
+    if (key === "=") {
+      if (calculatorLeft == null || calculatorOperator == null || currentValue == null || !Number.isFinite(currentValue)) return;
+      const result = String(calculateNumericInput(calculatorLeft, currentValue, calculatorOperator));
+      setCalculatorValue(result, result.length);
+      resetCalculator();
+      return;
+    }
+    if (currentValue == null || !Number.isFinite(currentValue)) {
+      if (calculatorLeft != null) setCalculatorOperator(key);
+      return;
+    }
+    const nextLeft = calculatorLeft != null && calculatorOperator != null
+      ? calculateNumericInput(calculatorLeft, currentValue, calculatorOperator)
+      : currentValue;
+    setCalculatorLeft(nextLeft);
+    setCalculatorOperator(key);
+    setCalculatorValue("", 0);
+  }, [amount, calculatorLeft, calculatorOperator, calculatorTarget, moveFee, resetCalculator, setCalculatorValue]);
+
+  const appendCalculatorDigits = (digits: string) => {
+    const currentValue = calculatorTarget === "amount" ? amount : calculatorTarget === "moveFee" ? moveFee : "";
+    const cursor = calculatorTarget ? calculatorCursorIndex(calculatorTarget, currentValue) : currentValue.length;
+    if (currentValue === "0" && cursor === 1) {
+      const nextValue = digits === "00" ? "0" : digits;
+      setCalculatorValue(nextValue, nextValue.length);
+      return;
+    }
+    const inserted = currentValue === "" && digits === "00" ? "0" : digits;
+    const nextValue = `${currentValue.slice(0, cursor)}${inserted}${currentValue.slice(cursor)}`;
+    setCalculatorValue(nextValue, cursor + inserted.length);
+  };
+
+  const deleteCalculatorDigit = () => {
+    const currentValue = calculatorTarget === "amount" ? amount : calculatorTarget === "moveFee" ? moveFee : "";
+    if (currentValue !== "") {
+      const cursor = calculatorTarget ? calculatorCursorIndex(calculatorTarget, currentValue) : currentValue.length;
+      if (cursor === 0) return;
+      setCalculatorValue(`${currentValue.slice(0, cursor - 1)}${currentValue.slice(cursor)}`, cursor - 1);
+      return;
+    }
+    if (calculatorLeft != null) {
+      const restored = String(calculatorLeft);
+      setCalculatorValue(restored, restored.length);
+      resetCalculator();
+    }
+  };
+
+  React.useLayoutEffect(() => {
+    if (!calculatorTarget) return;
+    const input = calculatorTarget === "amount" ? amountInputRef.current : moveFeeInputRef.current;
+    const value = calculatorTarget === "amount" ? amount : moveFee;
+    const index = calculatorPrefix.length + calculatorCursorIndex(calculatorTarget, value);
+    input?.setSelectionRange(index, index);
+  }, [amount, calculatorCursorIndex, calculatorPrefix, calculatorTarget, moveFee]);
+
+  useEffect(() => {
+    if (!activeAccountNames.includes(source)) setSource(defaultSource);
+    if (!activeAccountNames.includes(sourceMove)) setSourceMove(defaultMoveSource);
+    if (!nonCardAccountNames.includes(destination)) setDestination(defaultMoveDestination);
+  }, [activeAccountNames, defaultMoveDestination, defaultMoveSource, defaultSource, destination, nonCardAccountNames, source, sourceMove]);
 
   const [isSourcePickerOpen, setIsSourcePickerOpen] = React.useState(false);
   const [openMovePicker, setOpenMovePicker] = React.useState<null | "destination" | "sourceMove">(null);
 
   const [isExternalTax, setIsExternalTax] = React.useState(false);
   const [taxRate, setTaxRate] = React.useState<TaxRate>(10);
-
+  const [entryMode, setEntryMode] = React.useState<EntryMode>("individual");
+  const tabDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 3,
+    selectedIndex: type === "expense" ? 0 : type === "income" ? 1 : 2,
+    onSelect: (index) => handleTabClick((["expense", "income", "move"] as const)[index] ?? "expense"),
+    cssVariable: "--tab-position",
+    horizontalPadding: 4,
+  });
   // レシート仮置き
   const [receiptItems, setReceiptItems] = React.useState<DraftTx[]>([]);
+  const [receiptSwipeX, setReceiptSwipeX] = React.useState<Record<number, number>>({});
+  const [draggingReceiptIndex, setDraggingReceiptIndex] = React.useState<number | null>(null);
+  const [openReceiptIndex, setOpenReceiptIndex] = React.useState<number | null>(null);
+  const receiptSwipe = React.useRef<{
+    index: number;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    width: number;
+    baseOffset: number;
+    offset: number;
+    direction: "pending" | "horizontal" | "vertical";
+  } | null>(null);
+  const suppressReceiptClick = React.useRef(false);
   const [editingReceiptIndex, setEditingReceiptIndex] = React.useState<number | null>(null);
+  const [savedDrafts, setSavedDrafts] = React.useState<InputDraft[]>(() => loadInputDrafts());
+  const [activeDraftId, setActiveDraftId] = React.useState("");
+  const isApplyingDraft = React.useRef(false);
+  const receiptModeDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 3,
+    selectedIndex: entryMode === "receipt_exclusive" ? 0 : entryMode === "receipt_inclusive" ? 1 : 2,
+    onSelect: (index) => {
+      const next = (["receipt_exclusive", "receipt_inclusive", "individual"] as const)[index] ?? "individual";
+      setEntryMode(next);
+      setIsExternalTax(next === "receipt_exclusive");
+    },
+    cssVariable: "--receipt-mode-position",
+    horizontalPadding: 2,
+    disabled: Boolean(activeGroupId || editingTransaction?.groupId || receiptItems.length > 0),
+  });
+  const taxRateDrag = useSegmentedDrag<HTMLDivElement>({
+    count: 3,
+    selectedIndex: taxRate === 0 ? 0 : taxRate === 8 ? 1 : 2,
+    onSelect: (index) => setTaxRate(([0, 8, 10] as const)[index] ?? 10),
+    cssVariable: "--tax-rate-position",
+    horizontalPadding: 2,
+  });
+  const receiptQueueRef = React.useRef<HTMLDivElement>(null);
+  const previousReceiptCount = React.useRef(0);
+
+  React.useEffect(() => {
+    if (receiptItems.length > previousReceiptCount.current) receiptQueueRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    previousReceiptCount.current = receiptItems.length;
+  }, [receiptItems.length]);
+
+  const handleReceiptSwipeStart = (event: React.PointerEvent<HTMLElement>, index: number) => {
+    if (event.button !== 0) return;
+    if (openReceiptIndex != null && openReceiptIndex !== index) {
+      setReceiptSwipeX((current) => ({ ...current, [openReceiptIndex]: 0 }));
+      setOpenReceiptIndex(null);
+    }
+    const baseOffset = openReceiptIndex === index ? -72 : 0;
+    const rowWidth = event.currentTarget.closest<HTMLElement>(".receipt-swipe-row")?.getBoundingClientRect().width
+      ?? event.currentTarget.getBoundingClientRect().width;
+    receiptSwipe.current = {
+      index,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      width: rowWidth,
+      baseOffset,
+      offset: baseOffset,
+      direction: "pending",
+    };
+    suppressReceiptClick.current = false;
+  };
+
+  const handleReceiptSwipeMove = (event: React.PointerEvent<HTMLElement>) => {
+    const swipe = receiptSwipe.current;
+    if (!swipe || swipe.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - swipe.startX;
+    const deltaY = event.clientY - swipe.startY;
+    if (swipe.direction === "pending" && Math.max(Math.abs(deltaX), Math.abs(deltaY)) >= 10) {
+      const isAllowedHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 1.35 && (swipe.baseOffset < 0 || deltaX < 0);
+      swipe.direction = isAllowedHorizontal ? "horizontal" : "vertical";
+      if (swipe.direction === "horizontal") {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setDraggingReceiptIndex(swipe.index);
+        suppressReceiptClick.current = true;
+      }
+    }
+    if (swipe.direction !== "horizontal") return;
+    event.preventDefault();
+    swipe.offset = Math.max(-swipe.width, Math.min(0, swipe.baseOffset + deltaX));
+    setReceiptSwipeX((current) => ({ ...current, [swipe.index]: swipe.offset }));
+  };
+
+  const finishReceiptSwipe = (event: React.PointerEvent<HTMLElement>, cancelled = false) => {
+    const swipe = receiptSwipe.current;
+    if (!swipe || swipe.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    const offset = swipe.offset;
+    receiptSwipe.current = null;
+    setDraggingReceiptIndex(null);
+    const shouldDelete = !cancelled && swipe.direction === "horizontal" && offset <= -(swipe.width * FULL_RECEIPT_SWIPE_RATIO);
+    const shouldOpen = !shouldDelete && !cancelled && swipe.direction === "horizontal" && offset <= -36;
+    if (shouldDelete) {
+      setReceiptSwipeX((current) => ({ ...current, [swipe.index]: -swipe.width }));
+      setOpenReceiptIndex(null);
+      window.setTimeout(() => {
+        deleteReceiptItem(swipe.index);
+        setReceiptSwipeX({});
+      }, RECEIPT_SWIPE_SETTLE_MS);
+    } else {
+      setReceiptSwipeX((current) => ({ ...current, [swipe.index]: shouldOpen ? -72 : 0 }));
+      setOpenReceiptIndex(shouldOpen ? swipe.index : null);
+    }
+    window.setTimeout(() => { suppressReceiptClick.current = false; }, 0);
+  };
+
+  const applySavedDraft = React.useCallback((draft: InputDraft) => {
+    isApplyingDraft.current = true;
+    setActiveDraftId(draft.id);
+    setType(draft.type);
+    setAmount(draft.amount);
+    setDate(draft.date);
+    setName(draft.name);
+    setCategory(draft.category);
+    setSource(draft.source);
+    setSourceMove(draft.sourceMove);
+    setDestination(draft.destination);
+    setMemo(draft.memo);
+    setClassification(draft.classification);
+    setMoveFee(draft.moveFee);
+    setEntryMode(draft.entryMode);
+    setIsExternalTax(draft.entryMode === "receipt_exclusive");
+    setTaxRate(draft.taxRate);
+    setReceiptItems(draft.receiptItems);
+    setEditingReceiptIndex(
+      draft.editingReceiptIndex != null && draft.editingReceiptIndex >= 0 && draft.editingReceiptIndex < draft.receiptItems.length
+        ? draft.editingReceiptIndex
+        : null
+    );
+    queueMicrotask(() => { isApplyingDraft.current = false; });
+  }, []);
+
+  const startEmptyDraft = React.useCallback((nextType: Transaction["type"] = "expense") => {
+    isApplyingDraft.current = true;
+    setActiveDraftId(`draft_${crypto.randomUUID()}`);
+    setType(nextType);
+    setAmount("");
+    setDate(selectedDate);
+    setName("");
+    setCategory(nextType === "income" ? defaultIncomeCategory : defaultExpenseCategory);
+    setSource(defaultSource);
+    setSourceMove(defaultMoveSource);
+    setDestination(defaultMoveDestination);
+    setMemo("");
+    setClassification("normal");
+    setMoveFee("");
+    setReceiptItems([]);
+    setEditingReceiptIndex(null);
+    setEntryMode("individual");
+    setIsExternalTax(false);
+    setTaxRate(10);
+    queueMicrotask(() => { isApplyingDraft.current = false; });
+  }, [defaultExpenseCategory, defaultIncomeCategory, defaultMoveDestination, defaultMoveSource, defaultSource, selectedDate]);
+
+  React.useEffect(() => {
+    if (editingTransaction || activeGroupId) return;
+    let cancelled = false;
+    void hydrateInputDraftsFromIndexedDB().then((all) => {
+      if (cancelled) return;
+      setSavedDrafts(all);
+      const latest = all
+        .filter((draft) => draft.scope === draftScope)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+      if (latest) applySavedDraft(latest);
+      else startEmptyDraft("expense");
+    });
+    return () => { cancelled = true; };
+  }, [activeGroupId, applySavedDraft, draftScope, editingTransaction, startEmptyDraft]);
+
+  React.useEffect(() => {
+    if (editingTransaction || activeGroupId || isApplyingDraft.current || !activeDraftId) return;
+    const hasContent = Boolean(amount || name || memo || moveFee || receiptItems.length);
+    if (!hasContent) return;
+    const nextDraft: InputDraft = {
+      id: activeDraftId, scope: draftScope, type, amount, date, name, category, source,
+      sourceMove, destination, memo, classification, moveFee, entryMode, taxRate,
+      receiptItems, editingReceiptIndex, updatedAt: new Date().toISOString(),
+    };
+    setSavedDrafts((current) => {
+      const next = current.some((draft) => draft.id === activeDraftId)
+        ? current.map((draft) => draft.id === activeDraftId ? nextDraft : draft)
+        : [...current, nextDraft];
+      saveInputDrafts(next);
+      return next;
+    });
+  }, [activeDraftId, activeGroupId, amount, category, classification, date, destination, draftScope, editingReceiptIndex, editingTransaction, entryMode, memo, moveFee, name, receiptItems, source, sourceMove, taxRate, type]);
+
+  const discardActiveDraft = (ask = true) => {
+    if (ask && savedDrafts.some((draft) => draft.id === activeDraftId) && !window.confirm("この下書きを破棄しますか？")) return false;
+    const next = savedDrafts.filter((draft) => draft.id !== activeDraftId);
+    setSavedDrafts(next);
+    saveInputDrafts(next);
+    startEmptyDraft(type);
+    return true;
+  };
+
+  const switchDraftType = (nextType: Transaction["type"]) => {
+    const latest = savedDrafts
+      .filter((draft) => draft.scope === draftScope && draft.type === nextType)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    if (latest) applySavedDraft(latest);
+    else startEmptyDraft(nextType);
+  };
 
   const receiptBaseTotal = React.useMemo(
     () => receiptItems.reduce((sum, t) => sum + (t.amount || 0), 0),
     [receiptItems]
   );
+
+  const resetForm = React.useCallback((
+    nextType: "expense" | "income" | "move" = type,
+    options: { keepDate?: boolean; dateValue?: string; keepTaxControls?: boolean } = {}
+  ) => {
+    const nextDate = options.keepDate ? date : (options.dateValue ?? selectedDate);
+    const nextCategory = nextType === "income" ? defaultIncomeCategory : defaultExpenseCategory;
+
+    setAmount("");
+    setName("");
+    setMemo("");
+    setClassification("normal");
+    if (!options.keepTaxControls) {
+      setIsExternalTax(nextType === "expense" && entryMode === "receipt_exclusive");
+      setTaxRate(10);
+    }
+    setCategory(nextCategory);
+    setSource(defaultSource);
+    setSourceMove(defaultMoveSource);
+    setDestination(defaultMoveDestination);
+    setMoveFee("");
+    setDate(nextDate);
+    setIsSourcePickerOpen(false);
+    setOpenMovePicker(null);
+  }, [date, defaultExpenseCategory, defaultIncomeCategory, defaultMoveDestination, defaultMoveSource, defaultSource, entryMode, selectedDate, type]);
 
   // 税率別に合算してから端数処理する（あなたの合計表示仕様と同じ）
   const calcExternalGross = (items: Array<Pick<Transaction, "type" | "amount" | "taxRate" | "isTaxAdjustment">>) => {
@@ -105,8 +568,8 @@ export const InputForm: React.FC<InputFormProps> = ({
 
     for (const t of items) {
       if (t.type !== "expense") continue;
-      if ((t as any).isTaxAdjustment) continue; // 調整アイテムは除外
-      const r = normalizeTaxRate((t as any).taxRate);
+      if (t.isTaxAdjustment) continue; // 調整アイテムは除外
+      const r = normalizeTaxRate(t.taxRate);
       if (r === 8) sum8 += t.amount || 0;
       else if (r === 0) sum0 += t.amount || 0;
       else sum10 += t.amount || 0;
@@ -134,7 +597,7 @@ export const InputForm: React.FC<InputFormProps> = ({
         other += t.amount || 0;
         continue;
       }
-      const r = normalizeTaxRate((t as any).taxRate);
+      const r = normalizeTaxRate(t.taxRate);
       if (r === 8) sum8 += t.amount || 0;
       else if (r === 0) sum0 += t.amount || 0;
       else sum10 += t.amount || 0;
@@ -150,18 +613,18 @@ export const InputForm: React.FC<InputFormProps> = ({
   const committedGroupItems = React.useMemo(() => {
     const gid =
       activeGroupId ??
-      ((editingTransaction as any)?.groupId as string | undefined);
+      editingTransaction?.groupId;
 
     if (!gid) return [];
-    return monthlyData.filter((t: any) => t.groupId === gid);
+    return monthlyData.filter((t) => t.groupId === gid);
   }, [monthlyData, editingTransaction, activeGroupId]);
 
   useEffect(() => {
     if (!activeGroupId) return;
     if (editingTransaction) return;
 
-    const groupItems = monthlyData.filter((t: any) => t.groupId === activeGroupId);
-    const visibleItems = groupItems.filter((t: any) => t.isTaxAdjustment !== true);
+    const groupItems = monthlyData.filter((t) => t.groupId === activeGroupId);
+    const visibleItems = groupItems.filter((t) => t.isTaxAdjustment !== true);
     const first = visibleItems[0];
 
     if (first) {
@@ -174,26 +637,31 @@ export const InputForm: React.FC<InputFormProps> = ({
     setEditingReceiptIndex(null);
     setReceiptItems([]);
     resetForm(first?.type ?? type, { dateValue: first?.date ?? activeGroupDate ?? date });
+    if (first) {
+      setSource(first.source);
+      setClassification(first.classification ?? (first.isSpecial ? "special" : "normal"));
+    }
 
     const isExternalGroup =
-      groupItems.some((t: any) => t.isTaxAdjustment === true) ||
-      visibleItems.some((t: any) => t.taxMode === "exclusive");
+      groupItems.some((t) => t.isTaxAdjustment === true) ||
+      visibleItems.some((t) => t.taxMode === "exclusive");
 
     setIsExternalTax(isExternalGroup);
-  }, [activeGroupId, activeGroupDate, monthlyData, editingTransaction]);
+    setEntryMode(isExternalGroup ? "receipt_exclusive" : "receipt_inclusive");
+  }, [activeGroupId, activeGroupDate, monthlyData, editingTransaction, resetForm, type, date]);
 
   // グループ内の「外税」調整アイテム（あれば）
   const committedTaxAdjustment = React.useMemo(() => {
-    return committedGroupItems.find((t: any) => t.isTaxAdjustment === true) ?? null;
+    return committedGroupItems.find((t) => t.isTaxAdjustment === true) ?? null;
   }, [committedGroupItems]);
 
   // InputForm 下リストに見せるのは “通常アイテムだけ”
   const committedGroupVisibleItems = React.useMemo(() => {
-    return committedGroupItems.filter((t: any) => t.isTaxAdjustment !== true);
+    return committedGroupItems.filter((t) => t.isTaxAdjustment !== true);
   }, [committedGroupItems]);
 
   const onEditModeFromList = (t: Transaction) => {
-    const gid = (t as any).groupId as string | undefined;
+    const gid = t.groupId;
     setActiveGroupId(gid ?? null);
     setActiveGroupDate(t.date);
     setEditingTransaction(t);
@@ -205,7 +673,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     : committedGroupVisibleItems.length >= 2;
 
   const committedGroupIsExternal =
-    committedTaxAdjustment != null || committedGroupVisibleItems.some((t: any) => t.taxMode === "exclusive");
+    committedTaxAdjustment != null || committedGroupVisibleItems.some((t) => t.taxMode === "exclusive");
 
   const committedGroupTotalDisplay = React.useMemo(() => {
     if (committedGroupVisibleItems.length === 0) return 0;
@@ -214,7 +682,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       return committedGroupVisibleItems.reduce((sum, t) => sum + (t.amount || 0), 0);
     }
 
-    const { base, tax } = calcExternalGross(committedGroupVisibleItems as any);
+    const { base, tax } = calcExternalGross(committedGroupVisibleItems);
     return base + tax;
   }, [committedGroupVisibleItems, committedGroupIsExternal]);
 
@@ -234,6 +702,9 @@ export const InputForm: React.FC<InputFormProps> = ({
     setDate(editingTransaction.date);
     setName(editingTransaction.name || "");
     setMemo(editingTransaction.memo || "");
+    setClassification(
+      editingTransaction.classification ?? (editingTransaction.isSpecial ? "special" : "normal")
+    );
 
     if (editingTransaction.type === "move") {
       setSourceMove(editingTransaction.source);
@@ -248,16 +719,18 @@ export const InputForm: React.FC<InputFormProps> = ({
     setEditingReceiptIndex(null);
 
     // グループに外税調整があるなら外税扱い（単体アイテムのtaxModeより優先）
-    const gid = (editingTransaction as any).groupId as string | undefined;
+    const gid = editingTransaction.groupId;
     if (gid) {
-      const group = monthlyData.filter((t: any) => t.groupId === gid);
-      const hasAdj = group.some((t: any) => t.isTaxAdjustment === true);
-      setIsExternalTax(hasAdj || normalizeTaxMode((editingTransaction as any).taxMode) === "exclusive");
+      const group = monthlyData.filter((t) => t.groupId === gid);
+      const hasAdj = group.some((t) => t.isTaxAdjustment === true);
+      setIsExternalTax(hasAdj || normalizeTaxMode(editingTransaction.taxMode) === "exclusive");
+      setEntryMode(hasAdj || normalizeTaxMode(editingTransaction.taxMode) === "exclusive" ? "receipt_exclusive" : "receipt_inclusive");
     } else {
-      setIsExternalTax(normalizeTaxMode((editingTransaction as any).taxMode) === "exclusive");
+      setIsExternalTax(normalizeTaxMode(editingTransaction.taxMode) === "exclusive");
+      setEntryMode("individual");
     }
 
-    setTaxRate(normalizeTaxRate((editingTransaction as any).taxRate));
+    setTaxRate(normalizeTaxRate(editingTransaction.taxRate));
   }, [editingTransaction, monthlyData]);
 
   useEffect(() => {
@@ -276,10 +749,10 @@ export const InputForm: React.FC<InputFormProps> = ({
     }
 
     setCategory((prev) => {
-      const opts = type === "income" ? incomeCategoryOptions : expenseCategoryOptions;
+      const opts = categoryOptions;
       return opts.includes(prev) ? prev : opts[0];
     });
-  }, [type]);
+  }, [categoryOptions, type]);
 
   const buildDraft = (): DraftTx => {
     const base: DraftTx = {
@@ -291,6 +764,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       destination: type === "move" ? destination : "",
       memo,
       isSpecial: false,
+      classification: type === "move" ? "normal" : classification,
       type,
     };
 
@@ -307,49 +781,57 @@ export const InputForm: React.FC<InputFormProps> = ({
     return base;
   };
 
-  const resetForm = (
-    nextType: "expense" | "income" | "move" = type,
-    options: { keepDate?: boolean; dateValue?: string; keepTaxControls?: boolean } = {}
-  ) => {
-    const nextDate = options.keepDate ? date : (options.dateValue ?? selectedDate);
-    const nextCategory = nextType === "income" ? defaultIncomeCategory : defaultExpenseCategory;
-
-    setAmount("");
-    setName("");
-    setMemo("");
-    if (!options.keepTaxControls) {
-      setIsExternalTax(false);
-      setTaxRate(10);
-    }
-    setCategory(nextCategory);
-    setSource(defaultSource);
-    setSourceMove(defaultMoveSource);
-    setDestination(defaultMoveDestination);
-    setDate(nextDate);
-    setIsSourcePickerOpen(false);
-    setOpenMovePicker(null);
-  };
-
   const parseAmount = () => {
     const n = Number(amount);
     return Number.isFinite(n) ? n : NaN;
   };
 
-  const hasFormDraft = () => {
-    if (amount.trim() === "") return false;
-    if (type !== "move" && name.trim() === "") return false;
+  const draftValidationError = () => {
+    if (amount.trim() === "") return "金額を入力してください。";
+    if (type !== "move" && name.trim() === "") return "摘要を入力してください。";
     const n = parseAmount();
-    if (!Number.isFinite(n) || n <= 0) return false;
-    if (type === "expense" && !Number.isInteger(n)) return false;
-    return true;
+    if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) return "金額は1円以上の整数で入力してください。";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "日付を入力してください。";
+    if (type === "move" && (!sourceMove || !destination)) return "移動元と移動先を選択してください。";
+    if (type === "move" && sourceMove === destination) return "移動元と移動先には別の口座を選択してください。";
+    if (type === "move" && creditCardAccountNames.has(destination)) return "クレジットカードは移動先に指定できません。";
+    if (type !== "move" && !source) return type === "income" ? "入金先を選択してください。" : "拠出元を選択してください。";
+    if (type !== "move" && !category) return "カテゴリを選択してください。";
+    if (type === "move" && moveFee.trim() !== "") {
+      const fee = Number(moveFee);
+      if (!Number.isInteger(fee) || fee < 0) return "手数料は0円以上の整数で入力してください。";
+    }
+    return null;
   };
+  const hasFormDraft = () => draftValidationError() == null;
+
+  React.useEffect(() => {
+    if (!editingTransaction) {
+      onEditingDirtyChange?.(false);
+      return;
+    }
+    const editingSource = editingTransaction.type === "move" ? sourceMove : source;
+    const dirty =
+      String(editingTransaction.amount) !== amount ||
+      editingTransaction.date !== date ||
+      (editingTransaction.name || "") !== name ||
+      (editingTransaction.memo || "") !== memo ||
+      (editingTransaction.classification ?? (editingTransaction.isSpecial ? "special" : "normal")) !== classification ||
+      editingTransaction.source !== editingSource ||
+      (editingTransaction.destination || "") !== (editingTransaction.type === "move" ? destination : "") ||
+      (editingTransaction.type !== "move" && editingTransaction.category !== category) ||
+      (editingTransaction.type === "expense" && normalizeTaxMode(editingTransaction.taxMode) !== (isExternalTax ? "exclusive" : "inclusive")) ||
+      (editingTransaction.type === "expense" && normalizeTaxRate(editingTransaction.taxRate) !== taxRate);
+    onEditingDirtyChange?.(dirty);
+  }, [amount, category, classification, date, destination, editingTransaction, isExternalTax, memo, name, onEditingDirtyChange, source, sourceMove, taxRate]);
 
   // 追加（submit）: 仮置きに追加 / 仮編集なら更新 / 本編集なら何もしない（本編集は登録ボタンで更新）
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (type !== "expense" || editingTransaction) return;
-    if (!hasFormDraft()) return;
+    if (type !== "expense" || editingTransaction || entryMode === "individual") return;
+    const error = draftValidationError();
+    if (error) { window.alert(error); return; }
 
     const draft = buildDraft();
 
@@ -373,6 +855,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     setDate(t.date);
     setName(t.name || "");
     setMemo(t.memo || "");
+    setClassification(t.classification ?? (t.isSpecial ? "special" : "normal"));
 
     if (t.type === "move") {
       setSourceMove(t.source);
@@ -382,8 +865,8 @@ export const InputForm: React.FC<InputFormProps> = ({
       setCategory(t.category);
     }
     // 税情報
-    setIsExternalTax(normalizeTaxMode((t as any).taxMode) === "exclusive");
-    setTaxRate(normalizeTaxRate((t as any).taxRate));
+    setIsExternalTax(normalizeTaxMode(t.taxMode) === "exclusive");
+    setTaxRate(normalizeTaxRate(t.taxRate));
   };
 
   const deleteReceiptItem = (idx: number) => {
@@ -397,10 +880,85 @@ export const InputForm: React.FC<InputFormProps> = ({
     }
   };
 
+  const copyEditingRecord = () => {
+    if (!editingTransaction || editingTransaction.system) return;
+    const copyDate = todayISO();
+    setActiveDraftId(`draft_${crypto.randomUUID()}`);
+    const groupId = editingTransaction.groupId;
+    const groupItems = groupId
+      ? monthlyData.filter((transaction) => transaction.groupId === groupId && !transaction.isTaxAdjustment)
+      : [];
+
+    if (groupId && groupItems.length > 0) {
+      const drafts = groupItems.map((transaction): DraftTx => {
+        return {
+          type: transaction.type,
+          amount: transaction.amount,
+          date: copyDate,
+          name: transaction.name,
+          category: transaction.category,
+          source: transaction.source,
+          destination: transaction.destination,
+          memo: transaction.memo,
+          isSpecial: transaction.isSpecial,
+          classification: transaction.classification,
+          taxMode: transaction.taxMode,
+          taxRate: transaction.taxRate,
+          taxBaseAmount: transaction.taxBaseAmount,
+          isTaxAdjustment: transaction.isTaxAdjustment,
+        };
+      });
+      const external = groupItems.some((transaction) => transaction.taxMode === "exclusive");
+      setEditingTransaction(null);
+      setActiveGroupId(null);
+      setActiveGroupDate(null);
+      setEditingReceiptIndex(null);
+      resetForm("expense", { dateValue: copyDate });
+      setType("expense");
+      setDate(copyDate);
+      setSource(groupItems[0].source);
+      setIsExternalTax(external);
+      setEntryMode(external ? "receipt_exclusive" : "receipt_inclusive");
+      setReceiptItems(drafts);
+      return;
+    }
+
+    setEditingTransaction(null);
+    setActiveGroupId(null);
+    setActiveGroupDate(null);
+    setEditingReceiptIndex(null);
+    setReceiptItems([]);
+    setEntryMode("individual");
+    setType(editingTransaction.type);
+    setAmount(String(editingTransaction.amount));
+    setDate(copyDate);
+    setName(editingTransaction.name || "");
+    setMemo(editingTransaction.memo || "");
+    setClassification(editingTransaction.classification ?? "normal");
+    if (editingTransaction.type === "move") {
+      setSourceMove(editingTransaction.source);
+      setDestination(editingTransaction.destination);
+    } else {
+      setSource(editingTransaction.source);
+      setCategory(editingTransaction.category);
+    }
+    setIsExternalTax(editingTransaction.taxMode === "exclusive");
+    setTaxRate(normalizeTaxRate(editingTransaction.taxRate));
+  };
+
 
   // 登録: (1) 本編集なら更新, (2) 仮編集ならその内容含めて反映, (3) フォーム入力中があればそれも反映, (4) 仮置き全件反映
   const commitAll = () => {
     if (!editingTransaction && !hasFormDraft() && receiptItems.length === 0 && showCommittedGroup) {
+      if (activeGroupId) {
+        committedGroupItems.forEach((transaction) => onUpdateTransaction({
+          ...transaction,
+          date,
+          source,
+          classification,
+          isSpecial: classification === "special",
+        }));
+      }
       setEditingTransaction(null);
       setActiveGroupId(null);
       setActiveGroupDate(null);
@@ -410,9 +968,10 @@ export const InputForm: React.FC<InputFormProps> = ({
     }
 
     if (editingTransaction) {
-      if (!hasFormDraft()) return;
+      const error = draftValidationError();
+      if (error) { window.alert(error); return; }
 
-      const gid = (editingTransaction as any).groupId as string | undefined;
+      const gid = editingTransaction.groupId;
       if (gid) setActiveGroupId(gid);
 
       const draft = buildDraft();
@@ -423,62 +982,26 @@ export const InputForm: React.FC<InputFormProps> = ({
       } as Transaction;
 
       // 外税（税別保存）なら、税別表示用の値も追従させる
-      if (updated.type === "expense" && (updated as any).taxMode === "exclusive") {
-        (updated as any).taxBaseAmount = updated.amount;
+      if (updated.type === "expense" && updated.taxMode === "exclusive") {
+        updated.taxBaseAmount = updated.amount;
       }
 
       // まず対象アイテムを更新
       onUpdateTransaction(updated);
 
-      // グループ編集なら「外税」調整アイテムを追従させる
+      // レシート共通項目（日付・拠出元・集計区分）は全明細へ一括反映する
       if (gid) {
-        const groupAll = monthlyData.filter((t: any) => t.groupId === gid);
+        const groupAll = monthlyData.filter((t) => t.groupId === gid);
+        groupAll
+          .filter((transaction) => transaction.id !== updated.id)
+          .forEach((transaction) => onUpdateTransaction({
+            ...transaction,
+            date: updated.date,
+            source: updated.source,
+            classification: updated.classification,
+            isSpecial: updated.classification === "special",
+          }));
 
-        const adj = groupAll.find((t: any) => t.isTaxAdjustment === true) ?? null;
-        const groupBase = groupAll
-          .filter((t: any) => t.isTaxAdjustment !== true)
-          .map((t: any) => (t.id === updated.id ? updated : t));
-
-        // 「外税グループ」判定：調整アイテムがある、または taxMode exclusive が含まれる
-        const isExternalGroup =
-          (adj != null) || groupBase.some((t: any) => t.taxMode === "exclusive");
-
-        if (isExternalGroup) {
-          const { tax } = calcExternalGross(groupBase as any);
-
-          if (tax > 0) {
-            if (adj) {
-              onUpdateTransaction({
-                ...adj,
-                amount: tax,
-                name: "外税",
-                category: "外税",
-                isTaxAdjustment: true,
-              } as any);
-            } else {
-              // 無い場合は追加
-              const firstExpense = groupBase.find((x: any) => x.type === "expense");
-              onAddTransaction({
-                type: "expense",
-                amount: tax,
-                date: updated.date,
-                name: "外税",
-                category: "外税",
-                source: firstExpense?.source ?? updated.source,
-                destination: "",
-                memo: "",
-                isSpecial: false,
-                groupId: gid,
-                isTaxAdjustment: true,
-              } as any);
-            }
-          } else {
-            // tax=0 なら調整アイテムは不要 → あれば削除
-            if (adj) {
-              onDeleteTransaction(adj.id);
-            }
-          }
-        }
       }
 
       setEditingTransaction(null);
@@ -495,79 +1018,60 @@ export const InputForm: React.FC<InputFormProps> = ({
         if (hasFormDraft()) {
           const draft = buildDraft();
           itemsToCommit = receiptItems.map((it, i) => (i === editingReceiptIndex ? draft : it));
-        } else {
-          return;
-        }
+        } else { window.alert(draftValidationError()); return; }
       } else if (hasFormDraft()) {
         const draft = buildDraft();
         itemsToCommit = [...receiptItems, draft];
+      } else if (amount.trim() !== "" || name.trim() !== "") {
+        window.alert(draftValidationError());
+        return;
       }
     } else {
-      if (!hasFormDraft()) return;
+      const error = draftValidationError();
+      if (error) { window.alert(error); return; }
       itemsToCommit = [buildDraft()];
     }
 
     if (itemsToCommit.length === 0) return;
 
-    const groupId = type === "expense" ? (activeGroupId ?? `g_${Date.now()}`) : undefined;
+    const groupId = type === "expense" && entryMode !== "individual" ? (activeGroupId ?? `g_${Date.now()}`) : undefined;
 
+    if (activeGroupId) {
+      committedGroupItems.forEach((transaction) => onUpdateTransaction({
+        ...transaction,
+        date,
+        source,
+        classification,
+        isSpecial: classification === "special",
+      }));
+    }
+
+    const moveRelationId = type === "move" && Number(moveFee) > 0 ? crypto.randomUUID() : undefined;
     // ★ groupId を付与して「このまとまり」を後で引けるようにする
-    const baseItems = itemsToCommit.map((t) => {
-      if (t.type !== "expense") return t;
+    const baseItems: DraftTx[] = itemsToCommit.map((t) => {
+      if (t.type !== "expense") return moveRelationId ? { ...t, relationId: moveRelationId } : t;
       if (!isExternalTax) {
-        return { ...(t as any), groupId, taxMode: "inclusive" } as any;
+        return { ...t, groupId, taxMode: "inclusive" };
       }
       // 外税：税別保存
-      return { ...(t as any), groupId, taxMode: "exclusive", taxBaseAmount: t.amount } as any;
+      return { ...t, groupId, taxMode: "exclusive", taxBaseAmount: t.amount };
     });
 
-    baseItems.forEach((t) => onAddTransaction(t as any));
+    baseItems.forEach((t) => onAddTransaction(t));
 
-    if (type === "expense" && isExternalTax) {
-      const baseExpenses = baseItems.filter((x: any) => x.type === "expense");
-      const existingGroup = activeGroupId
-        ? monthlyData.filter((t: any) => t.groupId === groupId)
-        : [];
-      const existingBase = existingGroup.filter((t: any) => t.isTaxAdjustment !== true);
-      const adj = existingGroup.find((t: any) => t.isTaxAdjustment === true) ?? null;
-      const groupBase = [...existingBase, ...baseExpenses];
-      const { tax } = calcExternalGross(groupBase as any);
-      const firstExpense = groupBase.find((x: any) => x.type === "expense");
-      const groupDate = firstExpense?.date ?? date;
-
-      if (tax > 0) {
-        if (adj) {
-          onUpdateTransaction({
-            ...adj,
-            amount: tax,
-            name: "外税",
-            category: "外税",
-            date: groupDate,
-            isTaxAdjustment: true,
-          } as any);
-        } else if (groupId) {
-          onAddTransaction({
-            type: "expense",
-            amount: tax,
-            date: groupDate,
-            name: "外税",
-            category: "外税",
-            source: firstExpense?.source ?? source,
-            destination: "",
-            memo: "",
-            isSpecial: false,
-            groupId,
-            isTaxAdjustment: true,
-          } as any);
-        }
-      } else if (adj) {
-        onDeleteTransaction(adj.id);
+    if (type === "move") {
+      const fee = Number(moveFee);
+      if (Number.isFinite(fee) && fee > 0) {
+        onAddTransaction({ type: "expense", amount: Math.floor(fee), date, name: "振込手数料", category: "その他", source: sourceMove, destination: "", memo: "", isSpecial: false, classification: "normal", relationId: moveRelationId });
       }
     }
 
     setReceiptItems([]);
     setEditingReceiptIndex(null);
-    resetForm(type, { keepDate: true });
+    const remainingDrafts = savedDrafts.filter((draft) => draft.id !== activeDraftId);
+    setSavedDrafts(remainingDrafts);
+    saveInputDrafts(remainingDrafts);
+    startEmptyDraft(type);
   };
 
   const calcTaxedAmount = (base: number, rate: TaxRate) => {
@@ -579,28 +1083,32 @@ export const InputForm: React.FC<InputFormProps> = ({
   const renderTaxBadge = (t: DraftTx | Transaction) => {
     if (!isExternalTax) return null;
     if (t.type !== "expense") return null;
-    const r = normalizeTaxRate((t as any).taxRate);
+    const r = normalizeTaxRate(t.taxRate);
     return <span className="tax-badge">{r}%</span>;
+  };
+
+  const receiptAmountStyle = (value: number) => {
+    const digits = String(Math.trunc(Math.abs(value))).length;
+    return { "--receipt-amount-font-size": `${Math.max(10, 17 - Math.max(0, digits - 5) * 2)}px` } as React.CSSProperties;
   };
 
   const getReceiptDisplayAmount = (t: DraftTx) => {
     if (!isExternalTax || t.type !== "expense") return t.amount;
-    const r = normalizeTaxRate((t as any).taxRate);
+    const r = normalizeTaxRate(t.taxRate);
     return calcTaxedAmount(t.amount, r);
   };
 
   const getCommittedDisplayAmount = (t: Transaction) => {
     if (t.type !== "expense") return t.amount;
     if (!committedGroupIsExternal) return t.amount;
-    if (committedGroupVisibleItems.length >= 2) return t.amount;
-    const r = normalizeTaxRate((t as any).taxRate);
-    return calcTaxedAmount(t.amount, r);
+    const r = normalizeTaxRate(t.taxRate);
+    return calcTaxedAmount(Number(t.taxBaseAmount ?? t.amount), r);
   };
 
   // --- 表示（TransactionHistoryと同じ見た目）を共通化 ---
   const renderRowContent = (t: DraftTx | Transaction) => {
     if (t.type === "move") {
-      const dest = (t as any).destination || "";
+      const dest = t.destination || "";
       return (
         <>
           <div className="cat is-move">
@@ -612,22 +1120,135 @@ export const InputForm: React.FC<InputFormProps> = ({
       );
     }
 
-    const nm = (t as any).name || "";
+    const nm = t.name || "";
     return (
       <>
         <div className="cat">
-          <span className="category-text">{(t as any).category}</span>
+          <span className="category-text">{t.category}</span>
         </div>
         <div className={`nm ${nm.length >= 9 ? "nm-small" : ""}`}>{nm || "（摘要なし）"}</div>
       </>
     );
   };
 
+  const budgetMonth = getMonthKey(date);
+  const effectiveBudget = [...loadBudgets()]
+    .filter((entry) => entry.month <= budgetMonth)
+    .sort((a, b) => b.month.localeCompare(a.month))[0]?.byCategory ?? {};
+  const activeExpenseCategories = new Set(categories.filter((item) => item.type === "expense" && item.isActive).map((item) => item.name));
+  const totalBudget = Object.entries(effectiveBudget)
+    .filter(([budgetCategory, value]) => activeExpenseCategories.has(budgetCategory) && value > 0)
+    .reduce((sum, [, value]) => sum + value, 0);
+  const actualCategoryMap = Object.fromEntries(
+    sumExpenseByCategoryAllocatedTax(monthlyData, budgetMonth).map((item) => [item.category, item.value])
+  );
+  const actualTotal = monthlyData
+    .filter((transaction) => transaction.type === "expense" && getMonthKey(transaction.date) === budgetMonth && isIncludedInRegularAnalytics(transaction))
+    .reduce((sum, transaction) => sum + transaction.amount, 0);
+  let pendingItems = receiptItems;
+  if (type === "expense" && hasFormDraft()) {
+    const current = buildDraft();
+    pendingItems = editingReceiptIndex == null
+      ? [...receiptItems, current]
+      : receiptItems.map((item, index) => index === editingReceiptIndex ? current : item);
+  }
+  pendingItems = pendingItems.filter((item) => (item.classification ?? "normal") === "normal");
+  const pendingByCategory = new Map<string, number>();
+  if (type === "expense") {
+    if (entryMode === "receipt_exclusive") {
+      const bases = new Map<string, number>();
+      pendingItems.forEach((item) => {
+        const key = `${item.category}\u0000${normalizeTaxRate(item.taxRate)}`;
+        bases.set(key, (bases.get(key) ?? 0) + item.amount);
+      });
+      bases.forEach((base, key) => {
+        const [pendingCategory, rate] = key.split("\u0000");
+        pendingByCategory.set(pendingCategory, (pendingByCategory.get(pendingCategory) ?? 0) + Math.floor(base * (1 + Number(rate) / 100)));
+      });
+    } else {
+      pendingItems.forEach((item) => pendingByCategory.set(item.category, (pendingByCategory.get(item.category) ?? 0) + item.amount));
+    }
+  }
+  const pendingTotal = type === "expense"
+    ? (entryMode === "receipt_exclusive" ? calcExternalGross(pendingItems).gross : pendingItems.reduce((sum, item) => sum + item.amount, 0))
+    : 0;
+  const categoryBudget = effectiveBudget[category];
+  const projectedCategoryActual = (actualCategoryMap[category] ?? 0) + (pendingByCategory.get(category) ?? 0);
+  const projectedTotalActual = actualTotal + pendingTotal;
+
+  const BudgetProgress = ({ kind, actual, budget }: { kind: "category" | "total"; actual: number; budget?: number }) => {
+    const rate = budget && budget > 0 ? (actual / budget) * 100 : null;
+    const isOver = rate != null && rate > 100;
+    return <div className={`input-budget-row is-${kind} ${isOver ? "is-over" : ""}`}>
+      <span className="input-budget-value"><strong>{actual.toLocaleString()}</strong>/{budget ? budget.toLocaleString() : "未設定"}</span>
+      {rate != null && <progress max={100} value={Math.min(rate, 100)} className={isOver ? "is-over" : ""} />}
+    </div>;
+  };
+
+  if (editingTransaction?.system?.kind === "card_payment") {
+    return (
+      <div className="input-form system-move-editor">
+        <h3>カード自動引落を編集</h3>
+        <p>{editingTransaction.name} · {editingTransaction.amount.toLocaleString()}円</p>
+        <label>引落日<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
+        <label>引落元
+          <select value={sourceMove} onChange={(event) => setSourceMove(event.target.value)}>
+            {nonCardAccountNames.map((account) => <option key={account} value={account}>{account}</option>)}
+          </select>
+        </label>
+        <div className="form-buttons receipt-buttons">
+          <button type="button" onClick={() => { onUpdateTransaction({ ...editingTransaction, date, source: sourceMove, system: { ...editingTransaction.system!, manualDate: date !== editingTransaction.date || editingTransaction.system?.manualDate, manualSource: sourceMove !== editingTransaction.source || editingTransaction.system?.manualSource } }); setEditingTransaction(null); }}>更新</button>
+          <button type="button" onClick={() => setEditingTransaction(null)}>キャンセル</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (editingTransaction?.system?.kind === "monthly_adjustment") {
+    return <div className="input-form system-move-editor"><h3>月末残高の自動調整</h3><p>{editingTransaction.date} · {editingTransaction.source} · {editingTransaction.amount.toLocaleString()}円</p><p className="muted">この記録は月末残高の再確認によってのみ再計算できます。</p><div className="form-buttons receipt-buttons"><button type="button" onClick={() => setEditingTransaction(null)}>閉じる</button></div></div>;
+  }
+
+  if (editingTransaction?.system?.kind === "investment_profit") {
+    const sign = editingTransaction.type === "expense" ? "−" : "+";
+    return <div className="input-form system-move-editor"><h3>投資損益</h3><p>{editingTransaction.date} · {sign}{editingTransaction.amount.toLocaleString()}円</p><p className="muted">{editingTransaction.memo}。カレンダー表示専用の明細で、残高や収支には重ねて加算されません。</p><div className="form-buttons receipt-buttons"><Link to={`/graphs?tab=invest&month=${editingTransaction.system.key}`} onClick={() => setEditingTransaction(null)}>投資グラフを開く</Link><button type="button" onClick={() => setEditingTransaction(null)}>閉じる</button></div></div>;
+  }
+
   const tabIndex = type === "expense" ? 0 : type === "income" ? 1 : 2;
 
   return (
-    <div className="input-form">
-      <div className="tab-group" style={{ "--tab-index": tabIndex } as React.CSSProperties}>
+    <div className={`input-form type-${type}`}>
+      {!editingTransaction && !activeGroupId && (
+        <details className="draft-controls">
+          <summary aria-label="下書き">•••</summary>
+          <div className="draft-controls-panel">
+            <label>
+              下書きを選択
+              <select value={activeDraftId} onChange={(event) => {
+                const selected = savedDrafts.find((draft) => draft.id === event.target.value);
+                if (selected) applySavedDraft(selected);
+              }}>
+                {!savedDrafts.some((draft) => draft.id === activeDraftId) && <option value={activeDraftId}>新規</option>}
+                {savedDrafts
+                  .filter((draft) => draft.scope === draftScope)
+                  .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+                  .map((draft) => (
+                    <option key={draft.id} value={draft.id}>
+                      {draft.date}・{draft.type === "expense" ? "Out" : draft.type === "income" ? "In" : "Move"}・{draft.name || draft.memo || "入力途中"}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <button type="button" onClick={() => startEmptyDraft(type)}>新規</button>
+            <button type="button" onClick={() => discardActiveDraft(true)}>破棄</button>
+          </div>
+        </details>
+      )}
+      <div
+        ref={tabDrag.ref}
+        className={`tab-group ${tabDrag.isDragging ? "is-dragging" : ""}`}
+        style={{ "--tab-index": tabIndex } as React.CSSProperties}
+        {...tabDrag.handlers}
+      >
         <button className={type === "expense" ? "active" : ""} onClick={() => handleTabClick("expense")} type="button">
           Out
         </button>
@@ -639,6 +1260,17 @@ export const InputForm: React.FC<InputFormProps> = ({
         </button>
       </div>
 
+      {type !== "move" && (
+        <label className="classification-control">
+          <span className="visually-hidden">集計区分</span>
+          <select value={classification} onChange={(event) => setClassification(event.target.value as TransactionClassification)}>
+            <option value="normal">通常</option>
+            <option value="settled">通算</option>
+            <option value="special">特別</option>
+          </select>
+        </label>
+      )}
+
       <form onSubmit={handleSubmit}>
         <div className="row-2">
           <input
@@ -648,33 +1280,86 @@ export const InputForm: React.FC<InputFormProps> = ({
             placeholder="摘要"
             required={type !== "move"}
           />
-          <input
-            type="number"
-            min="1"
-            step={type === "expense" ? "1" : "any"}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="金額"
-            required
-          />
+          <div className={`calculator-input-shell${calculatorTarget === "amount" && usesCustomKeypad ? " is-active" : ""}`}>
+            <input
+              ref={amountInputRef}
+              data-calculator-target="amount"
+              type="text"
+              inputMode="none"
+              autoComplete="off"
+              readOnly={usesCustomKeypad}
+              value={displayedNumericValue("amount", amount)}
+              onChange={(e) => updateNumericValue("amount", e.target.value)}
+              onPointerDown={() => activateCalculator("amount")}
+              onPointerUp={(event) => {
+                const input = event.currentTarget;
+                window.requestAnimationFrame(() => syncCalculatorCursor("amount", input));
+              }}
+              onFocus={() => activateCalculator("amount")}
+              onBlur={() => { if (!usesCustomKeypad) deactivateCalculator("amount"); }}
+              placeholder="金額"
+              required
+            />
+            {calculatorTarget === "amount" && usesCustomKeypad && (
+              <b className="calculator-caret-position" aria-hidden="true">
+                <i className="calculator-caret" />
+                <em>{calculatorCaretSuffix("amount", amount)}</em>
+              </b>
+            )}
+          </div>
         </div>
+        {type === "move" && (
+          <div className="move-fee-row">
+            <div className={`calculator-input-shell${calculatorTarget === "moveFee" && usesCustomKeypad ? " is-active" : ""}`}>
+              <input ref={moveFeeInputRef} data-calculator-target="moveFee" type="text" inputMode="none" autoComplete="off" readOnly={usesCustomKeypad} value={displayedNumericValue("moveFee", moveFee)} onChange={(event) => updateNumericValue("moveFee", event.target.value)} onPointerDown={() => activateCalculator("moveFee")} onPointerUp={(event) => { const input = event.currentTarget; window.requestAnimationFrame(() => syncCalculatorCursor("moveFee", input)); }} onFocus={() => activateCalculator("moveFee")} onBlur={() => { if (!usesCustomKeypad) deactivateCalculator("moveFee"); }} placeholder="手数料等" aria-label="手数料等" />
+              {calculatorTarget === "moveFee" && usesCustomKeypad && (
+                <b className="calculator-caret-position" aria-hidden="true">
+                  <i className="calculator-caret" />
+                  <em>{calculatorCaretSuffix("moveFee", moveFee)}</em>
+                </b>
+              )}
+            </div>
+          </div>
+        )}
         <DateWheelPicker value={date} onChange={setDate} />
 
-        {/* 外税トグル + 税率（支出のみ） */}
+        {/* 入力単位 + 外税時の税率（支出のみ） */}
         {type === "expense" && (
           <div className="tax-controls" aria-label="消費税設定">
-            <label className="tax-switch">
-              <input
-                type="checkbox"
-                checked={isExternalTax}
-                onChange={(e) => setIsExternalTax(e.target.checked)}
-              />
-              <span className="tax-switch-ui" aria-hidden="true" />
-              <span className="tax-switch-text">外税</span>
-            </label>
+            <div
+              ref={receiptModeDrag.ref}
+              className={`receipt-mode-control ${receiptModeDrag.isDragging ? "is-dragging" : ""}`}
+              role="radiogroup"
+              aria-label="入力モード"
+              style={{ "--receipt-mode-index": entryMode === "receipt_exclusive" ? 0 : entryMode === "receipt_inclusive" ? 1 : 2 } as React.CSSProperties}
+              {...receiptModeDrag.handlers}
+            >
+              {([
+                ["receipt_exclusive", "一括外税"],
+                ["receipt_inclusive", "一括内税"],
+                ["individual", "個別"],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={entryMode === value}
+                  className={entryMode === value ? "active" : ""}
+                  disabled={Boolean(activeGroupId || editingTransaction?.groupId || receiptItems.length > 0)}
+                  onClick={() => { setEntryMode(value); setIsExternalTax(value === "receipt_exclusive"); }}
+                >{label}</button>
+              ))}
+            </div>
 
             {isExternalTax && (
-              <div className="tax-rate-group" role="radiogroup" aria-label="税率">
+              <div
+                ref={taxRateDrag.ref}
+                className={`tax-rate-group ${taxRateDrag.isDragging ? "is-dragging" : ""}`}
+                role="radiogroup"
+                aria-label="税率"
+                style={{ "--tax-rate-index": taxRate === 0 ? 0 : taxRate === 8 ? 1 : 2 } as React.CSSProperties}
+                {...taxRateDrag.handlers}
+              >
                 <button
                   type="button"
                   role="radio"
@@ -707,23 +1392,32 @@ export const InputForm: React.FC<InputFormProps> = ({
           </div>
         )}
 
+        {type === "expense" && (
+          <div className="input-budget-progress" aria-label="予算進捗">
+            <BudgetProgress kind="category" actual={projectedCategoryActual} budget={categoryBudget} />
+            <BudgetProgress kind="total" actual={projectedTotalActual} budget={totalBudget || undefined} />
+          </div>
+        )}
+
         {type === "move" && (
           <div className="move-fields">
             <div className="kv-row picker-anchor">
-              <div className="kv-label">移動元</div>
-
               <button
                 type="button"
                 className="kv-value-btn"
                 onClick={() => setOpenMovePicker((v) => (v === "sourceMove" ? null : "sourceMove"))}
+                aria-haspopup="dialog"
+                aria-expanded={openMovePicker === "sourceMove"}
               >
-                {sourceMove}
+                <span className="kv-label">移動元</span>
+                <span className="kv-value-text">{sourceMove}</span>
               </button>
 
               {openMovePicker === "sourceMove" && (
                 <WheelPickerInline
-                  options={sourceOptions}
+                  options={activeAccountNames}
                   value={sourceMove}
+                  title="移動元"
                   onChange={(v) => setSourceMove(v)}
                   onClose={() => setOpenMovePicker(null)}
                 />
@@ -731,20 +1425,22 @@ export const InputForm: React.FC<InputFormProps> = ({
             </div>
 
             <div className="kv-row-under picker-anchor">
-              <div className="kv-label">移動先</div>
-
               <button
                 type="button"
                 className="kv-value-btn"
                 onClick={() => setOpenMovePicker((v) => (v === "destination" ? null : "destination"))}
+                aria-haspopup="dialog"
+                aria-expanded={openMovePicker === "destination"}
               >
-                {destination}
+                <span className="kv-label">移動先</span>
+                <span className="kv-value-text">{destination}</span>
               </button>
 
               {openMovePicker === "destination" && (
                 <WheelPickerInline
-                  options={sourceOptions}
+                  options={nonCardAccountNames}
                   value={destination}
+                  title="移動先"
                   onChange={(v) => setDestination(v)}
                   onClose={() => setOpenMovePicker(null)}
                 />
@@ -773,20 +1469,21 @@ export const InputForm: React.FC<InputFormProps> = ({
             </div>
 
             <div className="kv-row picker-anchor">
-              <div className="kv-label">{type === "income" ? "入金先" : "拠出元"}</div>
-
               <button
                 type="button"
                 className="kv-value-btn"
                 onClick={() => setIsSourcePickerOpen((v) => !v)}
                 aria-expanded={isSourcePickerOpen}
+                aria-haspopup="dialog"
               >
-                {source}
+                <span className="kv-label">{type === "income" ? "入金先" : "拠出元"}</span>
+                <span className="kv-value-text">{source}</span>
               </button>
 
               {isSourcePickerOpen && (
                 <WheelPickerInline
                   options={sourceOptions}
+                  title={type === "income" ? "入金先" : "拠出元"}
                   value={source}
                   onChange={(v) => setSource(v)}
                   onClose={() => setIsSourcePickerOpen(false)}
@@ -796,51 +1493,66 @@ export const InputForm: React.FC<InputFormProps> = ({
           </div>
         )}
 
-        <input type="text" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Memo" />
+        <details className="memo-control" open={Boolean(memo)}>
+          <summary>メモ（任意）</summary>
+          <input type="text" value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="Memo" />
+        </details>
 
         <div className="form-buttons receipt-buttons">
-          <button type="button" onClick={commitAll}>
+          <button className="primary-action" type="button" onClick={commitAll}>
             {editingTransaction ? "更新" : "登録"}
           </button>
 
-          {!editingTransaction && type === "expense" && (
-            <button type="submit">{editingReceiptIndex != null ? "更新" : "追加"}</button>
+          {!editingTransaction && type === "expense" && entryMode !== "individual" && (
+            <button className="add-action" type="submit">{editingReceiptIndex != null ? "更新" : "追加"}</button>
           )}
 
-          {editingTransaction && (
-            <button
-              type="button"
-              onClick={() => {
-                const ok = window.confirm("この項目を削除しますか？");
-                if (!ok) return;
-                onDeleteTransaction(editingTransaction.id);
-                setEditingTransaction(null);
-                resetForm(type, { keepDate: true });
-              }}
-            >
-              削除
-            </button>
-          )}
-
-          {editingTransaction && (
-            <button
-              type="button"
-              onClick={() => {
-                setEditingTransaction(null);
-                setReceiptItems([]);
-                setEditingReceiptIndex(null);
-                setActiveGroupId(null);
-                setActiveGroupDate(null);
-                resetForm(type, { dateValue: selectedDate });
-              }}
-            >
-              キャンセル
-            </button>
+          {(editingTransaction || (!editingTransaction && activeGroupId && committedGroupItems.length > 0)) && (
+            <details className="input-secondary-actions">
+              <summary aria-label="その他の操作">•••</summary>
+              <div>
+                {editingTransaction && <button type="button" disabled={Boolean(editingTransaction.system)} onClick={copyEditingRecord}>コピー</button>}
+                {!editingTransaction && activeGroupId && committedGroupItems.length > 0 && (
+                  <button type="button" onClick={() => {
+                    if (!onDeleteReceipt(activeGroupId)) return;
+                    setActiveGroupId(null);
+                    setActiveGroupDate(null);
+                    resetForm(type, { dateValue: selectedDate });
+                  }}>レシート全体を削除</button>
+                )}
+                {editingTransaction && (
+                  <button type="button" onClick={() => {
+                    onDeleteTransaction(editingTransaction.id);
+                    setEditingTransaction(null);
+                    resetForm(type, { keepDate: true });
+                  }}>削除</button>
+                )}
+                {editingTransaction?.groupId && (
+                  <button type="button" onClick={() => {
+                    if (!onDeleteReceipt(editingTransaction.groupId!)) return;
+                    setEditingTransaction(null);
+                    setActiveGroupId(null);
+                    setActiveGroupDate(null);
+                    resetForm(type, { keepDate: true });
+                  }}>レシート全体を削除</button>
+                )}
+                {editingTransaction && (
+                  <button type="button" onClick={() => {
+                    setEditingTransaction(null);
+                    setReceiptItems([]);
+                    setEditingReceiptIndex(null);
+                    setActiveGroupId(null);
+                    setActiveGroupDate(null);
+                    resetForm(type, { dateValue: selectedDate });
+                  }}>キャンセル</button>
+                )}
+              </div>
+            </details>
           )}
         </div>
 
         <div className="form-buttons">
-          <div className="history-list receipt-queue">
+          <div className="receipt-queue">
             {(receiptItems.length > 0 || showCommittedGroup) && (
               <>
             {showTotalBar && (
@@ -851,38 +1563,78 @@ export const InputForm: React.FC<InputFormProps> = ({
                 <span>{displayTotal.toLocaleString()}円</span>
               </div>
             )}
+            {receiptItems.length > 0 && <div className="date-header receipt-draft-header">仮登録</div>}
+
+            <div
+              ref={receiptQueueRef}
+              className="history-list receipt-items-scroll"
+              onScroll={() => {
+                if (openReceiptIndex == null || draggingReceiptIndex != null) return;
+                setReceiptSwipeX((current) => ({ ...current, [openReceiptIndex]: 0 }));
+                setOpenReceiptIndex(null);
+              }}
+            >
 
             {/* 仮登録 */}
             {receiptItems.length > 0 && (
               <>
-                <div className="date-header">仮登録</div>
-                {receiptItems.map((t, idx) => {
+                {receiptItems.map((t, idx) => ({ item: t, originalIndex: idx })).reverse().map(({ item: t, originalIndex: idx }) => {
                   const displayAmount = getReceiptDisplayAmount(t);
+                  const swipeWidth = Math.abs(receiptSwipeX[idx] ?? 0);
+                  const isFullSwipe = swipeWidth >= (receiptQueueRef.current?.clientWidth ?? 393) * FULL_RECEIPT_SWIPE_RATIO;
                   return (
                     <div
                       key={`draft-${idx}`}
-                      className={`transaction-item type-${t.type} receipt-row ${editingReceiptIndex === idx ? "is-editing" : ""}`}
-                      onClick={() => loadDraftToForm(t, idx)}
+                      className={`receipt-swipe-row ${draggingReceiptIndex === idx ? "is-dragging" : ""} ${openReceiptIndex === idx ? "is-open" : ""} ${swipeWidth > 0 ? "has-swipe" : ""} ${isFullSwipe ? "is-full-swipe" : ""}`}
+                      style={{
+                        "--receipt-swipe-offset": `${receiptSwipeX[idx] ?? 0}px`,
+                        "--receipt-swipe-width": `${swipeWidth}px`,
+                        "--receipt-swipe-half-width": `${swipeWidth / 2}px`,
+                        "--receipt-delete-label-scale": Math.max(0.18, Math.min(1, swipeWidth / 48)),
+                      } as React.CSSProperties}
                     >
-                      <div className="row-layout">
-                        {renderRowContent(t)}
-                        <div className={`amt ${String(displayAmount).length >= 7 ? "amt-small" : ""}`}>
-                          {renderTaxBadge(t)}
-                          {displayAmount.toLocaleString()}円
+                      <button
+                        type="button"
+                        className="receipt-swipe-delete-action"
+                        aria-label="削除"
+                        aria-hidden={openReceiptIndex !== idx}
+                        tabIndex={openReceiptIndex === idx ? 0 : -1}
+                        onPointerDown={(event) => handleReceiptSwipeStart(event, idx)}
+                        onPointerMove={handleReceiptSwipeMove}
+                        onPointerUp={(event) => finishReceiptSwipe(event)}
+                        onPointerCancel={(event) => finishReceiptSwipe(event, true)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (suppressReceiptClick.current) return;
+                          deleteReceiptItem(idx);
+                          setOpenReceiptIndex(null);
+                          setReceiptSwipeX({});
+                        }}
+                      ><span className="receipt-swipe-delete-label" aria-hidden="true">削除</span></button>
+                      <div
+                        className={`transaction-item type-${t.type} receipt-row receipt-swipe-front ${editingReceiptIndex === idx ? "is-editing" : ""}`}
+                        onPointerDown={(event) => handleReceiptSwipeStart(event, idx)}
+                        onPointerMove={handleReceiptSwipeMove}
+                        onPointerUp={(event) => finishReceiptSwipe(event)}
+                        onPointerCancel={(event) => finishReceiptSwipe(event, true)}
+                        onClick={() => {
+                          if (suppressReceiptClick.current) return;
+                          if (openReceiptIndex === idx) {
+                            setReceiptSwipeX((current) => ({ ...current, [idx]: 0 }));
+                            setOpenReceiptIndex(null);
+                            return;
+                          }
+                          loadDraftToForm(t, idx);
+                        }}
+                      >
+                        <div className="row-layout">
+                          {renderRowContent(t)}
+                          <div className="amt" style={receiptAmountStyle(displayAmount)}>
+                            {renderTaxBadge(t)}
+                            <span className="receipt-amount-value">{displayAmount.toLocaleString()}円</span>
+                          </div>
+                          <span aria-hidden="true" />
                         </div>
-
-                        {/* 4列目（auto）に削除ボタン */}
-                        <button
-                          type="button"
-                          className="receipt-del-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteReceiptItem(idx);
-                          }}
-                          aria-label="delete"
-                        >
-                          ✕
-                        </button>
                       </div>
                     </div>
                   );
@@ -909,8 +1661,8 @@ export const InputForm: React.FC<InputFormProps> = ({
                     >
                       <div className="row-layout">
                         {renderRowContent(t)}
-                        <div className={`amt ${String(displayAmount).length >= 7 ? "amt-small" : ""}`}>
-                          {displayAmount.toLocaleString()}円
+                        <div className="amt" style={receiptAmountStyle(displayAmount)}>
+                          <span className="receipt-amount-value">{displayAmount.toLocaleString()}円</span>
                         </div>
                         {/* 登録済み側は削除ボタン無し（必要なら付ける） */}
                         <span />
@@ -922,11 +1674,42 @@ export const InputForm: React.FC<InputFormProps> = ({
             )}
             </>
             )}
+            </div>
             </>
             )}
           </div>
         </div>
       </form>
+      {calculatorTarget && usesCustomKeypad && (
+        <div
+          ref={numericKeypadRef}
+          className="numeric-keypad"
+          role="group"
+          aria-label="金額入力テンキー"
+        >
+          {(["1", "2", "3", "+", "4", "5", "6", "-", "7", "8", "9", "×", "00", "0", "delete", "="] as const).map((key) => (
+            <button
+              key={key}
+              type="button"
+              tabIndex={-1}
+              className={`numeric-keypad-key key-${key} ${calculatorOperator === key ? "is-pending" : ""}`}
+              aria-label={key === "+" ? "足す" : key === "-" ? "引く" : key === "×" ? "掛ける" : key === "=" ? "計算する" : key === "delete" ? "一文字削除" : key}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                if (/^\d+$/.test(key)) appendCalculatorDigits(key);
+                else if (key === "delete") deleteCalculatorDigit();
+                else runCalculatorKey(key as CalculatorOperator | "=");
+              }}
+              onClick={(event) => {
+                if (event.detail !== 0) return;
+                if (/^\d+$/.test(key)) appendCalculatorDigits(key);
+                else if (key === "delete") deleteCalculatorDigit();
+                else runCalculatorKey(key as CalculatorOperator | "=");
+              }}
+            >{key === "-" ? "−" : key === "delete" ? "⌫" : key}</button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

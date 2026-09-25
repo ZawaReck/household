@@ -1,0 +1,34 @@
+export type AccountKind = "cash" | "bank" | "electronic_money" | "investment" | "credit_card";
+
+export type CreditCardSettings = {
+  limit: number;
+  closingDay: number;
+  paymentDay: number;
+  paymentDelayMonths: number;
+  defaultPaymentAccountId?: string;
+};
+
+export type Account = {
+  id: string;
+  name: string;
+  kind: AccountKind;
+  openingBalance: number;
+  /** 投資口座のみ。運用開始日時点の評価損益。 */
+  initialProfit?: number;
+  /** 投資口座のみ。運用開始日以前を含む累計入金額。 */
+  initialDeposits?: number;
+  /** 投資口座のみ。運用開始日以前を含む累計出金額。 */
+  initialWithdrawals?: number;
+  openingDate: string;
+  isActive: boolean;
+  /** 入力画面の口座選択に使う表示順。小さいほど前。 */
+  inputOrder?: number;
+  /** 無効化した日。過去時点の資産表示で使用する。 */
+  disabledAt?: string;
+  creditCard?: CreditCardSettings;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const isCreditCard = (account: Account) => account.kind === "credit_card";
+export const isInvestmentAccount = (account: Account) => account.kind === "investment";

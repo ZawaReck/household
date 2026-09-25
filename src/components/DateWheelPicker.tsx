@@ -1,7 +1,8 @@
 /* src/components/DateWheelPicker.tsx */
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./DateWheelPicker.css";
+import { PickerPanel, SelectionWheel } from "./PickerPanel";
 import {
   clampDay,
   daysInMonth,
@@ -21,180 +22,6 @@ type Props = {
   className?: string;
 };
 
-const ITEM_H = 40;
-const VISIBLE = 5;
-const PAD_ITEMS = Math.floor(VISIBLE / 2);
-
-const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
-
-type ColumnProps = {
-  label: string;
-  items: number[];
-  selectedIndex: number;
-  onSelectIndex: (index: number) => void;
-  disabled?: boolean;
-  formatItem?: (item: number) => string;
-  loop?: boolean;
-};
-
-const WheelColumn: React.FC<ColumnProps> = ({
-  label,
-  items,
-  selectedIndex,
-  onSelectIndex,
-  disabled,
-  formatItem,
-  loop,
-}) => {
-  const listRef = useRef<HTMLDivElement | null>(null);
-  const ignoreScrollRef = useRef(false);
-  const settleTimerRef = useRef<number | null>(null);
-  const isLooped = loop && items.length > 0;
-  const baseOffset = isLooped ? items.length : 0;
-  const totalItems = isLooped ? items.length * 3 : items.length;
-  const [tempIndex, setTempIndex] = useState(baseOffset + selectedIndex);
-
-  const scrollToIndex = (index: number, behavior: ScrollBehavior) => {
-    const el = listRef.current;
-    if (!el) return;
-    el.scrollTo({ top: index * ITEM_H, behavior });
-  };
-
-  const wrapIndex = (index: number, length: number) => {
-    const mod = index % length;
-    return mod < 0 ? mod + length : mod;
-  };
-
-  const toLogicalIndex = (rawIndex: number) => {
-    if (!isLooped) return clamp(rawIndex, 0, items.length - 1);
-    return wrapIndex(rawIndex, items.length);
-  };
-
-  useEffect(() => {
-    const nextIndex = baseOffset + selectedIndex;
-    setTempIndex(nextIndex);
-    const el = listRef.current;
-    if (!el) return;
-    ignoreScrollRef.current = true;
-    scrollToIndex(nextIndex, "auto");
-    requestAnimationFrame(() => {
-      ignoreScrollRef.current = false;
-    });
-  }, [selectedIndex, baseOffset, totalItems]);
-
-  useEffect(() => {
-    return () => {
-      if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
-    };
-  }, []);
-
-  const commitIndex = (rawIndex: number) => {
-    const logicalIndex = toLogicalIndex(rawIndex);
-    onSelectIndex(logicalIndex);
-    const nextRawIndex = isLooped ? baseOffset + logicalIndex : logicalIndex;
-    ignoreScrollRef.current = true;
-    scrollToIndex(nextRawIndex, "auto");
-    setTempIndex(nextRawIndex);
-    requestAnimationFrame(() => {
-      ignoreScrollRef.current = false;
-    });
-  };
-
-  const handleScroll = () => {
-    if (disabled || ignoreScrollRef.current) return;
-    const el = listRef.current;
-    if (!el) return;
-    let raw = Math.round(el.scrollTop / ITEM_H);
-    if (isLooped && items.length > 0) {
-      if (raw < items.length) {
-        ignoreScrollRef.current = true;
-        raw += items.length;
-        el.scrollTop = raw * ITEM_H;
-        requestAnimationFrame(() => {
-          ignoreScrollRef.current = false;
-        });
-      } else if (raw >= items.length * 2) {
-        ignoreScrollRef.current = true;
-        raw -= items.length;
-        el.scrollTop = raw * ITEM_H;
-        requestAnimationFrame(() => {
-          ignoreScrollRef.current = false;
-        });
-      }
-    }
-    const next = isLooped ? clamp(raw, 0, totalItems - 1) : clamp(raw, 0, items.length - 1);
-    setTempIndex(next);
-    if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
-    settleTimerRef.current = window.setTimeout(() => {
-      commitIndex(next);
-    }, 120);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (disabled) return;
-    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
-    e.preventDefault();
-    const delta = e.key === "ArrowUp" ? -1 : 1;
-    if (isLooped) {
-      const logicalNext = wrapIndex(toLogicalIndex(tempIndex) + delta, items.length);
-      const nextRawIndex = baseOffset + logicalNext;
-      setTempIndex(nextRawIndex);
-      scrollToIndex(nextRawIndex, "smooth");
-      if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
-      settleTimerRef.current = window.setTimeout(() => {
-        commitIndex(nextRawIndex);
-      }, 120);
-      return;
-    }
-    const next = clamp(tempIndex + delta, 0, items.length - 1);
-    setTempIndex(next);
-    scrollToIndex(next, "smooth");
-    if (settleTimerRef.current) window.clearTimeout(settleTimerRef.current);
-    settleTimerRef.current = window.setTimeout(() => {
-      commitIndex(next);
-    }, 120);
-  };
-
-  const displayItems = isLooped ? [...items, ...items, ...items] : items;
-
-  return (
-    <div className="date-wheel-column">
-      <div
-        ref={listRef}
-        className="date-wheel-list"
-        role="listbox"
-        aria-label={label}
-        aria-disabled={disabled ? "true" : "false"}
-        tabIndex={disabled ? -1 : 0}
-        onScroll={handleScroll}
-        onKeyDown={handleKeyDown}
-      >
-        {Array.from({ length: PAD_ITEMS }).map((_, i) => (
-          <div key={`pad-top-${label}-${i}`} className="date-wheel-item pad" style={{ height: ITEM_H }} />
-        ))}
-        {displayItems.map((item, index) => (
-          <div
-            key={`${label}-${item}-${index}`}
-            className={`date-wheel-item ${index === tempIndex ? "is-selected" : ""}`}
-            style={{ height: ITEM_H }}
-            role="option"
-            aria-selected={index === tempIndex}
-            onClick={() => {
-              if (disabled) return;
-              scrollToIndex(index, "smooth");
-            }}
-          >
-            {formatItem ? formatItem(item) : item}
-          </div>
-        ))}
-        {Array.from({ length: PAD_ITEMS }).map((_, i) => (
-          <div key={`pad-bot-${label}-${i}`} className="date-wheel-item pad" style={{ height: ITEM_H }} />
-        ))}
-      </div>
-    </div>
-  );
-};
-
 export const DateWheelPicker: React.FC<Props> = ({
   value,
   defaultValue,
@@ -204,12 +31,12 @@ export const DateWheelPicker: React.FC<Props> = ({
   disabled,
   className,
 }) => {
-  const rootRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const today = useMemo(() => getTodayParts(), []);
   const yearRange = resolveYearRange(minYear, maxYear, today.year);
-  const safeFrom = (raw?: string) =>
-    toSafeDateParts(raw, yearRange.minYear, yearRange.maxYear);
+  const safeFrom = useCallback((raw?: string) =>
+    toSafeDateParts(raw, yearRange.minYear, yearRange.maxYear),
+  [yearRange.minYear, yearRange.maxYear]);
 
   const isControlled = value !== undefined;
   const [internal, setInternal] = useState(() => safeFrom(value ?? defaultValue));
@@ -218,7 +45,7 @@ export const DateWheelPicker: React.FC<Props> = ({
     if (!isControlled) return;
     const next = safeFrom(value);
     setInternal(next);
-  }, [isControlled, value, yearRange.minYear, yearRange.maxYear]);
+  }, [isControlled, safeFrom, value]);
 
   useEffect(() => {
     if (isControlled) return;
@@ -228,7 +55,7 @@ export const DateWheelPicker: React.FC<Props> = ({
       next.month !== internal.month ||
       next.day !== internal.day;
     if (changed) setInternal(next);
-  }, [isControlled, yearRange.minYear, yearRange.maxYear]);
+  }, [internal, isControlled, safeFrom]);
 
   const parts = isControlled ? safeFrom(value) : internal;
   const pad2 = (num: number) => String(num).padStart(2, "0");
@@ -275,28 +102,9 @@ export const DateWheelPicker: React.FC<Props> = ({
     className ? ` ${className}` : ""
   }`;
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const onPointerDown = (e: PointerEvent) => {
-      const root = rootRef.current;
-      if (!root) return;
-      if (!root.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [isOpen]);
 
   return (
-    <div ref={rootRef} className={rootClass} aria-disabled={disabled ? "true" : "false"}>
+    <div className={rootClass} aria-disabled={disabled ? "true" : "false"}>
       <button
         type="button"
         className="date-wheel-trigger"
@@ -313,42 +121,17 @@ export const DateWheelPicker: React.FC<Props> = ({
       </button>
 
       {isOpen && (
-        <div
-          className="date-wheel-popover"
-          role="dialog"
-          aria-label="日付選択"
-          onWheel={(e) => e.stopPropagation()}
-          onTouchMove={(e) => e.stopPropagation()}
-        >
-          <div className="date-wheel-body" style={{ height: ITEM_H * VISIBLE }}>
-            <div className="date-wheel-highlight" style={{ height: ITEM_H }} />
-            <WheelColumn
-              label="年"
-              items={years}
-              selectedIndex={parts.year - yearRange.minYear}
-              onSelectIndex={handleYearSelect}
-              disabled={disabled}
-            />
-            <WheelColumn
-              label="月"
-              items={months}
-              selectedIndex={parts.month - 1}
-              onSelectIndex={handleMonthSelect}
-              disabled={disabled}
-              formatItem={pad2}
-              loop
-            />
-            <WheelColumn
-              label="日"
-              items={days}
-              selectedIndex={parts.day - 1}
-              onSelectIndex={handleDaySelect}
-              disabled={disabled}
-              formatItem={pad2}
-              loop
-            />
+        <PickerPanel title="日付選択" onClose={() => setIsOpen(false)}
+          action={<button type="button" onClick={() => emitChange(safeFrom(formatISODate(getTodayParts())))}>今日</button>}>
+          <div className="selection-wheel-columns">
+            <SelectionWheel label="年" options={years.map((year) => `${year}年`)}
+              selectedIndex={parts.year - yearRange.minYear} onSelect={handleYearSelect} />
+            <SelectionWheel label="月" options={months.map((month) => `${month}月`)}
+              selectedIndex={parts.month - 1} onSelect={handleMonthSelect} />
+            <SelectionWheel label="日" options={days.map((day) => `${day}日`)}
+              selectedIndex={parts.day - 1} onSelect={handleDaySelect} />
           </div>
-        </div>
+        </PickerPanel>
       )}
     </div>
   );

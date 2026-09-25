@@ -4,6 +4,42 @@ html, body, #root {
   height: 100%;
   width: 100%;
   margin: 0;
+  overscroll-behavior-x: none;
+}
+
+:root {
+  --app-background-color: #f9fffb;
+  --pwa-top-clearance: 0px;
+  --pwa-top-shield-height: 0px;
+}
+
+.pwa-top-shield {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  html[data-standalone-pwa="true"] {
+    --pwa-top-clearance: 0px;
+    --pwa-top-shield-height: 43px;
+  }
+
+  html[data-standalone-pwa="true"] .pwa-top-shield {
+    display: block;
+    position: fixed;
+    z-index: 30;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: var(--pwa-top-shield-height);
+    background-color: var(--app-background-color);
+    opacity: 1;
+    transform: translateZ(0);
+    contain: paint;
+    isolation: isolate;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    pointer-events: none;
+  }
 }
 
 :root {
@@ -36,8 +72,58 @@ body {
   min-width: 320px;
   min-height: 100vh;
   overflow-x: hidden;   /* 横スクロールは基本殺す */
+  touch-action: pan-y pinch-zoom;
   /* overflow-y: hidden;   縦スクロール設定 */
 }
+
+.app-container {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.app-container input,
+.app-container textarea,
+.app-container [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+html[data-app-page="input"],
+html[data-app-page="input"] body,
+html[data-app-page="input"] #root,
+html[data-app-page="input"] .app-container {
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html[data-app-page="input"] main {
+  box-sizing: border-box;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+html[data-input-sheet-open="true"] {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.auth-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  padding: 24px;
+  color: #245e2d;
+  background: #f9fffb;
+}
+
+.sync-status { position: fixed; z-index: 60; top: 8px; right: 10px; padding: 4px 8px; border-radius: 999px; font-size: 11px; color: #fff; background: #66736a; }
+.sync-synced { background: #2f7d42; }
+.sync-error { background: #b23a3a; }
 
 h1 {
   font-size: 3.2em;
@@ -66,7 +152,7 @@ button:focus-visible {
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
-    background-color: #ffffff;
+    background-color: var(--app-background-color);
   }
   /* a:hover {
     color: #747bff;
@@ -89,4 +175,3 @@ select:focus:not(:focus-visible) {
   outline: none;
   box-shadow: none;
 }
-

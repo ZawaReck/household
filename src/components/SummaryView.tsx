@@ -2,23 +2,24 @@
 
 import React from "react";
 import type { Transaction } from '../types/Transaction';
+import { isIncludedInRegularAnalytics } from "../utils/analytics";
 import './SummaryView.css';
 
 interface Props {
     monthlyData: Transaction[];
     openingBalance: number;
+    balance: number;
+    includeExcludedAnalytics: boolean;
 }
 
-export const SummaryView: React.FC<Props> = ({ monthlyData, openingBalance }) => {
+export const SummaryView: React.FC<Props> = ({ monthlyData, openingBalance, balance, includeExcludedAnalytics }) => {
     const income = monthlyData
-        .filter((transaction) => transaction.type === "income")
+        .filter((transaction) => transaction.type === "income" && isIncludedInRegularAnalytics(transaction, includeExcludedAnalytics))
         .reduce((sum, transaction) => sum + transaction.amount, 0);
     const expense = monthlyData
-        .filter((transaction) => transaction.type === "expense")
+        .filter((transaction) => transaction.type === "expense" && isIncludedInRegularAnalytics(transaction, includeExcludedAnalytics))
         .reduce((sum, transaction) => sum + transaction.amount, 0);
     const total = income - expense;
-    const balance = openingBalance + total;
-
     return (
         <div className="summary-container">
             <div className="summary-top">
@@ -37,11 +38,11 @@ export const SummaryView: React.FC<Props> = ({ monthlyData, openingBalance }) =>
             </div>
             <div className="summary-bottom">
                 <div className="summary-bottom-item opening">
-                    <span className="summary-label">Opening:</span>
+                    <span className="summary-label">繰越金:</span>
                     <strong className="summary-value">{openingBalance.toLocaleString()}円</strong>
                 </div>
                 <div className="summary-bottom-item balance">
-                    <span className="summary-label">Balance:</span>
+                    <span className="summary-label">残高:</span>
                     <strong className="summary-value">{balance.toLocaleString()}円</strong>
                 </div>
             </div>

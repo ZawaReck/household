@@ -39,6 +39,11 @@
   overflow-y: auto;
 }
 
+.input-sheet-toolbar,
+.input-sheet-backdrop {
+  display: none;
+}
+
 /* 最後の境界線を消す */
 .column:last-child {
   border-right: none;
@@ -49,12 +54,159 @@
   .dashboard-page-root {
     display: flex;
     flex-direction: column;
-    height: auto;
-    overflow: visible;
+    height: calc(100dvh - var(--pwa-top-clearance));
+    min-height: 0;
+    overflow: hidden;
   }
   .column {
     height: auto;
     border-right: none;
-    border-bottom: 1.5px solid #D7E3DB;
+    border-bottom: 0;
+  }
+
+  .calendar-section {
+    flex: 0 0 auto;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .calendar-section .scroll-content {
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .history-section {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .input-section {
+    position: fixed;
+    z-index: 61;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    height: 70.775dvh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    border: 0;
+    border-top: 2px solid #006428;
+    border-radius: 15px 15px 0 0;
+    background: #f9fffb;
+    box-shadow: none;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translate3d(0, calc(100% + 2px), 0);
+    transition:
+      transform 340ms cubic-bezier(.22, .75, .25, 1),
+      height 300ms cubic-bezier(.22, .75, .25, 1),
+      visibility 0s linear 340ms;
+    will-change: transform, height;
+    overscroll-behavior: contain;
+  }
+
+  .input-section.sheet-open {
+    visibility: visible;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0);
+    transition:
+      transform 340ms cubic-bezier(.22, .75, .25, 1),
+      height 300ms cubic-bezier(.22, .75, .25, 1),
+      visibility 0s;
+  }
+
+  .input-section.sheet-open.sheet-expanded {
+    height: calc(100dvh - 83px - var(--pwa-top-clearance));
+  }
+
+  .input-section.sheet-open.sheet-dragging {
+    height: var(--sheet-drag-height);
+    transition: none;
+  }
+
+  .input-section.sheet-open.sheet-expanded.keyboard-visible {
+    top: calc(var(--visual-viewport-offset, 0px) + var(--pwa-top-clearance));
+    bottom: auto;
+    height: calc(var(--visual-viewport-height, 100dvh) - var(--pwa-top-clearance));
+    transition: none;
+  }
+
+  .input-sheet-backdrop {
+    position: fixed;
+    z-index: 60;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .input-sheet-toolbar {
+    position: absolute;
+    z-index: 5;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    height: 20px;
+    background: transparent;
+    pointer-events: none;
+  }
+
+  .input-sheet-handle {
+    grid-column: 1 / -1;
+    width: 100%;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    touch-action: none;
+    pointer-events: auto;
+  }
+
+  .input-sheet-handle span {
+    display: block;
+    width: 110px;
+    height: 2px;
+    margin: auto;
+    border-radius: 0;
+    background: #006428;
+  }
+
+  .input-sheet-close {
+    display: none;
+  }
+
+  .input-section.sheet-open .sticky-input {
+    width: 100%;
+    min-height: 0;
+    padding: 0 0 max(14px, env(safe-area-inset-bottom));
+    overflow: visible;
+  }
+
+  .input-section.sheet-open .tab-group {
+    margin-top: 20px;
+  }
+
+  .input-section.sheet-open .classification-control {
+    top: 62px;
+  }
+
+  .input-section.sheet-open.sheet-expanded.keyboard-visible .receipt-buttons {
+    position: sticky;
+    z-index: 12;
+    bottom: 8px;
+    background: #f9fffb;
   }
 }

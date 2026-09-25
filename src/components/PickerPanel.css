@@ -1,0 +1,19 @@
+.selection-panel { position: fixed; z-index: 120; box-sizing: border-box; overflow: hidden; border: 1px solid #d5e5d9; border-radius: 18px; background: #f9fffb; color: #245e2d; box-shadow: 0 12px 36px rgb(12 49 26 / 18%); animation: selection-panel-enter 180ms cubic-bezier(.2,.7,.2,1); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.selection-panel-header { height: 48px; padding: 0 12px 0 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e3ece6; }
+.selection-panel-header strong { font-size: 14px; font-weight: 600; }
+.selection-panel-header > div { display: flex; gap: 2px; }
+.selection-panel-header button { min-width: 48px; min-height: 44px; border: 0; padding: 0 10px; background: transparent; color: #006428; font-size: 14px; font-weight: 600; }
+.selection-panel-header button:active { background: #e4f3e9; }
+.selection-wheel-columns { display: flex; padding: 4px 8px 8px; gap: 4px; }
+.selection-wheel-window { flex: 1; min-width: 0; height: 220px; position: relative; overflow: hidden; }
+.selection-wheel-band { position: absolute; top: 88px; height: 44px; inset-inline: 4px; border-radius: 9px; background: #e7f3eb; pointer-events: none; }
+.selection-wheel { position: relative; height: 100%; box-sizing: border-box; overflow-y: auto; padding-block: 88px; scroll-snap-type: y mandatory; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: none; -webkit-overflow-scrolling: touch; mask-image: linear-gradient(transparent, #000 25%, #000 75%, transparent); }
+.selection-wheel::-webkit-scrollbar { display: none; }
+.selection-wheel:focus-visible { outline: 2px solid #87b496; outline-offset: -3px; border-radius: 10px; }
+.selection-wheel-option { height: 44px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 0 8px; text-align: center; scroll-snap-align: center; font-size: 17px; line-height: 1.2; color: #718579; cursor: pointer; }
+.selection-wheel-option.is-selected { color: #14532a; font-weight: 600; }
+.selection-panel-empty { padding: 24px; text-align: center; font-size: 14px; }
+.kv-value-btn[aria-expanded="true"], .date-wheel-trigger[aria-expanded="true"] { background: #eaf5ee; }
+.kv-value-btn, .date-wheel-trigger { transition: background-color 150ms ease; }
+@keyframes selection-panel-enter { from { opacity: 0; transform: translateY(4px) scale(.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .selection-panel { animation: none; } }
