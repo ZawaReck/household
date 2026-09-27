@@ -1,0 +1,485 @@
+{
+  "version": 1,
+  "exportedAt": "2026-09-26T00:00:00.000Z",
+  "dataEpoch": "staging-seed-v1",
+  "data": {
+    "transactions": [
+      {
+        "id": "stg-tx-2026-07-income",
+        "type": "income",
+        "amount": 280000,
+        "date": "2026-07-25",
+        "name": "テスト給与（開始前）",
+        "category": "月収",
+        "source": "STG銀行",
+        "memo": "開始前残高の逆算確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "updatedAt": "2026-09-26T00:00:01.000Z"
+      },
+      {
+        "id": "stg-tx-2026-07-rent",
+        "type": "expense",
+        "amount": 70000,
+        "date": "2026-07-27",
+        "name": "テスト家賃（開始前）",
+        "category": "その他",
+        "source": "STG銀行",
+        "memo": "開始前残高の逆算確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "updatedAt": "2026-09-26T00:00:02.000Z"
+      },
+      {
+        "id": "stg-tx-2026-08-income",
+        "type": "income",
+        "amount": 300000,
+        "date": "2026-08-25",
+        "name": "テスト給与（開始前）",
+        "category": "月収",
+        "source": "STG銀行",
+        "memo": "開始前資産の単色グラフ確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "updatedAt": "2026-09-26T00:00:03.000Z"
+      },
+      {
+        "id": "stg-tx-2026-08-living",
+        "type": "expense",
+        "amount": 90000,
+        "date": "2026-08-28",
+        "name": "テスト生活費（開始前）",
+        "category": "食料品費",
+        "source": "STG銀行",
+        "memo": "開始前資産の単色グラフ確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "updatedAt": "2026-09-26T00:00:04.000Z"
+      },
+      {
+        "id": "stg-tx-2026-09-income-before",
+        "type": "income",
+        "amount": 300000,
+        "date": "2026-09-10",
+        "name": "テスト給与（基準日前）",
+        "category": "月収",
+        "source": "STG銀行",
+        "memo": "開始基準日前の履歴確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "updatedAt": "2026-09-26T00:00:05.000Z"
+      },
+      {
+        "id": "stg-tx-2026-09-expense-before",
+        "type": "expense",
+        "amount": 45000,
+        "date": "2026-09-15",
+        "name": "テスト生活費（基準日前）",
+        "category": "食料品費",
+        "source": "STG銀行",
+        "memo": "開始基準日前の履歴確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "updatedAt": "2026-09-26T00:00:06.000Z"
+      },
+      {
+        "id": "stg-tx-2026-09-opening-day",
+        "type": "expense",
+        "amount": 3000,
+        "date": "2026-09-23",
+        "name": "開始日当日のテスト支出",
+        "category": "雑貨費",
+        "source": "STG財布",
+        "memo": "開始残高へ反映しない境界確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "updatedAt": "2026-09-26T00:00:07.000Z"
+      },
+      {
+        "id": "stg-tx-2026-09-income-after",
+        "type": "income",
+        "amount": 300000,
+        "date": "2026-09-24",
+        "name": "テスト給与",
+        "category": "月収",
+        "source": "STG銀行",
+        "memo": "開始基準日後の残高連動確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "updatedAt": "2026-09-26T00:00:08.000Z"
+      },
+      {
+        "id": "stg-tx-2026-09-cash-move",
+        "type": "move",
+        "amount": 20000,
+        "date": "2026-09-24",
+        "name": "テスト現金補充",
+        "category": "move",
+        "source": "STG銀行",
+        "memo": "通常口座間Move確認用",
+        "destination": "STG財布",
+        "isSpecial": false,
+        "classification": "normal",
+        "updatedAt": "2026-09-26T00:00:09.000Z"
+      },
+      {
+        "id": "stg-tx-2026-09-grocery",
+        "type": "expense",
+        "amount": 5000,
+        "date": "2026-09-25",
+        "name": "テスト食料品",
+        "category": "食料品費",
+        "source": "STG財布",
+        "memo": "通常支出確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "updatedAt": "2026-09-26T00:00:10.000Z"
+      },
+      {
+        "id": "stg-tx-2026-09-pay",
+        "type": "expense",
+        "amount": 800,
+        "date": "2026-09-25",
+        "name": "テスト飲料",
+        "category": "食料品費",
+        "source": "STG Pay",
+        "memo": "電子マネー残高確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "updatedAt": "2026-09-26T00:00:11.000Z"
+      },
+      {
+        "id": "stg-tx-2026-09-card",
+        "type": "expense",
+        "amount": 12000,
+        "date": "2026-09-25",
+        "name": "テストカード利用",
+        "category": "趣味費",
+        "source": "STGカード",
+        "memo": "締め日当日の引落生成確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "cardCycle": {
+          "cardAccountId": "stg-card",
+          "closingDay": 25,
+          "paymentDay": 27,
+          "paymentDelayMonths": 1
+        },
+        "updatedAt": "2026-09-26T00:00:12.000Z"
+      },
+      {
+        "id": "stg-tx-2026-09-invest",
+        "type": "move",
+        "amount": 30000,
+        "date": "2026-09-26",
+        "name": "テスト投資入金",
+        "category": "move",
+        "source": "STG銀行",
+        "memo": "評価額更新後のMove連動確認用",
+        "destination": "STG投資",
+        "isSpecial": false,
+        "classification": "normal",
+        "updatedAt": "2026-09-26T00:00:13.000Z"
+      },
+      {
+        "id": "stg-tx-2026-09-special",
+        "type": "expense",
+        "amount": 60000,
+        "date": "2026-09-26",
+        "name": "テスト特別支出",
+        "category": "その他",
+        "source": "STG銀行",
+        "memo": "通常集計から除外する特別支出",
+        "destination": "",
+        "isSpecial": true,
+        "classification": "special",
+        "updatedAt": "2026-09-26T00:00:14.000Z"
+      },
+      {
+        "id": "stg-receipt-food",
+        "type": "expense",
+        "amount": 2160,
+        "date": "2026-09-27",
+        "name": "テスト食品（外税）",
+        "category": "食料品費",
+        "source": "STGカード",
+        "memo": "未来日レシート確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "groupId": "stg-receipt-2026-09-27",
+        "taxMode": "exclusive",
+        "taxRate": 8,
+        "taxBaseAmount": 2000,
+        "cardCycle": {
+          "cardAccountId": "stg-card",
+          "closingDay": 25,
+          "paymentDay": 27,
+          "paymentDelayMonths": 1
+        },
+        "updatedAt": "2026-09-26T00:00:15.000Z"
+      },
+      {
+        "id": "stg-receipt-daily",
+        "type": "expense",
+        "amount": 1100,
+        "date": "2026-09-27",
+        "name": "テスト日用品（外税）",
+        "category": "雑貨費",
+        "source": "STGカード",
+        "memo": "未来日レシート確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "groupId": "stg-receipt-2026-09-27",
+        "taxMode": "exclusive",
+        "taxRate": 10,
+        "taxBaseAmount": 1000,
+        "cardCycle": {
+          "cardAccountId": "stg-card",
+          "closingDay": 25,
+          "paymentDay": 27,
+          "paymentDelayMonths": 1
+        },
+        "updatedAt": "2026-09-26T00:00:16.000Z"
+      },
+      {
+        "id": "stg-tx-2026-10-income",
+        "type": "income",
+        "amount": 300000,
+        "date": "2026-10-01",
+        "name": "テスト翌月収入",
+        "category": "月収",
+        "source": "STG銀行",
+        "memo": "未来月表示確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "updatedAt": "2026-09-26T00:00:17.000Z"
+      },
+      {
+        "id": "stg-tx-2026-10-card",
+        "type": "expense",
+        "amount": 4500,
+        "date": "2026-10-03",
+        "name": "テスト翌月カード利用",
+        "category": "交通費旅費",
+        "source": "STGカード",
+        "memo": "翌月カードサイクル確認用",
+        "destination": "",
+        "isSpecial": false,
+        "classification": "normal",
+        "cardCycle": {
+          "cardAccountId": "stg-card",
+          "closingDay": 25,
+          "paymentDay": 27,
+          "paymentDelayMonths": 1
+        },
+        "updatedAt": "2026-09-26T00:00:18.000Z"
+      }
+    ],
+    "accounts.v1": [
+      {
+        "id": "stg-wallet",
+        "name": "STG財布",
+        "kind": "cash",
+        "openingBalance": 50000,
+        "openingDate": "2026-09-23",
+        "isActive": true,
+        "inputOrder": 0,
+        "createdAt": "2026-09-23T00:00:00.000Z",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      {
+        "id": "stg-bank",
+        "name": "STG銀行",
+        "kind": "bank",
+        "openingBalance": 600000,
+        "openingDate": "2026-09-23",
+        "isActive": true,
+        "inputOrder": 1,
+        "createdAt": "2026-09-23T00:00:00.000Z",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      {
+        "id": "stg-pay",
+        "name": "STG Pay",
+        "kind": "electronic_money",
+        "openingBalance": 25000,
+        "openingDate": "2026-09-23",
+        "isActive": true,
+        "inputOrder": 2,
+        "createdAt": "2026-09-23T00:00:00.000Z",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      {
+        "id": "stg-card",
+        "name": "STGカード",
+        "kind": "credit_card",
+        "openingBalance": 0,
+        "openingDate": "2026-09-23",
+        "isActive": true,
+        "inputOrder": 3,
+        "creditCard": {
+          "limit": 300000,
+          "closingDay": 25,
+          "paymentDay": 27,
+          "paymentDelayMonths": 1,
+          "defaultPaymentAccountId": "stg-bank"
+        },
+        "createdAt": "2026-09-23T00:00:00.000Z",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      {
+        "id": "stg-investment",
+        "name": "STG投資",
+        "kind": "investment",
+        "openingBalance": 325000,
+        "initialProfit": 25000,
+        "initialDeposits": 300000,
+        "initialWithdrawals": 0,
+        "openingDate": "2026-09-23",
+        "isActive": true,
+        "inputOrder": 4,
+        "createdAt": "2026-09-23T00:00:00.000Z",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      }
+    ],
+    "categories.v1": [
+      { "id": "stg-expense-food", "name": "食料品費", "type": "expense", "isActive": true, "createdAt": "2026-09-23T00:00:00.000Z", "updatedAt": "2026-09-23T00:00:00.000Z" },
+      { "id": "stg-expense-hobby", "name": "趣味費", "type": "expense", "isActive": true, "createdAt": "2026-09-23T00:00:00.000Z", "updatedAt": "2026-09-23T00:00:00.000Z" },
+      { "id": "stg-expense-daily", "name": "雑貨費", "type": "expense", "isActive": true, "createdAt": "2026-09-23T00:00:00.000Z", "updatedAt": "2026-09-23T00:00:00.000Z" },
+      { "id": "stg-expense-travel", "name": "交通費旅費", "type": "expense", "isActive": true, "createdAt": "2026-09-23T00:00:00.000Z", "updatedAt": "2026-09-23T00:00:00.000Z" },
+      { "id": "stg-expense-other", "name": "その他", "type": "expense", "isActive": true, "createdAt": "2026-09-23T00:00:00.000Z", "updatedAt": "2026-09-23T00:00:00.000Z" },
+      { "id": "stg-income-salary", "name": "月収", "type": "income", "isActive": true, "createdAt": "2026-09-23T00:00:00.000Z", "updatedAt": "2026-09-23T00:00:00.000Z" },
+      { "id": "stg-income-extra", "name": "臨時収入", "type": "income", "isActive": true, "createdAt": "2026-09-23T00:00:00.000Z", "updatedAt": "2026-09-23T00:00:00.000Z" }
+    ],
+    "budgets": {
+      "entries": [
+        {
+          "month": "2026-09",
+          "byCategory": {
+            "食料品費": 40000,
+            "趣味費": 20000,
+            "雑貨費": 10000,
+            "交通費旅費": 15000,
+            "その他": 10000
+          },
+          "totalBudget": 95000,
+          "updatedAtISO": "2026-09-23T00:00:00.000Z"
+        },
+        {
+          "month": "2026-10",
+          "byCategory": {
+            "食料品費": 42000,
+            "趣味費": 18000,
+            "雑貨費": 10000,
+            "交通費旅費": 15000,
+            "その他": 10000
+          },
+          "totalBudget": 95000,
+          "updatedAtISO": "2026-09-23T00:00:00.000Z"
+        }
+      ]
+    },
+    "investments": {
+      "assets": [],
+      "contributions": [],
+      "snapshots": [
+        {
+          "id": "is_2026-09-23",
+          "date": "2026-09-23",
+          "values": { "stg-investment": 325000 }
+        },
+        {
+          "id": "is_2026-09-26",
+          "date": "2026-09-26",
+          "values": { "stg-investment": 360000 }
+        },
+        {
+          "id": "is_2026-10-31",
+          "date": "2026-10-31",
+          "values": { "stg-investment": 390000 }
+        }
+      ],
+      "updatedAtISO": "2026-09-26T00:00:00.000Z"
+    },
+    "accountActualBalances": {
+      "byMonth": {
+        "2026-09": {
+          "STG財布": 64000,
+          "STG銀行": 788000,
+          "STG Pay": 24200
+        }
+      },
+      "confirmedByMonth": {
+        "2026-09": ["STG財布", "STG銀行", "STG Pay"]
+      },
+      "basisDateByMonth": {
+        "2026-09": "2026-09-26"
+      },
+      "cardLimitByMonth": {
+        "2026-09": { "STGカード": 300000 }
+      }
+    },
+    "sontokuEntries": {
+      "entries": [
+        {
+          "id": "stg-gain-2026-09",
+          "date": "2026-09-20",
+          "kind": "gain",
+          "amount": 5000,
+          "note": "テスト割引",
+          "updatedAtISO": "2026-09-26T00:00:00.000Z"
+        },
+        {
+          "id": "stg-loss-2026-09",
+          "date": "2026-09-21",
+          "kind": "loss",
+          "amount": 1200,
+          "note": "テスト失効",
+          "updatedAtISO": "2026-09-26T00:00:00.000Z"
+        }
+      ]
+    },
+    "scheduledMoves.v1": [
+      {
+        "id": "stg-monthly-investment",
+        "startDate": "2026-09-25",
+        "isActive": true,
+        "activePeriods": [{ "start": "2026-09-25" }],
+        "revisions": [
+          {
+            "effectiveFrom": "2026-09-25",
+            "source": "STG銀行",
+            "destination": "STG投資",
+            "amount": 20000,
+            "name": "テスト積立",
+            "frequency": "monthly",
+            "executionDay": 25
+          }
+        ],
+        "skippedDates": [],
+        "createdAt": "2026-09-23T00:00:00.000Z",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      }
+    ],
+    "drafts.v1": [],
+    "deletionTombstones.v1": {
+      "transactions": {
+        "stg-deleted-transaction": "2026-09-25T00:00:00.000Z"
+      }
+    }
+  }
+}

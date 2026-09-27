@@ -17,5 +17,21 @@
       "database_id": "9f788770-e491-4f43-9e2e-374e4436c0a6",
       "migrations_dir": "migrations"
     }
-  ]
+  ],
+  "env": {
+    "staging": {
+      "name": "household-staging",
+      "workers_dev": true,
+      "preview_urls": false,
+      "triggers": { "crons": [] },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "household-staging",
+          "database_id": "c2a901b2-3658-43e3-bdbf-8f0c1b880190",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
 }

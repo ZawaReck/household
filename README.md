@@ -53,6 +53,36 @@ npm run preview
 npm run lint
 ```
 
+## デプロイ運用
+
+本番へ直接デプロイせず、先にステージングで動作確認する。
+
+```bash
+# テスト、lint、ビルド、ステージングDBマイグレーション、ステージングデプロイ
+npm run deploy:staging
+
+# 上記の短縮形。安全側としてステージングへ向く
+npm run deploy
+
+# ステージング確認後にだけ実行する本番デプロイ
+npm run deploy:prod
+```
+
+- ステージング: `https://household-staging.ozw1504.workers.dev`
+- 本番: `https://household.ozw1504.workers.dev`
+- ステージングは専用D1 `household-staging` を使用し、本番D1へ接続しない。
+- ステージングではcronを設定せず、VAPID秘密情報も通常は登録しないためPush通知を送信しない。
+- ステージングWorkerには`GOOGLE_CLIENT_ID`、`ALLOWED_EMAILS`、`SESSION_SECRET`を環境別secretとして登録する。
+- Google OAuthの承認済みJavaScript生成元へステージングURLを追加する。
+
+ステージングD1を固定の架空テストデータへ戻す場合は、ステージングへ一度ログインして同期利用者を作成した後、次を実行する。
+
+```bash
+npm run db:seed:staging
+```
+
+投入元は`fixtures/staging-seed.json`である。スクリプトは対象環境をステージングに固定し、同期利用者が1名であることと、全口座名が`STG`で始まることを確認してから既存ステージングデータを置換する。本番D1は操作しない。
+
 ## 技術スタック
 
 - React 19
@@ -80,4 +110,3 @@ npm run lint
 
 - 現時点ではデータはブラウザの `localStorage` に保存されるため，別端末や別ブラウザ間で同期されません．
 - 外税モードでは，グループ内の支出を税別で保持し，表示時に税込へ換算します．必要に応じて「外税」調整行が自動作成・更新されます．
-

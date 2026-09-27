@@ -14,6 +14,7 @@ const isStandalone = window.matchMedia('(display-mode: standalone)').matches
   || (navigator as Navigator & { standalone?: boolean }).standalone === true
 
 document.documentElement.dataset.standalonePwa = isStandalone ? 'true' : 'false'
+document.documentElement.dataset.deployEnv = __DEPLOY_ENV__
 
 const isInternalNavigation = consumeInternalNavigation()
 if (!isInternalNavigation && isStandalone && window.location.pathname !== '/add') {
