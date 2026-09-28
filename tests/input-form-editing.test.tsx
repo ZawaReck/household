@@ -2,7 +2,7 @@
 
 import React from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { InputForm } from "../src/components/InputForm";
 import type { Account } from "../src/types/Account";
 import type { Category } from "../src/types/Category";
@@ -45,11 +45,13 @@ const expense: Transaction = {
   taxRate: 10,
 };
 
+let mobileViewport = true;
+
 beforeAll(() => {
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: vi.fn((query: string) => ({
-      matches: query === "(max-width: 767px)",
+      matches: mobileViewport && query === "(max-width: 767px)",
       media: query,
       onchange: null,
       addEventListener: vi.fn(),
@@ -73,7 +75,15 @@ beforeAll(() => {
   });
 });
 
-afterEach(cleanup);
+beforeEach(() => {
+  mobileViewport = true;
+  localStorage.clear();
+});
+
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 function EditingHarness({ transaction, onUpdate = vi.fn(), onSetEditing = vi.fn() }: {
   transaction: Transaction;
@@ -198,5 +208,59 @@ describe("InputForm existing transaction editing", () => {
       source: "貯蓄",
       destination: "財布",
     }));
+  });
+
+  it.each([
+    { device: "desktop", mobile: false },
+    { device: "mobile", mobile: true },
+  ])("clears the $device form after updating without deleting a saved draft", async ({ mobile }) => {
+    mobileViewport = mobile;
+    localStorage.setItem("drafts.v1", JSON.stringify([{
+      id: "saved-draft",
+      scope: "input",
+      type: "expense",
+      amount: "999",
+      date: "2026-09-20",
+      name: "復元されてはいけない下書き",
+      category: "食費",
+      source: "財布",
+      sourceMove: "財布",
+      destination: "銀行",
+      memo: "保存済み",
+      classification: "normal",
+      moveFee: "",
+      entryMode: "individual",
+      taxRate: 10,
+      receiptItems: [],
+      editingReceiptIndex: null,
+      updatedAt: "2026-09-28T00:00:00.000Z",
+    }]));
+
+    function ControlledEditor() {
+      const [editing, setEditing] = React.useState<Transaction | null>(expense);
+      const [transactions, setTransactions] = React.useState([expense]);
+      return <InputForm
+        onAddTransaction={vi.fn()}
+        onUpdateTransaction={(updated) => setTransactions([updated])}
+        onDeleteTransaction={vi.fn()}
+        onDeleteReceipt={() => true}
+        editingTransaction={editing}
+        setEditingTransaction={setEditing}
+        selectedDate="2026-09-23"
+        monthlyData={[...transactions]}
+        accounts={accounts}
+        categories={categories}
+      />;
+    }
+
+    render(<ControlledEditor />);
+    fireEvent.click(screen.getByRole("button", { name: "更新" }));
+
+    await waitFor(() => {
+      expect((screen.getByPlaceholderText("摘要") as HTMLInputElement).value).toBe("");
+      expect((screen.getByPlaceholderText("金額") as HTMLInputElement).value).toBe("");
+      expect((screen.getByPlaceholderText("Memo") as HTMLInputElement).value).toBe("");
+    });
+    expect(JSON.parse(localStorage.getItem("drafts.v1") ?? "[]")[0].id).toBe("saved-draft");
   });
 });

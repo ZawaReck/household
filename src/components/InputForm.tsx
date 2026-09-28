@@ -341,6 +341,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [savedDrafts, setSavedDrafts] = React.useState<InputDraft[]>(() => loadInputDrafts());
   const [activeDraftId, setActiveDraftId] = React.useState("");
   const isApplyingDraft = React.useRef(false);
+  const skipNextDraftHydration = React.useRef(false);
   const receiptModeDrag = useSegmentedDrag<HTMLDivElement>({
     count: 3,
     selectedIndex: entryMode === "receipt_exclusive" ? 0 : entryMode === "receipt_inclusive" ? 1 : 2,
@@ -481,8 +482,19 @@ export const InputForm: React.FC<InputFormProps> = ({
     queueMicrotask(() => { isApplyingDraft.current = false; });
   }, [defaultExpenseCategory, defaultIncomeCategory, defaultMoveDestination, defaultMoveSource, defaultSource, selectedDate]);
 
+  const finishEditingWithEmptyForm = React.useCallback((nextType: Transaction["type"], nextDate: string) => {
+    skipNextDraftHydration.current = true;
+    setEditingTransaction(null);
+    startEmptyDraft(nextType);
+    setDate(nextDate);
+  }, [setEditingTransaction, startEmptyDraft]);
+
   React.useEffect(() => {
     if (editingTransaction || activeGroupId) return;
+    if (skipNextDraftHydration.current) {
+      skipNextDraftHydration.current = false;
+      return;
+    }
     let cancelled = false;
     void hydrateInputDraftsFromIndexedDB().then((all) => {
       if (cancelled) return;
@@ -1011,8 +1023,12 @@ export const InputForm: React.FC<InputFormProps> = ({
 
       }
 
-      setEditingTransaction(null);
-      resetForm(updated.type, { keepDate: true });
+      if (gid) {
+        setEditingTransaction(null);
+        resetForm(updated.type, { keepDate: true });
+      } else {
+        finishEditingWithEmptyForm(updated.type, updated.date);
+      }
       return;
     }
 
@@ -1204,7 +1220,7 @@ export const InputForm: React.FC<InputFormProps> = ({
           </select>
         </label>
         <div className="form-buttons receipt-buttons">
-          <button type="button" onClick={() => { onUpdateTransaction({ ...editingTransaction, date, source: sourceMove, system: { ...editingTransaction.system!, manualDate: date !== editingTransaction.date || editingTransaction.system?.manualDate, manualSource: sourceMove !== editingTransaction.source || editingTransaction.system?.manualSource } }); setEditingTransaction(null); }}>更新</button>
+          <button type="button" onClick={() => { onUpdateTransaction({ ...editingTransaction, date, source: sourceMove, system: { ...editingTransaction.system!, manualDate: date !== editingTransaction.date || editingTransaction.system?.manualDate, manualSource: sourceMove !== editingTransaction.source || editingTransaction.system?.manualSource } }); finishEditingWithEmptyForm("move", date); }}>更新</button>
           <button type="button" onClick={() => setEditingTransaction(null)}>キャンセル</button>
         </div>
       </div>
