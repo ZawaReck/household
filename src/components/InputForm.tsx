@@ -319,6 +319,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     onSelect: (index) => handleTabClick((["expense", "income", "move"] as const)[index] ?? "expense"),
     cssVariable: "--tab-position",
     horizontalPadding: 4,
+    disabled: Boolean(editingTransaction),
   });
   // レシート仮置き
   const [receiptItems, setReceiptItems] = React.useState<DraftTx[]>([]);
@@ -619,6 +620,14 @@ export const InputForm: React.FC<InputFormProps> = ({
     return monthlyData.filter((t) => t.groupId === gid);
   }, [monthlyData, editingTransaction, activeGroupId]);
 
+  const editingGroupHasTaxAdjustment = React.useMemo(() => {
+    const groupId = editingTransaction?.groupId;
+    if (!groupId) return false;
+    return monthlyData.some((transaction) => (
+      transaction.groupId === groupId && transaction.isTaxAdjustment === true
+    ));
+  }, [editingTransaction?.groupId, monthlyData]);
+
   useEffect(() => {
     if (!activeGroupId) return;
     if (editingTransaction) return;
@@ -719,19 +728,17 @@ export const InputForm: React.FC<InputFormProps> = ({
     setEditingReceiptIndex(null);
 
     // グループに外税調整があるなら外税扱い（単体アイテムのtaxModeより優先）
-    const gid = editingTransaction.groupId;
-    if (gid) {
-      const group = monthlyData.filter((t) => t.groupId === gid);
-      const hasAdj = group.some((t) => t.isTaxAdjustment === true);
-      setIsExternalTax(hasAdj || normalizeTaxMode(editingTransaction.taxMode) === "exclusive");
-      setEntryMode(hasAdj || normalizeTaxMode(editingTransaction.taxMode) === "exclusive" ? "receipt_exclusive" : "receipt_inclusive");
+    if (editingTransaction.groupId) {
+      const isExternal = editingGroupHasTaxAdjustment || normalizeTaxMode(editingTransaction.taxMode) === "exclusive";
+      setIsExternalTax(isExternal);
+      setEntryMode(isExternal ? "receipt_exclusive" : "receipt_inclusive");
     } else {
       setIsExternalTax(normalizeTaxMode(editingTransaction.taxMode) === "exclusive");
       setEntryMode("individual");
     }
 
     setTaxRate(normalizeTaxRate(editingTransaction.taxRate));
-  }, [editingTransaction, monthlyData]);
+  }, [editingGroupHasTaxAdjustment, editingTransaction]);
 
   useEffect(() => {
     if (editingTransaction) return;
@@ -1249,13 +1256,13 @@ export const InputForm: React.FC<InputFormProps> = ({
         style={{ "--tab-index": tabIndex } as React.CSSProperties}
         {...tabDrag.handlers}
       >
-        <button className={type === "expense" ? "active" : ""} onClick={() => handleTabClick("expense")} type="button">
+        <button className={type === "expense" ? "active" : ""} onClick={() => handleTabClick("expense")} type="button" disabled={Boolean(editingTransaction)}>
           Out
         </button>
-        <button className={type === "income" ? "active" : ""} onClick={() => handleTabClick("income")} type="button">
+        <button className={type === "income" ? "active" : ""} onClick={() => handleTabClick("income")} type="button" disabled={Boolean(editingTransaction)}>
           In
         </button>
-        <button className={type === "move" ? "active" : ""} onClick={() => handleTabClick("move")} type="button">
+        <button className={type === "move" ? "active" : ""} onClick={() => handleTabClick("move")} type="button" disabled={Boolean(editingTransaction)}>
           Move
         </button>
       </div>
@@ -1308,7 +1315,7 @@ export const InputForm: React.FC<InputFormProps> = ({
             )}
           </div>
         </div>
-        {type === "move" && (
+        {type === "move" && !editingTransaction && (
           <div className="move-fee-row">
             <div className={`calculator-input-shell${calculatorTarget === "moveFee" && usesCustomKeypad ? " is-active" : ""}`}>
               <input ref={moveFeeInputRef} data-calculator-target="moveFee" type="text" inputMode="none" autoComplete="off" readOnly={usesCustomKeypad} value={displayedNumericValue("moveFee", moveFee)} onChange={(event) => updateNumericValue("moveFee", event.target.value)} onPointerDown={() => activateCalculator("moveFee")} onPointerUp={(event) => { const input = event.currentTarget; window.requestAnimationFrame(() => syncCalculatorCursor("moveFee", input)); }} onFocus={() => activateCalculator("moveFee")} onBlur={() => { if (!usesCustomKeypad) deactivateCalculator("moveFee"); }} placeholder="手数料等" aria-label="手数料等" />
