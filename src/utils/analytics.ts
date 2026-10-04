@@ -1,6 +1,7 @@
 /* src/utils/analytics.ts */
 
 import type { Transaction } from "../types/Transaction";
+import { moveDestinationDate, moveSourceDate } from "./moveDates";
 
 export const transactionClassification = (transaction: Transaction) =>
   transaction.classification ?? (transaction.isSpecial ? "special" : "normal");
@@ -127,17 +128,15 @@ export const calcAccountBalancesAsOf = (
   accounts.forEach((acc) => {
     balances[acc] = 0;
   });
-  transactions
-    .filter((t) => t.date <= asOfISO)
-    .forEach((t) => {
+  transactions.forEach((t) => {
       const amount = Number(t.amount ?? 0);
       if (t.type === "income") {
-        if (t.source) balances[t.source] = (balances[t.source] ?? 0) + amount;
+        if (t.date <= asOfISO && t.source) balances[t.source] = (balances[t.source] ?? 0) + amount;
       } else if (t.type === "expense") {
-        if (t.source) balances[t.source] = (balances[t.source] ?? 0) - amount;
+        if (t.date <= asOfISO && t.source) balances[t.source] = (balances[t.source] ?? 0) - amount;
       } else if (t.type === "move") {
-        if (t.source) balances[t.source] = (balances[t.source] ?? 0) - amount;
-        if (t.destination)
+        if (moveSourceDate(t) <= asOfISO && t.source) balances[t.source] = (balances[t.source] ?? 0) - amount;
+        if (moveDestinationDate(t) <= asOfISO && t.destination)
           balances[t.destination] = (balances[t.destination] ?? 0) + amount;
       }
     });

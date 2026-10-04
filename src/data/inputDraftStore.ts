@@ -16,10 +16,13 @@ const parse = (raw: string | null): InputDraft[] => {
 export const loadInputDrafts = () => parse(localStorage.getItem(STORAGE_KEY));
 
 export const saveInputDrafts = (drafts: InputDraft[]) => {
+  const previous = loadInputDrafts();
+  const serialized = JSON.stringify(drafts);
+  if (JSON.stringify(previous) === serialized) return;
   const retainedIds = new Set(drafts.map((draft) => draft.id));
-  const removedIds = loadInputDrafts().filter((draft) => !retainedIds.has(draft.id)).map((draft) => draft.id);
+  const removedIds = previous.filter((draft) => !retainedIds.has(draft.id)).map((draft) => draft.id);
   recordDeletedIds(STORAGE_KEY, removedIds);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(drafts));
+  localStorage.setItem(STORAGE_KEY, serialized);
   void writeOfflineValue(STORAGE_KEY, drafts);
   window.dispatchEvent(new CustomEvent("household-local-change", { detail: STORAGE_KEY }));
 };

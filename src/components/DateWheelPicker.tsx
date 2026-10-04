@@ -20,6 +20,7 @@ type Props = {
   maxYear?: number;
   disabled?: boolean;
   className?: string;
+  label?: string;
 };
 
 export const DateWheelPicker: React.FC<Props> = ({
@@ -30,6 +31,7 @@ export const DateWheelPicker: React.FC<Props> = ({
   maxYear,
   disabled,
   className,
+  label = "日付",
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const today = useMemo(() => getTodayParts(), []);
@@ -116,12 +118,12 @@ export const DateWheelPicker: React.FC<Props> = ({
         aria-expanded={isOpen}
         disabled={disabled}
       >
-        <span className="date-wheel-trigger-label">日付</span>
+        <span className="date-wheel-trigger-label">{label}</span>
         <span className="date-wheel-trigger-value">{displayValue}</span>
       </button>
 
       {isOpen && (
-        <PickerPanel title="日付選択" onClose={() => setIsOpen(false)}
+        <PickerPanel title={`${label}選択`} onClose={() => setIsOpen(false)}
           action={<button type="button" onClick={() => emitChange(safeFrom(formatISODate(getTodayParts())))}>今日</button>}>
           <div className="selection-wheel-columns">
             <SelectionWheel label="年" options={years.map((year) => `${year}年`)}

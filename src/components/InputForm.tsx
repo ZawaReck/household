@@ -124,6 +124,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [category, setCategory] = React.useState(defaultExpenseCategory);
   const [amount, setAmount] = React.useState("");
   const [date, setDate] = React.useState(selectedDate);
+  const [destinationDate, setDestinationDate] = React.useState(selectedDate);
   const [name, setName] = React.useState("");
   const [source, setSource] = React.useState(defaultSource); // 拠出元（非move）
   const [sourceMove, setSourceMove] = React.useState(defaultMoveSource); // 移動元（move）
@@ -445,6 +446,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     setType(draft.type);
     setAmount(draft.amount);
     setDate(draft.date);
+    setDestinationDate(draft.destinationDate ?? draft.date);
     setName(draft.name);
     setCategory(draft.category);
     setSource(draft.source);
@@ -471,6 +473,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     setType(nextType);
     setAmount("");
     setDate(selectedDate);
+    setDestinationDate(selectedDate);
     setName("");
     setCategory(nextType === "income" ? defaultIncomeCategory : defaultExpenseCategory);
     setSource(defaultSource);
@@ -519,17 +522,25 @@ export const InputForm: React.FC<InputFormProps> = ({
     if (!hasContent) return;
     const nextDraft: InputDraft = {
       id: activeDraftId, scope: draftScope, type, amount, date, name, category, source,
-      sourceMove, destination, memo, classification, moveFee, entryMode, taxRate,
+      sourceMove, destination,
+      destinationDate: type === "move" && destinationDate !== date ? destinationDate : undefined,
+      memo, classification, moveFee, entryMode, taxRate,
       receiptItems, editingReceiptIndex, updatedAt: new Date().toISOString(),
     };
     setSavedDrafts((current) => {
-      const next = current.some((draft) => draft.id === activeDraftId)
+      const existing = current.find((draft) => draft.id === activeDraftId);
+      if (existing) {
+        const existingContent = JSON.stringify({ ...existing, updatedAt: "" });
+        const nextContent = JSON.stringify({ ...nextDraft, updatedAt: "" });
+        if (existingContent === nextContent) return current;
+      }
+      const next = existing
         ? current.map((draft) => draft.id === activeDraftId ? nextDraft : draft)
         : [...current, nextDraft];
       saveInputDrafts(next);
       return next;
     });
-  }, [activeDraftId, activeGroupId, amount, category, classification, date, destination, draftScope, editingReceiptIndex, editingTransaction, entryMode, memo, moveFee, name, receiptItems, source, sourceMove, taxRate, type]);
+  }, [activeDraftId, activeGroupId, amount, category, classification, date, destination, destinationDate, draftScope, editingReceiptIndex, editingTransaction, entryMode, memo, moveFee, name, receiptItems, source, sourceMove, taxRate, type]);
 
   const discardActiveDraft = (ask = true) => {
     if (ask && savedDrafts.some((draft) => draft.id === activeDraftId) && !window.confirm("この下書きを破棄しますか？")) return false;
@@ -574,6 +585,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     setDestination(defaultMoveDestination);
     setMoveFee("");
     setDate(nextDate);
+    setDestinationDate(nextDate);
     setIsSourcePickerOpen(false);
     setOpenMovePicker(null);
   }, [date, defaultExpenseCategory, defaultIncomeCategory, defaultMoveDestination, defaultMoveSource, defaultSource, entryMode, selectedDate, type]);
@@ -726,6 +738,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
     setAmount(String(editingTransaction.amount));
     setDate(editingTransaction.date);
+    setDestinationDate(editingTransaction.destinationDate ?? editingTransaction.date);
     setName(editingTransaction.name || "");
     setMemo(editingTransaction.memo || "");
     setClassification(
@@ -760,7 +773,10 @@ export const InputForm: React.FC<InputFormProps> = ({
   useEffect(() => {
     if (editingTransaction) return;
     if (activeGroupId) return;
-    setDate(selectedDate);
+    setDate((currentDate) => {
+      setDestinationDate((current) => current === currentDate ? selectedDate : current);
+      return selectedDate;
+    });
   }, [selectedDate, editingTransaction, activeGroupId]);
 
   useEffect(() => {
@@ -786,6 +802,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       category: type === "move" ? "move" : category,
       source: type === "move" ? sourceMove : source,
       destination: type === "move" ? destination : "",
+      destinationDate: type === "move" && destinationDate !== date ? destinationDate : undefined,
       memo,
       isSpecial: false,
       classification: type === "move" ? "normal" : classification,
@@ -816,6 +833,8 @@ export const InputForm: React.FC<InputFormProps> = ({
     const n = parseAmount();
     if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) return "金額は1円以上の整数で入力してください。";
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "日付を入力してください。";
+    if (type === "move" && !/^\d{4}-\d{2}-\d{2}$/.test(destinationDate)) return "移動先反映日を入力してください。";
+    if (type === "move" && destinationDate < date) return "移動先反映日は移動元日以降にしてください。";
     if (type === "move" && (!sourceMove || !destination)) return "移動元と移動先を選択してください。";
     if (type === "move" && sourceMove === destination) return "移動元と移動先には別の口座を選択してください。";
     if (type === "move" && creditCardAccountNames.has(destination)) return "クレジットカードは移動先に指定できません。";
@@ -838,6 +857,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     const dirty =
       String(editingTransaction.amount) !== amount ||
       editingTransaction.date !== date ||
+      (editingTransaction.type === "move" && (editingTransaction.destinationDate ?? editingTransaction.date) !== destinationDate) ||
       (editingTransaction.name || "") !== name ||
       (editingTransaction.memo || "") !== memo ||
       (editingTransaction.classification ?? (editingTransaction.isSpecial ? "special" : "normal")) !== classification ||
@@ -847,7 +867,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       (editingTransaction.type === "expense" && normalizeTaxMode(editingTransaction.taxMode) !== (isExternalTax ? "exclusive" : "inclusive")) ||
       (editingTransaction.type === "expense" && normalizeTaxRate(editingTransaction.taxRate) !== taxRate);
     onEditingDirtyChange?.(dirty);
-  }, [amount, category, classification, date, destination, editingTransaction, isExternalTax, memo, name, onEditingDirtyChange, source, sourceMove, taxRate]);
+  }, [amount, category, classification, date, destination, destinationDate, editingTransaction, isExternalTax, memo, name, onEditingDirtyChange, source, sourceMove, taxRate]);
 
   // 追加（submit）: 仮置きに追加 / 仮編集なら更新 / 本編集なら何もしない（本編集は登録ボタンで更新）
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -877,6 +897,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     setType(t.type);
     setAmount(String(t.amount));
     setDate(t.date);
+    setDestinationDate(t.destinationDate ?? t.date);
     setName(t.name || "");
     setMemo(t.memo || "");
     setClassification(t.classification ?? (t.isSpecial ? "special" : "normal"));
@@ -956,6 +977,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     setType(editingTransaction.type);
     setAmount(String(editingTransaction.amount));
     setDate(copyDate);
+    setDestinationDate(copyDate);
     setName(editingTransaction.name || "");
     setMemo(editingTransaction.memo || "");
     setClassification(editingTransaction.classification ?? "normal");
@@ -1349,7 +1371,22 @@ export const InputForm: React.FC<InputFormProps> = ({
             </div>
           </div>
         )}
-        <DateWheelPicker value={date} onChange={setDate} />
+        <DateWheelPicker
+          value={date}
+          label={type === "move" ? "利用・出金日" : "日付"}
+          onChange={(nextDate) => {
+            setDestinationDate((current) => current === date ? nextDate : current);
+            setDate(nextDate);
+          }}
+        />
+        {type === "move" && (
+          <DateWheelPicker
+            value={destinationDate}
+            label="移動先反映日"
+            onChange={setDestinationDate}
+            className="destination-date-picker"
+          />
+        )}
 
         {/* 入力単位 + 外税時の税率（支出のみ） */}
         {type === "expense" && (

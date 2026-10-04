@@ -31,6 +31,7 @@ React + TypeScript + Vite で作成した，個人向けの家計簿アプリで
 - `category`: 支出/収入カテゴリ
 - `source`: 拠出元（move の場合は移動元）
 - `destination`: 移動先（move のみ）
+- `destinationDate`: 移動先への反映日（move のみ。未指定は `date` と同日）
 - `memo`: メモ
 - `groupId`: レシート入力のグルーピング
 - `taxMode`: `inclusive` | `exclusive`（支出のみ）

@@ -1,5 +1,6 @@
 import type { Account } from "../types/Account";
 import type { Transaction } from "../types/Transaction";
+import { moveDestinationDate, moveSourceDate } from "./moveDates";
 
 export type InvestmentFlows = {
   deposits: number;
@@ -30,9 +31,11 @@ export const investmentFlowsAsOf = (
   let deposits = 0;
   let withdrawals = 0;
   transactions.forEach((transaction) => {
-    if (transaction.type !== "move" || transaction.date <= account.openingDate || transaction.date > date) return;
-    if (transaction.destination === account.name) deposits += transaction.amount;
-    if (transaction.source === account.name) withdrawals += transaction.amount;
+    if (transaction.type !== "move") return;
+    const destinationDate = moveDestinationDate(transaction);
+    const sourceDate = moveSourceDate(transaction);
+    if (transaction.destination === account.name && destinationDate > account.openingDate && destinationDate <= date) deposits += transaction.amount;
+    if (transaction.source === account.name && sourceDate > account.openingDate && sourceDate <= date) withdrawals += transaction.amount;
   });
 
   const opening = investmentOpeningFlows(account);

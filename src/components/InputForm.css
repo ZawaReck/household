@@ -1271,6 +1271,14 @@
     margin-top: 3px;
   }
 
+  .type-move .move-fee-row {
+    position: absolute;
+    z-index: 4;
+    top: 81px;
+    left: 6px;
+    margin: 0;
+  }
+
   .move-fee-row span,
   .move-fee-row input {
     box-sizing: border-box;
@@ -1299,7 +1307,10 @@
     height: 40px;
   }
 
-  .type-move .move-fields { order: 6; }
+  .type-move .move-fields {
+    order: 6;
+    padding-top: 36px;
+  }
   .type-move .date-wheel-picker { order: 7; }
   .type-move .move-fields .kv-row-under { margin-top: -1px; }
   .type-move .date-wheel-picker { margin-top: -1px; }
