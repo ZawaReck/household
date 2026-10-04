@@ -111,6 +111,19 @@ function EditingHarness({ transaction, onUpdate = vi.fn(), onSetEditing = vi.fn(
 }
 
 describe("InputForm existing transaction editing", () => {
+  it("dismisses the native mobile keyboard when activating the amount keypad", async () => {
+    render(<EditingHarness transaction={expense} />);
+    const name = screen.getByPlaceholderText("摘要") as HTMLInputElement;
+    const amount = screen.getByPlaceholderText("金額") as HTMLInputElement;
+    name.focus();
+    expect(document.activeElement).toBe(name);
+
+    fireEvent.pointerDown(amount);
+
+    await waitFor(() => expect(document.activeElement).not.toBe(name));
+    expect(screen.getByRole("group", { name: "金額入力テンキー" })).toBeTruthy();
+  });
+
   it("does not override the native caret while typing an amount on desktop", async () => {
     mobileViewport = false;
     const setSelectionRange = vi.spyOn(HTMLInputElement.prototype, "setSelectionRange");

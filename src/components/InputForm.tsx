@@ -163,6 +163,11 @@ export const InputForm: React.FC<InputFormProps> = ({
   }, []);
 
   const activateCalculator = (target: CalculatorTarget) => {
+    if (usesCustomKeypad) {
+      const targetInput = target === "amount" ? amountInputRef.current : moveFeeInputRef.current;
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLElement && activeElement !== targetInput) activeElement.blur();
+    }
     if (calculatorTarget !== target) resetCalculator();
     if (calculatorTarget !== target) {
       const value = target === "amount" ? amount : moveFee;
