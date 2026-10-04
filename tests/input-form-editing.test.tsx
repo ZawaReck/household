@@ -211,6 +211,7 @@ describe("InputForm existing transaction editing", () => {
       category: "move",
       source: "財布",
       destination: "銀行",
+      destinationDate: "2026-10-07",
       taxMode: undefined,
       taxRate: undefined,
     };
@@ -221,24 +222,26 @@ describe("InputForm existing transaction editing", () => {
     fireEvent.pointerDown(container.querySelector(".tab-group")!, { button: 0, clientX: 1, clientY: 1 });
     expect(onSetEditing).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: /移動元/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^移動元財布$/ }));
     fireEvent.click(within(screen.getByRole("listbox", { name: "移動元" })).getByRole("option", { name: "貯蓄" }));
     fireEvent.click(screen.getByRole("button", { name: "完了" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: /移動元/ }).textContent).toContain("貯蓄"));
+    await waitFor(() => expect(screen.getByRole("button", { name: /^移動元貯蓄$/ }).textContent).toContain("貯蓄"));
 
-    fireEvent.click(screen.getByRole("button", { name: /移動先/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^移動先銀行$/ }));
     fireEvent.click(within(screen.getByRole("listbox", { name: "移動先" })).getByRole("option", { name: "財布" }));
     fireEvent.click(screen.getByRole("button", { name: "完了" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: /移動先/ }).textContent).toContain("財布"));
+    await waitFor(() => expect(screen.getByRole("button", { name: /^移動先財布$/ }).textContent).toContain("財布"));
 
     expect((screen.getByRole("button", { name: "Move" }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.queryByLabelText("手数料等")).toBeNull();
+    expect(screen.getByRole("button", { name: /移動先反映日/ })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "更新" }));
     expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({
       id: move.id,
       source: "貯蓄",
       destination: "財布",
+      destinationDate: "2026-10-07",
     }));
   });
 
@@ -294,5 +297,49 @@ describe("InputForm existing transaction editing", () => {
       expect((screen.getByPlaceholderText("Memo") as HTMLInputElement).value).toBe("");
     });
     expect(JSON.parse(localStorage.getItem("drafts.v1") ?? "[]")[0].id).toBe("saved-draft");
+  });
+
+  it("does not rewrite an unchanged saved draft after hydration", async () => {
+    const originalUpdatedAt = "2026-09-28T00:00:00.000Z";
+    localStorage.setItem("drafts.v1", JSON.stringify([{
+      id: "stable-draft",
+      scope: "input",
+      type: "expense",
+      amount: "999",
+      date: "2026-09-20",
+      name: "保存済み下書き",
+      category: "食費",
+      source: "財布",
+      sourceMove: "財布",
+      destination: "銀行",
+      memo: "",
+      classification: "normal",
+      moveFee: "",
+      entryMode: "individual",
+      taxRate: 10,
+      receiptItems: [],
+      editingReceiptIndex: null,
+      updatedAt: originalUpdatedAt,
+    }]));
+    const localChange = vi.fn();
+    window.addEventListener("household-local-change", localChange);
+
+    render(<InputForm
+      onAddTransaction={vi.fn()}
+      onUpdateTransaction={vi.fn()}
+      onDeleteTransaction={vi.fn()}
+      onDeleteReceipt={() => true}
+      editingTransaction={null}
+      setEditingTransaction={vi.fn()}
+      selectedDate="2026-09-23"
+      monthlyData={[]}
+      accounts={accounts}
+      categories={categories}
+    />);
+
+    await waitFor(() => expect((screen.getByPlaceholderText("摘要") as HTMLInputElement).value).toBe("保存済み下書き"));
+    await waitFor(() => expect(JSON.parse(localStorage.getItem("drafts.v1") ?? "[]")[0].updatedAt).toBe(originalUpdatedAt));
+    expect(localChange).not.toHaveBeenCalled();
+    window.removeEventListener("household-local-change", localChange);
   });
 });

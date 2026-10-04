@@ -2,6 +2,8 @@
 
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import type { Transaction } from "../types/Transaction";
+import { localDateISO } from "../utils/date";
+import { isMoveInTransitAsOf, moveDestinationDate } from "../utils/moveDates";
 import "./TransactionHistory.css";
 
 type Props = {
@@ -40,6 +42,7 @@ export const TransactionHistory: React.FC<Props> = ({
   onEditTransaction,
   onSelectGroup,
 }) => {
+  const today = localDateISO();
   const listRef = useRef<HTMLDivElement | null>(null);
   // ✕ボタンの露出幅（px）
   const ACTION_W = 72;
@@ -449,7 +452,14 @@ export const TransactionHistory: React.FC<Props> = ({
                             </div>
 
                             <div className={`nm ${(t.destination || "").length >= 9 ? "nm-small" : ""}`}>
-                              {t.destination}
+                              <span>{t.destination}</span>
+                              {moveDestinationDate(t) !== t.date && (
+                                <small className={isMoveInTransitAsOf(t, today) ? "move-transit-status is-pending" : "move-transit-status"}>
+                                  {isMoveInTransitAsOf(t, today)
+                                    ? `移動中・${moveDestinationDate(t).slice(5).replace("-", "/")}反映予定`
+                                    : `${moveDestinationDate(t).slice(5).replace("-", "/")}反映`}
+                                </small>
+                              )}
                             </div>
                           </>
                         ) : (

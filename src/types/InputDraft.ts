@@ -7,6 +7,7 @@ export type InputDraft = {
   type: Transaction["type"];
   amount: string;
   date: string;
+  destinationDate?: string;
   name: string;
   category: string;
   source: string;

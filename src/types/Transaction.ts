@@ -24,6 +24,8 @@ export interface Transaction {
   type: "expense" | "income" | "move"; // Type of transaction
   amount: number; // Amount of the transaction (income/expense are both stored as positive numbers)
   date: string; // Date of the transaction in ISO format (YYYY-MM-DD)
+  /** Moveのみ。移動先へ反映される日。未設定ならdateと同日扱い。 */
+  destinationDate?: string;
   name: string; // Name or description of the transaction
   category: string; // Category of the transaction (e.g., "Food", "Transport")
   source: string; // Source of the transaction (e.g., "Bank", "Cash")

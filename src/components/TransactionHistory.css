@@ -104,6 +104,19 @@
   font-size: 0.75rem;
 }
 
+.move-transit-status {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.65rem;
+  line-height: 1.15;
+  opacity: 0.72;
+}
+
+.move-transit-status.is-pending {
+  font-weight: 700;
+  opacity: 1;
+}
+
 /* amount: 右揃え */
 .amt{
   width: 7em;

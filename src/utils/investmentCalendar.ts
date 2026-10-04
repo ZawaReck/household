@@ -3,6 +3,7 @@ import type { InvestmentSnapshot } from "../types/Investment";
 import type { Transaction } from "../types/Transaction";
 import { investmentBalanceAsOf } from "./accountBalances";
 import { monthEndISO } from "./analytics";
+import { moveDestinationDate, moveSourceDate } from "./moveDates";
 
 const previousMonthEndISO = (monthKey: string) => {
   const [year, month] = monthKey.split("-").map(Number);
@@ -34,9 +35,11 @@ export const investmentProfitForMonth = (
       let deposits = 0;
       let withdrawals = 0;
       transactions.forEach((transaction) => {
-        if (transaction.type !== "move" || transaction.date <= flowStart || transaction.date > asOf) return;
-        if (transaction.destination === account.name) deposits += transaction.amount;
-        if (transaction.source === account.name) withdrawals += transaction.amount;
+        if (transaction.type !== "move") return;
+        const destinationDate = moveDestinationDate(transaction);
+        const sourceDate = moveSourceDate(transaction);
+        if (transaction.destination === account.name && destinationDate > flowStart && destinationDate <= asOf) deposits += transaction.amount;
+        if (transaction.source === account.name && sourceDate > flowStart && sourceDate <= asOf) withdrawals += transaction.amount;
       });
       return total + closingValue + withdrawals - openingValue - deposits;
     }, 0);

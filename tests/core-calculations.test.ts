@@ -174,6 +174,64 @@ describe("account opening balances", () => {
     expect(investmentBalanceAsOf(nisa, transactions, snapshots, "2026-09-12")).toBe(180);
   });
 
+  it("keeps a card-funded investment in transit until its destination date", () => {
+    const nisa = account({
+      id: "nisa",
+      name: "NISA口座",
+      kind: "investment",
+      openingBalance: 500,
+      initialDeposits: 500,
+      openingDate: "2026-09-23",
+    });
+    const card = account({
+      id: "card",
+      name: "カード",
+      kind: "credit_card",
+      openingDate: "2026-09-23",
+      creditCard: { limit: 100_000, closingDay: 30, paymentDay: 27, paymentDelayMonths: 1 },
+    });
+    const snapshots = [
+      { id: "september", date: "2026-09-30", values: { nisa: 500 } },
+      { id: "october", date: "2026-10-31", values: { nisa: 710 } },
+    ];
+    const move = transaction({
+      id: "card-nisa",
+      type: "move",
+      amount: 200,
+      date: "2026-09-10",
+      destinationDate: "2026-10-07",
+      source: "カード",
+      destination: "NISA口座",
+      cardCycle: { cardAccountId: "card", closingDay: 30, paymentDay: 27, paymentDelayMonths: 1 },
+    });
+
+    expect(creditCardOutstandingAsOf(card, [move], "2026-09-23")).toBe(200);
+    expect(investmentBalanceAsOf(nisa, [move], snapshots, "2026-09-30")).toBe(500);
+    expect(investmentBalanceAsOf(nisa, [move], snapshots, "2026-10-06")).toBe(500);
+    expect(investmentBalanceAsOf(nisa, [move], snapshots, "2026-10-07")).toBe(700);
+    expect(investmentFlowsAsOf(nisa, [move], "2026-09-30").cumulativeDeposits).toBe(500);
+    expect(investmentFlowsAsOf(nisa, [move], "2026-10-07").cumulativeDeposits).toBe(700);
+    expect(investmentProfitForMonth([nisa], [move], snapshots, "2026-10")).toBe(10);
+  });
+
+  it("applies each side of a delayed regular-account move on its own date", () => {
+    const bank = account({ id: "bank", name: "銀行", kind: "bank", openingBalance: 1_000 });
+    const savings = account({ id: "savings", name: "貯蓄", kind: "bank", openingBalance: 0 });
+    const move = transaction({
+      id: "delayed-transfer",
+      type: "move",
+      amount: 300,
+      date: "2026-02-01",
+      destinationDate: "2026-02-03",
+      source: "銀行",
+      destination: "貯蓄",
+    });
+
+    expect(accountBalanceAsOf(bank, [move], "2026-02-02")).toBe(700);
+    expect(accountBalanceAsOf(savings, [move], "2026-02-02")).toBe(0);
+    expect(accountBalanceAsOf(savings, [move], "2026-02-03")).toBe(300);
+  });
+
   it("builds one read-only month-end investment profit entry", () => {
     const nisa = account({ id: "nisa", name: "NISA口座", kind: "investment", openingBalance: 100, openingDate: "2026-08-01" });
     const snapshots = [

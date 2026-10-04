@@ -2,22 +2,22 @@ import type { Account } from "../types/Account";
 import type { Transaction } from "../types/Transaction";
 import type { InvestmentSnapshot } from "../types/Investment";
 import { isIncludedInRegularAnalytics } from "./analytics";
+import { moveDestinationDate, moveSourceDate } from "./moveDates";
 
 export const accountBalanceAsOf = (account: Account, transactions: Transaction[], asOf: string) => {
   if (asOf < account.openingDate) return 0;
   return transactions
-    .filter((transaction) => {
+    .reduce((balance, transaction) => {
       const effectiveDate = transaction.system?.kind === "monthly_adjustment"
         ? transaction.system.basisDate ?? transaction.date
         : transaction.date;
-      return effectiveDate > account.openingDate && effectiveDate <= asOf;
-    })
-    .reduce((balance, transaction) => {
-      if (transaction.type === "income" && transaction.source === account.name) return balance + transaction.amount;
-      if (transaction.type === "expense" && transaction.source === account.name) return balance - transaction.amount;
+      if (transaction.type === "income" && transaction.source === account.name && effectiveDate > account.openingDate && effectiveDate <= asOf) return balance + transaction.amount;
+      if (transaction.type === "expense" && transaction.source === account.name && effectiveDate > account.openingDate && effectiveDate <= asOf) return balance - transaction.amount;
       if (transaction.type === "move") {
-        if (transaction.source === account.name) return balance - transaction.amount;
-        if (transaction.destination === account.name) return balance + transaction.amount;
+        const sourceDate = moveSourceDate(transaction);
+        const destinationDate = moveDestinationDate(transaction);
+        if (transaction.source === account.name && sourceDate > account.openingDate && sourceDate <= asOf) return balance - transaction.amount;
+        if (transaction.destination === account.name && destinationDate > account.openingDate && destinationDate <= asOf) return balance + transaction.amount;
       }
       return balance;
     }, account.openingBalance);
@@ -39,9 +39,11 @@ export const investmentBalanceAsOf = (
   const basisDate = snapshot?.date ?? account.openingDate;
   const basisValue = snapshot?.values[account.id] ?? account.openingBalance;
   return transactions.reduce((balance, transaction) => {
-    if (transaction.type !== "move" || transaction.date <= basisDate || transaction.date > asOf) return balance;
-    if (transaction.destination === account.name) return balance + transaction.amount;
-    if (transaction.source === account.name) return balance - transaction.amount;
+    if (transaction.type !== "move") return balance;
+    const sourceDate = moveSourceDate(transaction);
+    const destinationDate = moveDestinationDate(transaction);
+    if (transaction.destination === account.name && destinationDate > basisDate && destinationDate <= asOf) return balance + transaction.amount;
+    if (transaction.source === account.name && sourceDate > basisDate && sourceDate <= asOf) return balance - transaction.amount;
     return balance;
   }, basisValue);
 };
@@ -94,8 +96,8 @@ export const calendarAssetBalanceAsOf = (
 export const hasFutureAccountActivity = (account: Account, transactions: Transaction[], today: string) =>
   transactions.some(
     (transaction) =>
-      transaction.date > today &&
-      (transaction.source === account.name || transaction.destination === account.name)
+      (transaction.source === account.name && moveSourceDate(transaction) > today) ||
+      (transaction.type === "move" && transaction.destination === account.name && moveDestinationDate(transaction) > today)
   );
 
 export const creditCardOutstandingAsOf = (account: Account, transactions: Transaction[], asOf: string) =>
