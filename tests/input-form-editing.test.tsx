@@ -111,6 +111,25 @@ function EditingHarness({ transaction, onUpdate = vi.fn(), onSetEditing = vi.fn(
 }
 
 describe("InputForm existing transaction editing", () => {
+  it("does not override the native caret while typing an amount on desktop", async () => {
+    mobileViewport = false;
+    const setSelectionRange = vi.spyOn(HTMLInputElement.prototype, "setSelectionRange");
+    try {
+      render(<EditingHarness transaction={expense} />);
+      const amount = screen.getByPlaceholderText("金額") as HTMLInputElement;
+      fireEvent.focus(amount);
+      amount.setSelectionRange(1, 1);
+      setSelectionRange.mockClear();
+
+      fireEvent.change(amount, { target: { value: "19200" } });
+
+      await waitFor(() => expect(amount.value).toBe("19200"));
+      expect(setSelectionRange).not.toHaveBeenCalled();
+    } finally {
+      setSelectionRange.mockRestore();
+    }
+  });
+
   it("keeps every editable expense field after mobile-triggered parent rerenders", async () => {
     const onUpdate = vi.fn();
     render(<EditingHarness transaction={expense} onUpdate={onUpdate} />);

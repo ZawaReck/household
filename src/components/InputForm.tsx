@@ -294,12 +294,12 @@ export const InputForm: React.FC<InputFormProps> = ({
   };
 
   React.useLayoutEffect(() => {
-    if (!calculatorTarget) return;
+    if (!usesCustomKeypad || !calculatorTarget) return;
     const input = calculatorTarget === "amount" ? amountInputRef.current : moveFeeInputRef.current;
     const value = calculatorTarget === "amount" ? amount : moveFee;
     const index = calculatorPrefix.length + calculatorCursorIndex(calculatorTarget, value);
     input?.setSelectionRange(index, index);
-  }, [amount, calculatorCursorIndex, calculatorPrefix, calculatorTarget, moveFee]);
+  }, [amount, calculatorCursorIndex, calculatorPrefix, calculatorTarget, moveFee, usesCustomKeypad]);
 
   useEffect(() => {
     if (!activeAccountNames.includes(source)) setSource(defaultSource);
