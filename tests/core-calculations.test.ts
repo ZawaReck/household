@@ -161,6 +161,33 @@ describe("account opening balances", () => {
     expect(calendarAssetBalanceAsOf([wallet], editedHistorical, [], "2026-09-24")).toBe(1_030);
   });
 
+  it("keeps moves neutral while reconstructing balances across month and year boundaries", () => {
+    const accounts = [
+      account({ id: "bank", name: "銀行", kind: "bank", openingBalance: 1_000, openingDate: "2027-01-10" }),
+      account({ id: "wallet", name: "財布", kind: "cash", openingBalance: 500, openingDate: "2027-01-10" }),
+    ];
+    const historical = [
+      transaction({ id: "november-income", type: "income", amount: 300, date: "2026-11-15", source: "銀行" }),
+      transaction({ id: "december-expense", type: "expense", amount: 100, date: "2026-12-15", source: "銀行" }),
+      transaction({ id: "year-end-move", type: "move", amount: 200, date: "2026-12-31", source: "銀行", destination: "財布" }),
+      transaction({ id: "new-year-income", type: "income", amount: 50, date: "2027-01-01", source: "銀行" }),
+      transaction({ id: "january-expense", type: "expense", amount: 20, date: "2027-01-05", source: "財布" }),
+    ];
+
+    expect(calendarAssetBalanceAsOf(accounts, historical, [], "2026-10-31")).toBe(1_270);
+    expect(calendarAssetBalanceAsOf(accounts, historical, [], "2026-11-30")).toBe(1_570);
+    expect(calendarAssetBalanceAsOf(accounts, historical, [], "2026-12-30")).toBe(1_470);
+
+    const decemberClosing = calendarAssetBalanceAsOf(accounts, historical, [], "2026-12-31");
+    const januaryOpening = calendarAssetBalanceAsOf(accounts, historical, [], "2026-12-31");
+    expect(decemberClosing).toBe(1_470);
+    expect(januaryOpening).toBe(decemberClosing);
+
+    expect(calendarAssetBalanceAsOf(accounts, historical, [], "2027-01-01")).toBe(1_520);
+    expect(calendarAssetBalanceAsOf(accounts, historical, [], "2027-01-09")).toBe(1_500);
+    expect(calendarAssetBalanceAsOf(accounts, historical, [], "2027-01-10")).toBe(1_500);
+  });
+
   it("applies only moves after the latest investment snapshot", () => {
     const nisa = account({ id: "nisa", name: "NISA口座", kind: "investment", openingBalance: 100, openingDate: "2026-09-01" });
     const snapshots = [{ id: "snapshot", date: "2026-09-10", values: { nisa: 150 } }];
