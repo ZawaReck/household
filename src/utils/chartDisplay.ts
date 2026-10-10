@@ -18,3 +18,22 @@ export const investmentPeriodStartDate = (asOf: string, months: string) => {
   const date = new Date(Date.UTC(year, month - Number(months), 1));
   return date.toISOString().slice(0, 10);
 };
+
+const dayMilliseconds = 24 * 60 * 60 * 1000;
+
+// Parse calendar dates in UTC so a viewer's local timezone never changes a plotted position.
+export const investmentChartTimestamp = (date: string) => {
+  const [year, month, day] = date.split("-").map(Number);
+  return Date.UTC(year, month - 1, day);
+};
+
+// Recharts needs a non-zero domain to render a chart with just one (or same-day) point.
+export const investmentChartDomain = (timestamps: number[]): [number, number] => {
+  if (timestamps.length === 0) return [0, dayMilliseconds];
+  const first = Math.min(...timestamps);
+  const last = Math.max(...timestamps);
+  return first === last ? [first - dayMilliseconds, last + dayMilliseconds] : [first, last];
+};
+
+export const formatInvestmentChartDate = (timestamp: number) =>
+  new Date(timestamp).toISOString().slice(5, 10).replace("-", "/");

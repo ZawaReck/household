@@ -1,7 +1,14 @@
 /* src/components/GraphsPage.tsx */
 
 import React from "react";
-import { boundedChartScrollLeft, visibleChartRange, investmentPeriodStartDate } from "../utils/chartDisplay";
+import {
+  boundedChartScrollLeft,
+  formatInvestmentChartDate,
+  investmentChartDomain,
+  investmentChartTimestamp,
+  investmentPeriodStartDate,
+  visibleChartRange,
+} from "../utils/chartDisplay";
 import type { Transaction } from "../types/Transaction";
 import type { Account } from "../types/Account";
 import type { Category } from "../types/Category";
@@ -805,7 +812,10 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const investmentFlows = (account: Account, date: string) => investmentFlowsAsOf(account, transactions, date);
 
   const investmentChartData = visibleInvestmentSnapshots.map((snapshot) => {
-    const point: Record<string, number | string> = { date: snapshot.date };
+    const point: Record<string, number | string> = {
+      date: snapshot.date,
+      timestamp: investmentChartTimestamp(snapshot.date),
+    };
     historicalInvestmentAssets.forEach((asset) => {
       const account = historicalInvestmentAccounts.find((item) => item.id === asset.id);
       point[asset.id] = account && isAccountVisibleOn(account, snapshot.date)
@@ -837,6 +847,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   });
   const investmentPeriodStart = investmentPeriodStartDate(investmentAsOf, investmentPeriodMonths);
   const filteredInvestmentChartData = investmentChartData.filter((point) => !investmentPeriodStart || String(point.date) >= investmentPeriodStart);
+  const investmentChartTimeDomain = investmentChartDomain(
+    filteredInvestmentChartData.map((point) => Number(point.timestamp)),
+  );
   const filteredInvestmentProfitData = investmentProfitData.filter((point) => !investmentPeriodStart || point.date >= investmentPeriodStart);
   const investmentPieData = investmentAssets.map((asset) => {
     const account = investmentAccounts.find((item) => item.id === asset.id)!;
@@ -2028,9 +2041,19 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               <ResponsiveContainer width="100%" height={190}>
                 <AreaChart data={filteredInvestmentChartData} margin={{ top: 10, right: 6, bottom: 0, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 9 }} tickFormatter={(date) => String(date).slice(2, 7).replace("-", "/")} />
+                  <XAxis
+                    type="number"
+                    dataKey="timestamp"
+                    scale="time"
+                    domain={investmentChartTimeDomain}
+                    tick={{ fontSize: 9 }}
+                    tickFormatter={formatInvestmentChartDate}
+                  />
                   <YAxis width={48} tick={{ fontSize: 8 }} tickFormatter={formatAxisAmount} />
-                  <Tooltip formatter={(value) => formatYen(value)} />
+                  <Tooltip
+                    labelFormatter={(timestamp) => formatInvestmentChartDate(Number(timestamp))}
+                    formatter={(value) => formatYen(value)}
+                  />
                   {historicalInvestmentAssets.map((asset, idx) => (
                     <Area
                       key={asset.id}

@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { rmSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const appVersion = '1.1.0'
+const appVersion = '1.2.0'
 const deployEnvironment = process.env.VITE_DEPLOY_ENV === 'staging' ? 'staging' : 'production'
 const isStaging = deployEnvironment === 'staging'
 
