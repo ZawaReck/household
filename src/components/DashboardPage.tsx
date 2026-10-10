@@ -10,6 +10,7 @@ import { InputForm } from "./InputForm";
 import { TransactionHistory } from "./TransactionHistory";
 import { HistorySearch } from "./HistorySearch";
 import { MonthEndReminder } from "./MonthEndReminder";
+import { CardPaymentDetail } from "./CardPaymentDetail";
 import { localDateISO } from "../utils/date";
 import { historyEntryFlowTop } from "../utils/historyScroll";
 import { loadInvestmentState } from "../data/investmentStore";
@@ -43,6 +44,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 	const [isInputSheetExpanded, setIsInputSheetExpanded] = useState(false);
 	const [isEditingDirty, setIsEditingDirty] = useState(false);
 	const [lastCalendarTapDate, setLastCalendarTapDate] = useState<string | null>(null);
+	const [cardPaymentDetail, setCardPaymentDetail] = useState<Transaction | null>(null);
 	const [visualViewport, setVisualViewport] = useState(() => ({
 		height: typeof window === "undefined" ? 852 : window.visualViewport?.height ?? window.innerHeight,
 		offsetTop: typeof window === "undefined" ? 0 : window.visualViewport?.offsetTop ?? 0,
@@ -207,6 +209,13 @@ export const DashboardPage: React.FC<Props> = (props) => {
 
 	const openEditSheet = (transaction: Transaction) => {
 		if (!confirmDiscardEdit()) return false;
+		if (transaction.system?.kind === "card_payment") {
+			setIsInputSheetOpen(false);
+			setIsEditingDirty(false);
+			props.setEditingTransaction(null);
+			setCardPaymentDetail(transaction);
+			return true;
+		}
 		setActiveGroupId(null);
 		setActiveGroupDate(null);
 		props.onEditTransaction(transaction);
@@ -477,6 +486,7 @@ export const DashboardPage: React.FC<Props> = (props) => {
 				}}
 			/>
 		)}
+		{cardPaymentDetail && <CardPaymentDetail payment={cardPaymentDetail} transactions={props.transactions} onClose={() => setCardPaymentDetail(null)} />}
 	</div>
 	);
 }

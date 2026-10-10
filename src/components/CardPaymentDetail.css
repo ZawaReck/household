@@ -1,0 +1,17 @@
+.card-payment-detail-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 38%); }
+.card-payment-detail { display: flex; width: min(520px, 100%); max-height: min(680px, calc(100dvh - 40px)); flex-direction: column; overflow: hidden; border-radius: 16px; background: #f9fffb; color: #173c25; box-shadow: 0 18px 48px rgb(0 0 0 / 28%); }
+.card-payment-detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 0; padding: 20px 20px 14px; border-bottom: 1px solid #d7e3db; text-align: left; }
+.card-payment-detail h2 { margin: 0; font-size: 18px; }
+.card-payment-detail-header p { margin: 5px 0 0; color: #52725d; font-size: 12px; }
+.card-payment-detail-close { box-sizing: border-box; width: 32px; min-width: 32px; height: 32px; min-height: 32px; flex: none; padding: 0; border: 0; border-radius: 50%; background: #eaf2ed; color: #31533f; font-size: 24px; line-height: 1; }
+.card-payment-detail-total { display: flex; align-items: center; justify-content: space-between; padding: 13px 20px; border-bottom: 1px solid #d7e3db; font-size: 13px; }
+.card-payment-detail-total strong, .card-payment-detail-list > div > strong { color: #c62828; font-variant-numeric: tabular-nums; }
+.card-payment-detail-list { min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.card-payment-detail-list > div { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 12px 20px; border-bottom: 1px solid #e5ece7; font-size: 12px; }
+.card-payment-detail-list > div > span:first-child { color: #52725d; font-variant-numeric: tabular-nums; }
+.card-payment-detail-list > div > span:nth-child(2) { display: grid; min-width: 0; gap: 2px; }
+.card-payment-detail-list > div > span:nth-child(2) strong { overflow: hidden; color: #173c25; text-overflow: ellipsis; white-space: nowrap; }
+.card-payment-detail-list > p { margin: 0; padding: 20px; color: #52725d; font-size: 13px; }
+.card-payment-detail-list small { color: #6e8776; font-size: 10px; }
+.card-payment-detail-footer { display: flex; justify-content: flex-end; padding: 14px 20px; }
+.card-payment-detail-footer button { padding: 8px 14px; border: 1px solid #9db7a6; border-radius: 8px; background: #fff; color: #245e2d; font-weight: 700; }

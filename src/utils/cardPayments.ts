@@ -43,6 +43,29 @@ export const pendingCardPaymentAmountInMonth = (
   return total + transaction.amount;
 }, 0);
 
+/** Returns the card uses that make up a generated card-payment Move. */
+export const cardPaymentLineItems = (transactions: Transaction[], payment: Transaction) => {
+  if (payment.system?.kind !== "card_payment" || !payment.system.cardAccountId) return [];
+
+  const { cardAccountId, key } = payment.system;
+  const cyclePart = key.slice(`${cardAccountId}:`.length).split(":")[0] ?? "";
+  const [closingDay, paymentDay, paymentDelayMonths] = cyclePart.split("-").map(Number);
+  return transactions
+    .filter((transaction) => {
+      if ((transaction.type !== "expense" && transaction.type !== "move") || transaction.system) return false;
+      if (transaction.source !== payment.destination) return false;
+      const cycle = transaction.cardCycle?.cardAccountId === cardAccountId
+        ? transaction.cardCycle
+        : { cardAccountId, closingDay, paymentDay, paymentDelayMonths };
+      if (!Number.isInteger(cycle.closingDay) || !Number.isInteger(cycle.paymentDay) || !Number.isInteger(cycle.paymentDelayMonths)) return false;
+      const statement = statementMonthFor(transaction.date, cycle.closingDay);
+      const cycleKey = `${cycle.closingDay}-${cycle.paymentDay}-${cycle.paymentDelayMonths}`;
+      const itemKey = `${cardAccountId}:${cycleKey}:${statement.year}-${String(statement.month).padStart(2, "0")}`;
+      return itemKey === key;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+};
+
 export const reconcileCardPayments = (transactions: Transaction[], accounts: Account[]) => {
   const cards = accounts.filter((account) => account.isActive && account.kind === "credit_card" && account.creditCard);
   const paymentAccountByCardId = new Map(cards.flatMap((card) => {
