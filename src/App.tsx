@@ -32,6 +32,7 @@ import { loadInputDrafts, saveInputDrafts } from "./data/inputDraftStore";
 import './App.css';
 import { ClearableNumberInput } from "./components/ClearableNumberInput";
 import { useSegmentedDrag } from "./hooks/useSegmentedDrag";
+import { AmountMaskContext } from "./contexts/AmountMaskContext";
 
 const GraphsPage = React.lazy(() => import("./components/GraphsPage").then((module) => ({ default: module.GraphsPage })));
 
@@ -73,6 +74,7 @@ export const App: React.FC = () => {
 	const [syncStatus, setSyncStatus] = useState<SyncStatus>(() =>
 		(document.documentElement.dataset.syncStatus as SyncStatus | undefined) ?? "syncing"
 	);
+	const [maskAmounts, setMaskAmounts] = useState(() => localStorage.getItem("maskAmounts") === "true");
 	useEffect(() => {
 		const handleSyncStatus = (event: Event) => setSyncStatus((event as CustomEvent<SyncStatus>).detail);
 		window.addEventListener("household-sync-status", handleSyncStatus);
@@ -95,6 +97,7 @@ export const App: React.FC = () => {
     }, [accounts]);
     useEffect(() => { saveCategories(categories); }, [categories]);
     useEffect(() => { saveScheduledMoves(scheduledMoves); }, [scheduledMoves]);
+    useEffect(() => { localStorage.setItem("maskAmounts", String(maskAmounts)); }, [maskAmounts]);
 
     useEffect(() => {
       setTransactions((current) => {
@@ -505,7 +508,7 @@ export const App: React.FC = () => {
 
 
 	return (
-		<Router>
+		<AmountMaskContext.Provider value={maskAmounts}><Router>
 			<div className="app-container">
       <div className="pwa-top-shield" aria-hidden="true" />
       <header>
@@ -537,10 +540,12 @@ export const App: React.FC = () => {
             <NotificationSettings />
             <section className="view-settings">
               <h2>表示</h2>
-              <label>
-                <input type="checkbox" checked={showFutureTransactions} onChange={(event) => setShowFutureTransactions(event.target.checked)} />
-                未来の記録を表示
-              </label>
+              <button type="button" className={`view-toggle${showFutureTransactions ? " is-active" : ""}`} aria-pressed={showFutureTransactions} onClick={() => setShowFutureTransactions((value) => !value)}>
+                未来の記録を表示<span>{showFutureTransactions ? "表示中" : "非表示"}</span>
+              </button>
+              <button type="button" className={`view-toggle${maskAmounts ? " is-active" : ""}`} aria-pressed={maskAmounts} onClick={() => setMaskAmounts((value) => !value)}>
+                明細以外の金額をマスク<span>{maskAmounts ? "マスク中" : "OFF"}</span>
+              </button>
               <label className="view-settings-number">
                 削除の取消時間
                 <ClearableNumberInput inputMode="numeric" min="1" max="60" value={deleteUndoSeconds} emptyValue={5} onValueChange={(value) => setDeleteUndoSeconds(Math.max(1, Math.min(60, value || 5)))} />
@@ -624,7 +629,7 @@ export const App: React.FC = () => {
         </div>
       )}
     </div>
-  </Router>
+		</Router></AmountMaskContext.Provider>
   );
 };
 

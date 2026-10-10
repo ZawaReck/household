@@ -64,6 +64,7 @@ import { PickerPanel, SelectionWheel } from "./PickerPanel";
 import { useSegmentedDrag } from "../hooks/useSegmentedDrag";
 import { ClearableNumberInput } from "./ClearableNumberInput";
 import { pendingCardPaymentAmountInMonth } from "../utils/cardPayments";
+import { maskedPercent, maskedYen, useAmountMask } from "../contexts/AmountMaskContext";
 import "./GraphsPage.css";
 
 interface Props {
@@ -95,7 +96,6 @@ const formatYen = (value: unknown) => {
   return `${Math.round(Number(resolved ?? 0)).toLocaleString()}円`;
 };
 const formatYenNumber = (value: number) => `${Math.round(value).toLocaleString()}円`;
-const formatAxisAmount = (value: unknown) => Math.round(Number(value ?? 0)).toLocaleString();
 const getMonthlyValueLabelFontSize = (label: string) => {
   const widthUnits = Array.from(label).reduce((sum, character) => {
     if (/\d/.test(character)) return sum + 0.59;
@@ -143,6 +143,7 @@ const MonthlyValueBarShape: React.FC<Partial<BarShapeProps> & {
   onClick,
   cursor,
 }) => {
+  const masked = useAmountMask();
   if (![x, y, width, height].every((item) => Number.isFinite(Number(item)))) return null;
   const resolved = Number(Array.isArray(value) ? value.at(-1) : value ?? 0);
   const rectX = Number(x);
@@ -152,7 +153,7 @@ const MonthlyValueBarShape: React.FC<Partial<BarShapeProps> & {
   const normalizedY = rectHeight >= 0 ? rectY : rectY + rectHeight;
   const normalizedHeight = Math.abs(rectHeight);
   const labelY = resolved >= 0 ? normalizedY - 8 : normalizedY + normalizedHeight + 14;
-  const label = formatYenNumber(resolved);
+  const label = masked ? "******" : formatYenNumber(resolved);
   const labelFontSize = getMonthlyValueLabelFontSize(label);
 
   return (
@@ -209,6 +210,7 @@ const renderCategoryPieLabel = (props: PieLabelRenderProps) => {
 type PieHoldHintValue = { category: string; value: number; percent: number; color: string };
 
 const PieHoldHint = ({ value }: { value: PieHoldHintValue | null }) => {
+  const masked = useAmountMask();
   if (!value) return null;
   const percent = value.percent < 0.01
     ? `${(value.percent * 100).toFixed(2)}%`
@@ -218,7 +220,7 @@ const PieHoldHint = ({ value }: { value: PieHoldHintValue | null }) => {
       <span className="pie-hold-hint-dot" style={{ backgroundColor: value.color }} />
       <span className="pie-hold-hint-copy">
         <strong>{value.category}</strong>
-        <small>{formatYen(value.value)}・{percent}</small>
+        <small>{masked ? "******・******" : `${formatYen(value.value)}・${percent}`}</small>
       </span>
     </div>
   );
@@ -385,6 +387,8 @@ const CategoryMonthlyTrendChart: React.FC<{
   height?: number;
   onMonthSelect?: (monthKey: string) => void;
 }> = ({ data, category, mode, colorOverride, focusMonthKey, height = 320, onMonthSelect }) => {
+  const masked = useAmountMask();
+  const formatAxisAmount = React.useCallback((value: unknown) => masked ? "******" : Math.round(Number(value ?? 0)).toLocaleString(), [masked]);
   const viewportRef = React.useRef<HTMLDivElement | null>(null);
   const autoAlignKeyRef = React.useRef("");
   const skipNextAutoAlignRef = React.useRef(false);
@@ -484,7 +488,7 @@ const CategoryMonthlyTrendChart: React.FC<{
       formatAxisAmount(fullDataScale.domain[1]).length
     );
     return Math.max(44, longest * 5 + 6);
-  }, [fullDataScale]);
+  }, [fullDataScale, formatAxisAmount]);
 
   React.useEffect(() => {
     const viewport = viewportRef.current;
@@ -598,6 +602,11 @@ const CategoryMonthlyTrendChart: React.FC<{
 };
 
 export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactions, onShowFutureTransactionsChange, includeExcludedAnalytics, onIncludeExcludedAnalyticsChange, setTransactions, accounts: accountMaster, categories }) => {
+  const maskAmounts = useAmountMask();
+  const formatYen = React.useCallback((value: unknown) => maskedYen(value, maskAmounts), [maskAmounts]);
+  const formatUnmaskedYen = React.useCallback((value: unknown) => maskedYen(value, false), []);
+  const formatAxisAmount = React.useCallback((value: unknown) => maskAmounts ? "******" : Math.round(Number(value ?? 0)).toLocaleString(), [maskAmounts]);
+  const formatPercent = React.useCallback((value: number | null | undefined) => maskedPercent(value, maskAmounts), [maskAmounts]);
   const todayISO = localDateISO();
   const currentMonthKey = getMonthKey(todayISO);
   const allMonthKeys = getMonthKeysFromTransactions(transactions, currentMonthKey);
@@ -1553,7 +1562,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       <span>{transaction.source}</span>
                     </div>
                     <div className={`category-transaction-amount ${transaction.type === "income" ? "positive" : "negative"}`}>
-                      {transaction.type === "income" ? "+" : "−"}{formatYen(transactionDisplayAmount(transaction))}
+                      {transaction.type === "income" ? "+" : "−"}{formatUnmaskedYen(transactionDisplayAmount(transaction))}
                     </div>
                   </div>
                 ))}
@@ -1982,13 +1991,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                           損益 {profit > 0 ? "+" : ""}{formatYen(profit)}
                         </span>
                         <span className={profit >= 0 ? "positive" : "negative"}>
-                          {rate == null ? "—" : `${rate > 0 ? "+" : ""}${rate.toFixed(1)}%`}
+                          {rate != null && rate > 0 ? "+" : ""}{formatPercent(rate)}
                         </span>
                       </div>
                       <div className="investment-flow-grid">
                         <span><small>累計入金</small>{formatYen(flow.cumulativeDeposits)}</span>
                         <span><small>累計出金</small>{formatYen(flow.cumulativeWithdrawals)}</span>
-                        <span><small>構成比</small>{ratio == null ? "—" : `${ratio.toFixed(1)}%`}</span>
+                        <span><small>構成比</small>{formatPercent(ratio)}</span>
                       </div>
                     </section>
                   );
@@ -2010,6 +2019,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               snapshots={investmentSnapshots}
               valueAt={investmentSnapshotValueAt}
               onSave={handleSaveSnapshot}
+              maskValues={maskAmounts}
             />
             <p className="muted investment-update-note">口座の追加・開始残高・開始時点損益は設定から変更できます。</p>
           </section>
@@ -2097,7 +2107,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       labelFormatter={(timestamp) => formatInvestmentChartDate(Number(timestamp))}
                       formatter={(value, name) =>
                         name === "損益率"
-                          ? value == null ? "—" : `${Number(value).toFixed(1)}%`
+                          ? formatPercent(value == null ? null : Number(value))
                           : formatYen(value)
                       }
                     />
@@ -2306,11 +2316,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                           <i style={{ backgroundColor: colorIndex >= 0 ? chartColors[colorIndex % chartColors.length] : "#aebbb3" }} />
                           {account}
                         </span>
-                        <span className="portfolio-account-ratio">{ratio.toFixed(1)}%</span>
+                        <span className="portfolio-account-ratio">{formatPercent(ratio)}</span>
                       </div>
                       <div className="portfolio-account-values">
                         <span>帳簿残高 {formatYen(estimated)}</span>
-                        <span className={diff >= 0 ? "positive" : "negative"}>差額 {diff > 0 ? "+" : ""}{formatYen(diff)}</span>
+                        <span className={diff >= 0 ? "positive" : "negative"}>差額 {diff > 0 ? "+" : ""}{formatUnmaskedYen(diff)}</span>
                       </div>
                       <label className="portfolio-balance-input">
                         <span>実残高</span>
@@ -2318,6 +2328,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                           inputMode="numeric"
                           value={actual}
                           onValueChange={(value) => handlePortfolioActualChange(account, value)}
+                          maskDisplay={maskAmounts}
                         />
                         <span>円</span>
                       </label>
@@ -2354,7 +2365,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       </div>
                       <label className="portfolio-balance-input">
                         <span>実利用可能額</span>
-                        <ClearableNumberInput inputMode="numeric" value={cardAvailableInputs[account.name] ?? available} onValueChange={(value) => setCardAvailableInputs((current) => ({ ...current, [account.name]: value }))} />
+                        <ClearableNumberInput inputMode="numeric" value={cardAvailableInputs[account.name] ?? available} onValueChange={(value) => setCardAvailableInputs((current) => ({ ...current, [account.name]: value }))} maskDisplay={maskAmounts} />
                         <span>円</span>
                       </label>
                     </section>
@@ -2987,7 +2998,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     <i style={{ width: `${Math.min(totalBudgetRate, 100)}%` }} />
                   </div>
                   <div className="budget-summary-caption">
-                    <span>{totalBudgetRate.toFixed(1)}%</span>
+                    <span>{formatPercent(totalBudgetRate)}</span>
                     <span>{totalBudgetActual > totalBudget ? `超過 ${formatYen(totalBudgetActual - totalBudget)}` : `残り ${formatYen(totalBudget - totalBudgetActual)}`}</span>
                   </div>
                 </>
@@ -3095,7 +3106,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                             <i style={{ width: `${Math.min(rate, 100)}%` }} />
                           </div>
                           <div className="budget-category-caption">
-                            <span>{rate.toFixed(1)}%</span>
+                            <span>{formatPercent(rate)}</span>
                             <span>{isOver ? `超過 ${formatYen(Math.abs(diff ?? 0))}` : `残り ${formatYen(diff ?? 0)}`}</span>
                           </div>
                         </>
@@ -3205,7 +3216,8 @@ const SnapshotForm: React.FC<{
   snapshots: Array<{ date: string; values: Record<string, number> }>;
   valueAt: (assetId: string, date: string) => number;
   onSave: (date: string, values: Record<string, number>) => void;
-}> = ({ assets, defaultDate, snapshots, valueAt, onSave }) => {
+  maskValues?: boolean;
+}> = ({ assets, defaultDate, snapshots, valueAt, onSave, maskValues = false }) => {
   const [date, setDate] = React.useState(defaultDate);
   const [values, setValues] = React.useState<Record<string, number>>({});
   const [savedValues, setSavedValues] = React.useState("");
@@ -3243,6 +3255,7 @@ const SnapshotForm: React.FC<{
               step="1"
               value={values[asset.id] ?? 0}
               onValueChange={(value) => setValues((prev) => ({ ...prev, [asset.id]: value }))}
+              maskDisplay={maskValues}
             />
             <span>円</span>
           </label>

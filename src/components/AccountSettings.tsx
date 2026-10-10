@@ -12,6 +12,7 @@ import { localDateISO } from "../utils/date";
 import { loadInvestmentState } from "../data/investmentStore";
 import { ClearableNumberInput } from "./ClearableNumberInput";
 import { investmentOpeningFlows, investmentOpeningProfit } from "../utils/investments";
+import { maskedYen, useAmountMask } from "../contexts/AmountMaskContext";
 
 type Props = {
   accounts: Account[];
@@ -52,6 +53,7 @@ const cardDefaults = () => ({
 });
 
 export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSave, onReorder }) => {
+  const masked = useAmountMask();
   const [draft, setDraft] = React.useState<Account | null>(null);
   const today = todayISO();
   const orderedAccounts = React.useMemo(() => accounts
@@ -186,7 +188,7 @@ export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSav
           <article key={account.id} className={`account-row ${account.isActive ? "" : "is-inactive"}`}>
             <button type="button" className="account-edit" onClick={() => setDraft(account)}>
               <strong>{account.name}</strong>
-              <span>{kindLabels[account.kind]} · 開始残高 {account.openingBalance.toLocaleString()}円</span>
+              <span>{kindLabels[account.kind]} · 開始残高 {maskedYen(account.openingBalance, masked)}</span>
             </button>
             <div className="account-order-controls" aria-label={`${account.name}の入力候補順`}>
               <button type="button" aria-label={`${account.name}を上へ`} disabled={index === 0} onClick={() => moveAccount(index, -1)}>↑</button>
@@ -213,7 +215,7 @@ export const AccountSettings: React.FC<Props> = ({ accounts, transactions, onSav
             <>
               <label>開始時点累計入金<ClearableNumberInput inputMode="numeric" min="0" step="1" value={investmentOpeningFlows(draft).deposits} onValueChange={(initialDeposits) => setDraft({ ...draft, initialDeposits })} /></label>
               <label>開始時点累計出金<ClearableNumberInput inputMode="numeric" min="0" step="1" value={investmentOpeningFlows(draft).withdrawals} onValueChange={(initialWithdrawals) => setDraft({ ...draft, initialWithdrawals })} /></label>
-              <span className="account-investment-opening-profit">開始時点損益 {investmentOpeningProfit(draft).toLocaleString()}円</span>
+              <span className="account-investment-opening-profit">開始時点損益 {maskedYen(investmentOpeningProfit(draft), masked)}</span>
             </>
           )}
           <label>開始基準日<input type="date" value={draft.openingDate} onChange={(event) => setDraft({ ...draft, openingDate: event.target.value })} /></label>
