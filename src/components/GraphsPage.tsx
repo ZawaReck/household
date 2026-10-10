@@ -843,7 +843,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     }, { deposits: 0, withdrawals: 0 });
     const profit = totalValue + totals.withdrawals - totals.deposits;
     const profitRate = totals.deposits > 0 ? (profit / totals.deposits) * 100 : null;
-    return { date: snapshot.date, profit, profitRate };
+    return {
+      date: snapshot.date,
+      timestamp: investmentChartTimestamp(snapshot.date),
+      profit,
+      profitRate,
+    };
   });
   const investmentPeriodStart = investmentPeriodStartDate(investmentAsOf, investmentPeriodMonths);
   const filteredInvestmentChartData = investmentChartData.filter((point) => !investmentPeriodStart || String(point.date) >= investmentPeriodStart);
@@ -2078,10 +2083,18 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                 <ResponsiveContainer width="100%" height={170}>
                   <LineChart data={filteredInvestmentProfitData} margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 9 }} tickFormatter={(date) => String(date).slice(2, 7).replace("-", "/")} />
+                    <XAxis
+                      type="number"
+                      dataKey="timestamp"
+                      scale="time"
+                      domain={investmentChartTimeDomain}
+                      tick={{ fontSize: 9 }}
+                      tickFormatter={formatInvestmentChartDate}
+                    />
                     <YAxis yAxisId="left" width={48} tick={{ fontSize: 8 }} tickFormatter={formatAxisAmount} />
                     <YAxis yAxisId="right" width={34} tick={{ fontSize: 8 }} orientation="right" tickFormatter={(value) => `${Math.round(Number(value))}%`} />
                     <Tooltip
+                      labelFormatter={(timestamp) => formatInvestmentChartDate(Number(timestamp))}
                       formatter={(value, name) =>
                         name === "損益率"
                           ? value == null ? "—" : `${Number(value).toFixed(1)}%`
