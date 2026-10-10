@@ -4,18 +4,22 @@ type Props = Omit<React.InputHTMLAttributes<HTMLInputElement>, "type" | "value" 
   value: number | null | undefined;
   onValueChange: (value: number) => void;
   emptyValue?: number;
+  maskDisplay?: boolean;
 };
 
 export const ClearableNumberInput: React.FC<Props> = ({
   value,
   onValueChange,
   emptyValue = 0,
+  maskDisplay = false,
   onFocus,
   onBlur,
   ...props
 }) => {
   const [draft, setDraft] = React.useState(() => value == null ? "" : String(value));
   const focusedRef = React.useRef(false);
+  const [isFocused, setIsFocused] = React.useState(false);
+  const isMasked = maskDisplay && !isFocused;
 
   React.useEffect(() => {
     if (!focusedRef.current) setDraft(value == null ? "" : String(value));
@@ -24,10 +28,12 @@ export const ClearableNumberInput: React.FC<Props> = ({
   return (
     <input
       {...props}
-      type="number"
-      value={draft}
+      type={isMasked ? "text" : "number"}
+      value={isMasked ? "******" : draft}
+      aria-label={isMasked ? `${props["aria-label"] ?? "金額"}（マスク中。編集するには選択）` : props["aria-label"]}
       onFocus={(event) => {
         focusedRef.current = true;
+        setIsFocused(true);
         onFocus?.(event);
       }}
       onChange={(event) => {
@@ -42,6 +48,7 @@ export const ClearableNumberInput: React.FC<Props> = ({
       }}
       onBlur={(event) => {
         focusedRef.current = false;
+        setIsFocused(false);
         onBlur?.(event);
       }}
     />
