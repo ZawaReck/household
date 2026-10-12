@@ -467,7 +467,10 @@ export const InputForm: React.FC<InputFormProps> = ({
     queueMicrotask(() => { isApplyingDraft.current = false; });
   }, []);
 
-  const startEmptyDraft = React.useCallback((nextType: Transaction["type"] = "expense") => {
+  const startEmptyDraft = React.useCallback((
+    nextType: Transaction["type"] = "expense",
+    keepSelections = false,
+  ) => {
     isApplyingDraft.current = true;
     setActiveDraftId(`draft_${crypto.randomUUID()}`);
     setType(nextType);
@@ -475,10 +478,12 @@ export const InputForm: React.FC<InputFormProps> = ({
     setDate(selectedDate);
     setDestinationDate(selectedDate);
     setName("");
-    setCategory(nextType === "income" ? defaultIncomeCategory : defaultExpenseCategory);
-    setSource(defaultSource);
-    setSourceMove(defaultMoveSource);
-    setDestination(defaultMoveDestination);
+    if (!keepSelections) {
+      setCategory(nextType === "income" ? defaultIncomeCategory : defaultExpenseCategory);
+      setSource(defaultSource);
+      setSourceMove(defaultMoveSource);
+      setDestination(defaultMoveDestination);
+    }
     setMemo("");
     setClassification("normal");
     setMoveFee("");
@@ -566,7 +571,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 
   const resetForm = React.useCallback((
     nextType: "expense" | "income" | "move" = type,
-    options: { keepDate?: boolean; dateValue?: string; keepTaxControls?: boolean } = {}
+    options: { keepDate?: boolean; dateValue?: string; keepTaxControls?: boolean; keepSelections?: boolean } = {}
   ) => {
     const nextDate = options.keepDate ? date : (options.dateValue ?? selectedDate);
     const nextCategory = nextType === "income" ? defaultIncomeCategory : defaultExpenseCategory;
@@ -579,10 +584,12 @@ export const InputForm: React.FC<InputFormProps> = ({
       setIsExternalTax(nextType === "expense" && entryMode === "receipt_exclusive");
       setTaxRate(10);
     }
-    setCategory(nextCategory);
-    setSource(defaultSource);
-    setSourceMove(defaultMoveSource);
-    setDestination(defaultMoveDestination);
+    if (!options.keepSelections) {
+      setCategory(nextCategory);
+      setSource(defaultSource);
+      setSourceMove(defaultMoveSource);
+      setDestination(defaultMoveDestination);
+    }
     setMoveFee("");
     setDate(nextDate);
     setDestinationDate(nextDate);
@@ -882,12 +889,12 @@ export const InputForm: React.FC<InputFormProps> = ({
     if (editingReceiptIndex !== null) {
       setReceiptItems((prev) => prev.map((it, i) => (i === editingReceiptIndex ? draft : it)));
       setEditingReceiptIndex(null);
-      resetForm(type, { keepDate: true, keepTaxControls: true });
+      resetForm(type, { keepDate: true, keepTaxControls: true, keepSelections: true });
       return;
     }
 
     setReceiptItems((prev) => [...prev, draft]);
-    resetForm(type, { keepDate: true, keepTaxControls: true });
+    resetForm(type, { keepDate: true, keepTaxControls: true, keepSelections: true });
   };
 
   const loadDraftToForm = (t: DraftTx, idx: number) => {
@@ -1009,7 +1016,7 @@ export const InputForm: React.FC<InputFormProps> = ({
       setActiveGroupId(null);
       setActiveGroupDate(null);
       setEditingReceiptIndex(null);
-      resetForm(type, { dateValue: selectedDate });
+      resetForm(type, { dateValue: selectedDate, keepSelections: true });
       return;
     }
 
@@ -1121,7 +1128,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     const remainingDrafts = savedDrafts.filter((draft) => draft.id !== activeDraftId);
     setSavedDrafts(remainingDrafts);
     saveInputDrafts(remainingDrafts);
-    startEmptyDraft(type);
+    startEmptyDraft(type, true);
   };
 
   const calcTaxedAmount = (base: number, rate: TaxRate) => {

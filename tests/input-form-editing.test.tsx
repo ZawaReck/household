@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import React from "react";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { InputForm } from "../src/components/InputForm";
 import type { Account } from "../src/types/Account";
@@ -341,5 +341,73 @@ describe("InputForm existing transaction editing", () => {
     await waitFor(() => expect(JSON.parse(localStorage.getItem("drafts.v1") ?? "[]")[0].updatedAt).toBe(originalUpdatedAt));
     expect(localChange).not.toHaveBeenCalled();
     window.removeEventListener("household-local-change", localChange);
+  });
+});
+
+describe("InputForm consecutive entries", () => {
+  const renderNewEntry = async (onAddTransaction = vi.fn()) => {
+    render(<InputForm
+      onAddTransaction={onAddTransaction}
+      onUpdateTransaction={vi.fn()}
+      onDeleteTransaction={vi.fn()}
+      onDeleteReceipt={() => true}
+      editingTransaction={null}
+      setEditingTransaction={vi.fn()}
+      selectedDate="2026-09-23"
+      monthlyData={[]}
+      accounts={accounts}
+      categories={categories}
+    />);
+    await act(async () => {});
+    return onAddTransaction;
+  };
+
+  const selectSource = (name: string) => {
+    fireEvent.click(screen.getByRole("button", { name: /拠出元/ }));
+    fireEvent.click(within(screen.getByRole("listbox", { name: "拠出元" })).getByRole("option", { name }));
+    fireEvent.click(screen.getByRole("button", { name: "完了" }));
+  };
+
+  const fillEntry = (name: string, amount: string) => {
+    fireEvent.change(screen.getByPlaceholderText("摘要"), { target: { value: name } });
+    fireEvent.change(screen.getByPlaceholderText("金額"), { target: { value: amount } });
+  };
+
+  it("keeps the chosen category and source after each individual registration", async () => {
+    mobileViewport = false;
+    const onAdd = await renderNewEntry();
+    fireEvent.click(screen.getByRole("radio", { name: "日用品" }));
+    selectSource("銀行");
+    fillEntry("洗剤", "500");
+    fireEvent.click(screen.getByRole("button", { name: "登録" }));
+
+    await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1));
+    expect(onAdd).toHaveBeenLastCalledWith(expect.objectContaining({ name: "洗剤", category: "日用品", source: "銀行" }));
+    expect(screen.getByRole("radio", { name: "日用品" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("button", { name: /拠出元/ }).textContent).toContain("銀行");
+
+    fireEvent.click(screen.getByRole("radio", { name: "食費" }));
+    selectSource("貯蓄");
+    fillEntry("昼食", "800");
+    fireEvent.click(screen.getByRole("button", { name: "登録" }));
+
+    await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(2));
+    expect(onAdd).toHaveBeenLastCalledWith(expect.objectContaining({ name: "昼食", category: "食費", source: "貯蓄" }));
+    expect(screen.getByRole("radio", { name: "食費" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("button", { name: /拠出元/ }).textContent).toContain("貯蓄");
+  });
+
+  it("keeps the chosen category and source after adding receipt items", async () => {
+    mobileViewport = false;
+    await renderNewEntry();
+    fireEvent.click(screen.getByRole("radio", { name: "一括内税" }));
+    fireEvent.click(screen.getByRole("radio", { name: "日用品" }));
+    selectSource("銀行");
+    fillEntry("洗剤", "500");
+    fireEvent.click(screen.getByRole("button", { name: "追加" }));
+
+    await waitFor(() => expect((screen.getByPlaceholderText("摘要") as HTMLInputElement).value).toBe(""));
+    expect(screen.getByRole("radio", { name: "日用品" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("button", { name: /拠出元/ }).textContent).toContain("銀行");
   });
 });
