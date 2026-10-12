@@ -65,6 +65,7 @@ import { useSegmentedDrag } from "../hooks/useSegmentedDrag";
 import { ClearableNumberInput } from "./ClearableNumberInput";
 import { pendingCardPaymentAmountInMonth } from "../utils/cardPayments";
 import { maskedPercent, maskedYen, useAmountMask } from "../contexts/AmountMaskContext";
+import { accountColor, categoryColor } from "../utils/chartColors";
 import "./GraphsPage.css";
 
 interface Props {
@@ -77,19 +78,6 @@ interface Props {
   accounts: Account[];
   categories: Category[];
 }
-
-const chartColors = [
-  "#4E79A7",
-  "#F28E2B",
-  "#E15759",
-  "#76B7B2",
-  "#59A14F",
-  "#EDC948",
-  "#B07AA1",
-  "#FF9DA7",
-  "#9C755F",
-  "#BAB0AC",
-];
 
 const formatYen = (value: unknown) => {
   const resolved = Array.isArray(value) ? value[0] : value;
@@ -1340,14 +1328,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     .map((item) => `${item.category}:${item.value}`)
     .join("|")}`;
   const selectedCategoryColor = React.useMemo(() => {
-    const colorIndex = categoryPieData.findIndex((item) => item.category === selectedCategory);
-    if (colorIndex >= 0) return chartColors[colorIndex % chartColors.length];
-
-    const fallbackIndex = monthlyCategorySummary.items.findIndex(
-      (item) => item.name === selectedCategory
-    );
-    return chartColors[(fallbackIndex >= 0 ? fallbackIndex : 0) % chartColors.length];
-  }, [categoryPieData, monthlyCategorySummary.items, selectedCategory]);
+    if (monthlyCategoryMode === "net") {
+      return selectedCategory === "収入" ? POSITIVE_BAR_COLOR : NEGATIVE_BAR_COLOR;
+    }
+    return categoryColor(selectedCategory, monthlyCategoryMode);
+  }, [monthlyCategoryMode, selectedCategory]);
   const monthlyCategoryColorMap = React.useMemo(() => {
     if (monthlyCategoryMode === "net") {
       return new Map<string, string>([
@@ -1355,9 +1340,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
         ["支出", NEGATIVE_BAR_COLOR],
       ]);
     }
-    const entries = monthlyCategorySummary.items.map((item, index) => [
+    const entries = monthlyCategorySummary.items.map((item) => [
       item.name,
-      chartColors[index % chartColors.length],
+      categoryColor(item.name, monthlyCategoryMode),
     ] as const);
     return new Map(entries);
   }, [monthlyCategoryMode, monthlyCategorySummary.items]);
@@ -1492,14 +1477,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
       percent: yearlyPieTotal > 0 ? item.value / yearlyPieTotal : 0,
     }));
   const selectedYearlyCategoryColor = React.useMemo(() => {
-    const colorIndex = yearlyPieData.findIndex((item) => item.category === selectedYearlyCategory);
-    if (colorIndex >= 0) return chartColors[colorIndex % chartColors.length];
-
-    const fallbackIndex = yearlyCategorySummary.items.findIndex(
-      (item) => item.name === selectedYearlyCategory
-    );
-    return chartColors[(fallbackIndex >= 0 ? fallbackIndex : 0) % chartColors.length];
-  }, [yearlyPieData, yearlyCategorySummary.items, selectedYearlyCategory]);
+    if (yearlyCategoryMode === "net") {
+      return selectedYearlyCategory === "収入" ? POSITIVE_BAR_COLOR : NEGATIVE_BAR_COLOR;
+    }
+    return categoryColor(selectedYearlyCategory, yearlyCategoryMode);
+  }, [selectedYearlyCategory, yearlyCategoryMode]);
   const yearlyCategoryColorMap = React.useMemo(() => {
     if (yearlyCategoryMode === "net") {
       return new Map<string, string>([
@@ -1507,9 +1489,9 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
         ["支出", NEGATIVE_BAR_COLOR],
       ]);
     }
-    const entries = yearlyCategorySummary.items.map((item, index) => [
+    const entries = yearlyCategorySummary.items.map((item) => [
       item.name,
-      chartColors[index % chartColors.length],
+      categoryColor(item.name, yearlyCategoryMode),
     ] as const);
     return new Map(entries);
   }, [yearlyCategoryMode, yearlyCategorySummary.items]);
@@ -1976,12 +1958,11 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   const profit = current + flow.cumulativeWithdrawals - flow.cumulativeDeposits;
                   const rate = flow.cumulativeDeposits > 0 ? (profit / flow.cumulativeDeposits) * 100 : null;
                   const ratio = latestInvestmentTotal !== 0 ? (current / latestInvestmentTotal) * 100 : null;
-                  const colorIndex = historicalInvestmentAccounts.findIndex((item) => item.id === account.id);
                   return (
                     <section className="investment-account-row" key={account.id}>
                       <div className="investment-account-main">
                         <span className="portfolio-account-name">
-                          <i style={{ backgroundColor: chartColors[(colorIndex >= 0 ? colorIndex : 0) % chartColors.length] }} />
+                          <i style={{ backgroundColor: accountColor(account.name) }} />
                           {account.name}
                         </span>
                         <strong>{formatYen(current)}</strong>
@@ -2069,15 +2050,15 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     labelFormatter={(timestamp) => formatInvestmentChartDate(Number(timestamp))}
                     formatter={(value) => formatYen(value)}
                   />
-                  {historicalInvestmentAssets.map((asset, idx) => (
+                  {historicalInvestmentAssets.map((asset) => (
                     <Area
                       key={asset.id}
                       type="monotone"
                       dataKey={asset.id}
                       name={asset.name}
                       stackId="1"
-                      stroke={chartColors[idx % chartColors.length]}
-                      fill={chartColors[idx % chartColors.length]}
+                      stroke={accountColor(asset.name)}
+                      fill={accountColor(asset.name)}
                       fillOpacity={0.78}
                     />
                   ))}
@@ -2138,8 +2119,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     onAnimationEnd={() => setFinishedInvestmentPieAnimationKey(investmentPieAnimationKey)}
                   >
                     {investmentPieChartData.map((asset) => {
-                      const index = historicalInvestmentAssets.findIndex((item) => item.name === asset.category);
-                      const color = chartColors[(index >= 0 ? index : 0) % chartColors.length];
+                      const color = accountColor(asset.category);
                       return <Cell
                         key={asset.category}
                         fill={color}
@@ -2198,13 +2178,15 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       isAnimationActive={finishedPortfolioPieAnimationKey !== portfolioPieAnimationKey}
                       onAnimationEnd={() => setFinishedPortfolioPieAnimationKey(portfolioPieAnimationKey)}
                     >
-                      {portfolioPieData.map((item, idx) => (
+                      {portfolioPieData.map((item) => {
+                        const color = accountColor(item.category);
+                        return (
                           <Cell
                             key={item.category}
-                            fill={chartColors[idx % chartColors.length]}
+                            fill={color}
                             cursor="pointer"
                             onPointerDown={(event) => {
-                              showPieHoldHint(item, chartColors[idx % chartColors.length]);
+                              showPieHoldHint(item, color);
                               beginPieTap(event, () => handlePortfolioPieSelect(item.category));
                             }}
                             onPointerUp={(event) => {
@@ -2217,7 +2199,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                             }}
                             onPointerLeave={hidePieHoldHint}
                           />
-                      ))}
+                        );
+                      })}
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
@@ -2240,13 +2223,13 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   />
                   <YAxis width={48} tick={{ fontSize: 8 }} tickFormatter={formatAxisAmount} />
                   <Tooltip formatter={(value) => formatYen(value)} />
-                  {portfolioChartSeriesNames.map((account, idx) => (
+                  {portfolioChartSeriesNames.map((account) => (
                     <Bar
                       key={account}
                       dataKey={account}
                       name={account}
                       stackId="1"
-                      fill={account === preOperationAssetLabel ? "#7a9b84" : chartColors[idx % chartColors.length]}
+                      fill={account === preOperationAssetLabel ? "#7a9b84" : accountColor(account)}
                     />
                   ))}
                 </BarChart>
@@ -2301,7 +2284,6 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   const diff = actual - estimated;
                   const displayed = portfolioDisplayValues[account] ?? actual;
                   const ratio = portfolioAssetTotal !== 0 ? (displayed / portfolioAssetTotal) * 100 : 0;
-                  const colorIndex = portfolioPieData.findIndex((item) => item.category === account);
                   return (
                     <section
                       key={account}
@@ -2313,7 +2295,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     >
                       <div className="portfolio-account-main">
                         <span className="portfolio-account-name">
-                          <i style={{ backgroundColor: colorIndex >= 0 ? chartColors[colorIndex % chartColors.length] : "#aebbb3" }} />
+                          <i style={{ backgroundColor: accountColor(account) }} />
                           {account}
                         </span>
                         <span className="portfolio-account-ratio">{formatPercent(ratio)}</span>
@@ -2447,7 +2429,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     <span className="monthly-category-name">
                       <span
                         className="monthly-category-dot"
-                        style={{ color: monthlyCategoryColorMap.get(item.name) ?? chartColors[0] }}
+                        style={{ color: monthlyCategoryColorMap.get(item.name) ?? categoryColor(item.name, "expense") }}
                         aria-hidden="true"
                       >
                         ●
@@ -2522,29 +2504,33 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                         isAnimationActive={finishedCategoryPieAnimationKey !== categoryPieAnimationKey}
                         onAnimationEnd={() => setFinishedCategoryPieAnimationKey(categoryPieAnimationKey)}
                       >
-                        {categoryPieData.map((item, idx) => (
-                          <Cell
-                            key={item.category}
-                            fill={chartColors[idx % chartColors.length]}
-                            cursor="pointer"
-                            onPointerDown={(event) => {
-                              showPieHoldHint(item, chartColors[idx % chartColors.length]);
-                              beginPieTap(event, () => {
-                                setSelectedCategory("");
-                                setSelectedPieCategory(item.category);
-                              });
-                            }}
-                            onPointerUp={(event) => {
-                              hidePieHoldHint();
-                              completePieTap(event);
-                            }}
-                            onPointerCancel={() => {
-                              hidePieHoldHint();
-                              cancelPieTap();
-                            }}
-                            onPointerLeave={hidePieHoldHint}
-                          />
-                        ))}
+                        {categoryPieData.map((item) => {
+                          const color = monthlyCategoryColorMap.get(item.category)
+                            ?? categoryColor(item.category, monthlyCategoryMode === "income" ? "income" : "expense");
+                          return (
+                            <Cell
+                              key={item.category}
+                              fill={color}
+                              cursor="pointer"
+                              onPointerDown={(event) => {
+                                showPieHoldHint(item, color);
+                                beginPieTap(event, () => {
+                                  setSelectedCategory("");
+                                  setSelectedPieCategory(item.category);
+                                });
+                              }}
+                              onPointerUp={(event) => {
+                                hidePieHoldHint();
+                                completePieTap(event);
+                              }}
+                              onPointerCancel={() => {
+                                hidePieHoldHint();
+                                cancelPieTap();
+                              }}
+                              onPointerLeave={hidePieHoldHint}
+                            />
+                          );
+                        })}
                       </Pie>
                     </PieChart>
                   </ResponsiveContainer>
@@ -2675,7 +2661,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     <span className="monthly-category-name">
                       <span
                         className="monthly-category-dot"
-                        style={{ color: yearlyCategoryColorMap.get(item.name) ?? chartColors[0] }}
+                        style={{ color: yearlyCategoryColorMap.get(item.name) ?? categoryColor(item.name, "expense") }}
                         aria-hidden="true"
                       >
                         ●
@@ -2799,16 +2785,20 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                         labelLine={false}
                         label={renderCategoryPieLabel}
                       >
-                        {yearlyPieData.map((item, idx) => (
-                          <Cell
-                            key={item.category}
-                            fill={chartColors[idx % chartColors.length]}
-                            onPointerDown={() => showPieHoldHint(item, chartColors[idx % chartColors.length])}
-                            onPointerUp={hidePieHoldHint}
-                            onPointerCancel={hidePieHoldHint}
-                            onPointerLeave={hidePieHoldHint}
-                          />
-                        ))}
+                        {yearlyPieData.map((item) => {
+                          const color = yearlyCategoryColorMap.get(item.category)
+                            ?? categoryColor(item.category, yearlyCategoryMode === "income" ? "income" : "expense");
+                          return (
+                            <Cell
+                              key={item.category}
+                              fill={color}
+                              onPointerDown={() => showPieHoldHint(item, color)}
+                              onPointerUp={hidePieHoldHint}
+                              onPointerCancel={hidePieHoldHint}
+                              onPointerLeave={hidePieHoldHint}
+                            />
+                          );
+                        })}
                       </Pie>
                     </PieChart>
                   </ResponsiveContainer>
