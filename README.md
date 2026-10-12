@@ -7,6 +7,14 @@ React + TypeScript + Vite で作成している個人向けの家計・資産管
 - 本番: https://household.ozw1504.workers.dev
 - ステージング: https://household-staging.ozw1504.workers.dev
 
+## スクリーンショット
+
+<p align="center">
+  <img src="docs/screenshots/mobile-input.png" alt="支出入力画面" width="31%">
+  <img src="docs/screenshots/mobile-calendar.png" alt="月次カレンダーと取引履歴" width="31%">
+  <img src="docs/screenshots/mobile-graphs.png" alt="カテゴリ別月次グラフ" width="31%">
+</p>
+
 ## 主な機能
 
 ### 入力・カレンダー・履歴
