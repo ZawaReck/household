@@ -1271,6 +1271,16 @@ export const InputForm: React.FC<InputFormProps> = ({
   }
 
   const tabIndex = type === "expense" ? 0 : type === "income" ? 1 : 2;
+  const classificationControl = (
+    <label className="classification-control">
+      <span className="visually-hidden">集計区分</span>
+      <select value={classification} onChange={(event) => setClassification(event.target.value as TransactionClassification)}>
+        <option value="normal">通常</option>
+        <option value="settled">通算</option>
+        <option value="special">特別</option>
+      </select>
+    </label>
+  );
 
   return (
     <div className={`input-form type-${type}`}>
@@ -1316,17 +1326,6 @@ export const InputForm: React.FC<InputFormProps> = ({
           Move
         </button>
       </div>
-
-      {type !== "move" && (
-        <label className="classification-control">
-          <span className="visually-hidden">集計区分</span>
-          <select value={classification} onChange={(event) => setClassification(event.target.value as TransactionClassification)}>
-            <option value="normal">通常</option>
-            <option value="settled">通算</option>
-            <option value="special">特別</option>
-          </select>
-        </label>
-      )}
 
       <form onSubmit={handleSubmit}>
         <div className="row-2">
@@ -1386,6 +1385,7 @@ export const InputForm: React.FC<InputFormProps> = ({
             setDate(nextDate);
           }}
         />
+        {type === "income" && classificationControl}
         {type === "move" && (
           <DateWheelPicker
             value={destinationDate}
@@ -1398,6 +1398,7 @@ export const InputForm: React.FC<InputFormProps> = ({
         {/* 入力単位 + 外税時の税率（支出のみ） */}
         {type === "expense" && (
           <div className="tax-controls" aria-label="消費税設定">
+            {classificationControl}
             <div
               ref={receiptModeDrag.ref}
               className={`receipt-mode-control ${receiptModeDrag.isDragging ? "is-dragging" : ""}`}
@@ -1623,7 +1624,7 @@ export const InputForm: React.FC<InputFormProps> = ({
           )}
         </div>
 
-        <div className="form-buttons">
+        <div className="form-buttons receipt-queue-container">
           <div className="receipt-queue">
             {(receiptItems.length > 0 || showCommittedGroup) && (
               <>
@@ -1708,6 +1709,11 @@ export const InputForm: React.FC<InputFormProps> = ({
                           <span aria-hidden="true" />
                         </div>
                       </div>
+                      <button
+                        type="button"
+                        className="receipt-desktop-delete"
+                        onClick={() => deleteReceiptItem(idx)}
+                      >削除</button>
                     </div>
                   );
                 })}

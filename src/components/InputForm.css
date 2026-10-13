@@ -59,15 +59,19 @@
 }
 
 .classification-control {
-  width: min(360px, 92%);
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
+  width: min(180px, 92%);
+  display: block;
+  box-sizing: border-box;
   margin: -8px 0 12px;
   padding: 3px;
   border: 1px solid #b8d7c0;
   border-radius: 999px;
   background: #f5fbf6;
+}
+
+.input-form .classification-control select {
+  display: block;
+  border-radius: 999px;
 }
 
 .classification-control button {
@@ -435,6 +439,84 @@
   box-sizing: border-box;
 }
 
+.receipt-queue-container { display: block; }
+.receipt-desktop-delete { display: none !important; }
+
+@media (min-width: 768px) {
+  .type-expense .tax-controls,
+  .type-income .classification-control { order: -1; }
+
+  .type-expense .tax-controls { border-top-color: transparent; }
+
+  .type-expense .date-wheel-picker {
+    padding-bottom: 10px;
+    border-bottom: 2px solid #245e2d;
+  }
+
+  .type-income .classification-control {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 50px;
+    margin: 0;
+    padding: 8px 0 0;
+    border: 0;
+    border-top: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .type-income .classification-control select {
+    width: 63px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid #d7e3db;
+    background: #eef3ef;
+    font-size: 12px;
+    text-align: center;
+    text-align-last: center;
+  }
+
+  .receipt-queue .receipt-swipe-row {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    border-bottom: 1px solid #006428;
+  }
+
+  .receipt-queue .receipt-swipe-delete-action { display: none; }
+  .receipt-queue .receipt-swipe-front {
+    flex: 1 1 auto;
+    min-width: 0;
+    border-bottom: 0;
+  }
+
+  .receipt-queue .row-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto;
+    column-gap: 8px;
+  }
+
+  .receipt-queue .cat,
+  .receipt-queue .nm { width: auto; min-width: 0; }
+  .receipt-queue .amt { justify-self: end; width: auto; }
+  .receipt-queue .row-layout > span:last-child { display: none; }
+
+  .form-buttons .receipt-queue .receipt-desktop-delete {
+    display: block !important;
+    flex: 0 0 auto;
+    width: auto;
+    height: 30px;
+    margin-right: 8px;
+    padding: 0 8px;
+    border: 1px solid #b8d7c0;
+    border-radius: 6px;
+    background: #eaf2ed;
+    color: #245e2d;
+    font-size: 12px;
+    font-weight: 500;
+  }
+}
+
 .receipt-queue-head{
   display: flex;
   align-items: center;
@@ -553,6 +635,7 @@
 }
 
 .form-buttons.receipt-buttons{
+  position: relative;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
   margin-bottom: 12px;
@@ -640,6 +723,112 @@
   justify-content: space-between;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+@media (min-width: 768px) {
+  .tax-controls {
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 8px 0 0;
+  }
+
+  .tax-controls .classification-control {
+    flex: 0 0 63px;
+    width: 63px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: #eef3ef;
+  }
+
+  .tax-controls .classification-control select {
+    height: 36px;
+    padding: 0;
+    border: 1px solid #d7e3db;
+    background: #eef3ef;
+    font-size: 12px;
+    text-align: center;
+    text-align-last: center;
+  }
+
+  .tax-controls .receipt-mode-control {
+    order: 2;
+    flex: 0 0 193px;
+    width: 193px;
+    min-width: 193px;
+    height: 40px;
+    gap: 0;
+    margin-left: auto;
+    border: 0;
+    border-radius: 19px;
+    background: #006428;
+  }
+
+  .tax-controls .receipt-mode-control::before {
+    top: 2px;
+    bottom: 2px;
+    left: 2px;
+    width: calc((100% - 4px) / 3);
+    border-radius: 18px;
+    background: #f9fffb;
+  }
+
+  .tax-controls .receipt-mode-control button {
+    min-height: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    color: #f9fffb;
+    font-size: 13px;
+    line-height: 36px;
+  }
+
+  .tax-controls .receipt-mode-control button.active { color: #006428; }
+  .tax-controls .tax-rate-group {
+    order: 1;
+    position: relative;
+    flex: 0 0 118px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    width: 118px;
+    height: 40px;
+    gap: 0;
+    padding: 2px;
+    box-sizing: border-box;
+    overflow: hidden;
+    border-radius: 19px;
+    background: #006428;
+  }
+
+  .tax-controls .tax-rate-group::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    top: 2px;
+    left: 2px;
+    width: calc((100% - 4px) / 3);
+    height: 36px;
+    border-radius: 18px;
+    background: #f9fffb;
+    transform: translateX(calc(var(--tax-rate-position, var(--tax-rate-index)) * 100%));
+    transition: transform 260ms cubic-bezier(.2, .72, .25, 1);
+  }
+
+  .tax-controls .tax-rate-btn {
+    position: relative;
+    z-index: 1;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #f9fffb;
+    font-size: 11px;
+  }
+
+  .tax-controls .tax-rate-btn.active {
+    background: transparent;
+    color: #006428;
+  }
 }
 
 .move-fee-row {
@@ -745,9 +934,9 @@
   content: "";
   position: absolute;
   z-index: 0;
-  inset: 0 auto 0 0;
-  width: calc(100% / 3);
-  border-radius: 9px;
+  inset: 3px auto 3px 3px;
+  width: calc((100% - 6px) / 3);
+  border-radius: 7px;
   background: #245e2d;
   transform: translateX(calc(var(--receipt-mode-position, var(--receipt-mode-index)) * 100%));
   transition: transform 260ms cubic-bezier(.2, .72, .25, 1);
@@ -859,12 +1048,19 @@
   opacity: 0.75;
 }
 .draft-controls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 0.45rem;
-  align-items: end;
+  position: relative;
+  align-self: stretch;
+  margin-inline: 8px;
   margin-bottom: 0.65rem;
 }
+
+.draft-controls > summary {
+  width: fit-content;
+  margin-left: auto;
+  list-style: none;
+}
+
+.draft-controls > summary::-webkit-details-marker { display: none; }
 
 .draft-controls label {
   display: grid;
@@ -942,11 +1138,24 @@
 }
 
 .draft-controls-panel {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  right: 0;
+  box-sizing: border-box;
+  width: min(320px, 100%);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 7px;
   align-items: end;
+  padding: 8px;
+  border: 1px solid #9db7a6;
+  border-radius: 8px;
+  background: #f9fffb;
+  box-shadow: 0 8px 22px rgb(0 60 24 / 18%);
 }
+
+.draft-controls-panel label { grid-column: 1 / -1; }
 
 .memo-control {
   width: 100%;
@@ -967,6 +1176,18 @@
   border-radius: 8px;
   background: #f9fffb;
   box-shadow: 0 8px 22px rgb(0 60 24 / 18%);
+}
+
+@media (min-width: 768px) {
+  .receipt-buttons .input-secondary-actions { position: static; }
+  .receipt-buttons .input-secondary-actions > div {
+    top: calc(100% + 4px);
+    right: auto;
+    left: clamp(0px, calc(100% - 240px), 80px);
+    width: min(240px, 100%);
+    min-width: 0;
+    box-sizing: border-box;
+  }
 }
 
 /* Figma「iPhone 16 - 3 / 5 / 8」の393px幅を基準にしたモバイル入力。 */
@@ -1715,12 +1936,15 @@
     top: 26px;
     right: 0;
     width: min(340px, calc(100vw - 14px));
+    grid-template-columns: minmax(0, 1fr) auto auto;
     padding: 8px;
     border: 1px solid #9db7a6;
     border-radius: 8px;
     background: #f9fffb;
     box-shadow: 0 8px 22px rgb(0 60 24 / 18%);
   }
+
+  .draft-controls-panel label { grid-column: auto; }
 
   .draft-controls-panel select,
   .draft-controls-panel button { height: 36px; min-height: 36px; }
