@@ -9,6 +9,8 @@ React + TypeScript + Vite で作成している個人向けの家計・資産管
 
 ## スクリーンショット
 
+掲載画像には，README表示用に作成した架空のサンプルデータを使用しています．
+
 <p align="center">
   <img src="docs/screenshots/mobile-input.png" alt="支出入力画面" width="31%">
   <img src="docs/screenshots/mobile-calendar.png" alt="月次カレンダーと取引履歴" width="31%">
