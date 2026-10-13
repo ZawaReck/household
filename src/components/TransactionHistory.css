@@ -169,7 +169,7 @@
   position: absolute;
   top: 0;
   right: 0;
-  width: 64px;          /* DELETE_REVEAL_PX と合わせる */
+  width: 64px;
   height: 100%;
   border: none;
   background: #cc0000;
@@ -177,6 +177,54 @@
   font-size: 20px;
   cursor: pointer;
   border-radius: 0 !important;
+}
+
+@media (min-width: 768px) {
+  .history-list .swipe-delete {
+    z-index: 0;
+    top: 3px;
+    left: calc(100% + 3px);
+    right: auto;
+    width: 100%;
+    height: calc(100% - 6px);
+    padding: 0;
+    overflow: hidden;
+    border-radius: 8px !important;
+    transform: translateX(var(--history-swipe-offset, 0px));
+    transition: transform 320ms cubic-bezier(.25, .8, .25, 1);
+    pointer-events: none;
+    touch-action: pan-y;
+  }
+
+  .history-list .swipe-delete-label {
+    position: absolute;
+    top: 50%;
+    left: -3px;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    transform: translate(calc(var(--history-swipe-half-width, 0px) - 50%), -50%) scale(var(--history-delete-label-scale, .18));
+    transform-origin: center;
+    transition: transform 320ms cubic-bezier(.25, .8, .25, 1);
+    pointer-events: none;
+  }
+
+  .history-list .swipe-row.is-dragging:not(.is-full-swipe) .swipe-delete-label { transition: none; }
+  .history-list .swipe-row.is-full-swipe .swipe-delete-label { transform: translate(16px, -50%) scale(1); }
+  .history-list .swipe-row.is-open .swipe-delete { pointer-events: auto; }
+  .history-list .swipe-row.is-dragging .swipe-delete { transition: none; }
+  .history-list .swipe-row { min-width: 0; }
+  .history-list .swipe-front { z-index: 2; box-sizing: border-box; width: 100%; }
+  .history-list .row-layout,
+  .history-list .group-total-row .row-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+    column-gap: 8px;
+  }
+
+  .history-list .cat,
+  .history-list .nm,
+  .history-list .amt { width: auto; min-width: 0; }
 }
 
 /* 前面（スワイプされる） */

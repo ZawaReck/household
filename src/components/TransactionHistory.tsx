@@ -158,6 +158,8 @@ export const TransactionHistory: React.FC<Props> = ({
 
   const onPointerDownRow = (e: React.PointerEvent, id: string) => {
     if (e.button !== 0) return;
+    // 行の外までドラッグしても一連のスワイプを追跡する。
+    e.currentTarget.setPointerCapture(e.pointerId);
     // 別の行が開いていたら閉じる（タップした瞬間に）
     if (openId && openId !== id) setOpenId(null);
 
@@ -191,7 +193,6 @@ export const TransactionHistory: React.FC<Props> = ({
       const horizontal = Math.abs(dx) > Math.abs(dy) * 1.35 && (s.baseX < 0 || dx < 0);
       s.direction = horizontal ? "horizontal" : "vertical";
       if (horizontal) {
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
         setDraggingId(s.id);
         suppressRowClick.current = true;
       }
