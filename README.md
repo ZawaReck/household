@@ -110,7 +110,7 @@ npm run build
 npm run validate
 ```
 
-`npm run validate` はテスト，lint，本番ビルドを順に実行します．
+`npm run validate` はテスト，lint，フロントエンドの本番ビルド，Workerのdry-runバンドルを順に実行します．
 
 ## デプロイ運用
 
@@ -130,6 +130,7 @@ npm run deploy:prod
 - ステージングは専用D1 `household-staging` を使用し，本番D1へ接続しません．
 - ステージングではcronを設定せず，VAPID秘密情報も通常は登録しないためPush通知を送信しません．
 - Workerには環境ごとに `GOOGLE_CLIENT_ID`，`ALLOWED_EMAILS`，`SESSION_SECRET` を設定します．
+- 外部参照APIを使用する環境では，`life`のEd25519公開JWKSと環境別issuer・audience・対象利用者を追加設定します．秘密鍵は`life`側だけで管理します．契約と設定手順は [`docs/integration-api.md`](docs/integration-api.md) を参照してください．
 - Push通知を使用する本番環境では `VAPID_PUBLIC_KEY`，`VAPID_PRIVATE_KEY`，`VAPID_SUBJECT` も設定します．
 - フロントエンドには対応する `VITE_GOOGLE_CLIENT_ID` をビルド時に設定します．
 
@@ -161,7 +162,7 @@ npm run db:seed:staging
 - `src/data/`: ローカル永続化とデータストア
 - `src/types/`: 取引，口座，カテゴリなどの型定義
 - `src/utils/`: 集計，自動記録，バックアップ，CSV取込などのロジック
-- `worker/index.ts`: 認証，同期，Push通知のWorker API
+- `worker/index.ts`: 認証，同期，外部参照，Push通知のWorker API
 - `migrations/`: D1マイグレーション
 - `tests/`: 単体・コンポーネントテスト
 - `fixtures/`: ステージング用固定データ

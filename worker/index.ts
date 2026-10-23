@@ -1,5 +1,6 @@
 import { createRemoteJWKSet, jwtVerify, SignJWT } from "jose";
 import webpush from "web-push";
+import { handleIntegrationApi } from "./integrationApi";
 
 interface Env {
   DB: D1Database;
@@ -10,6 +11,10 @@ interface Env {
   VAPID_PUBLIC_KEY: string;
   VAPID_PRIVATE_KEY: string;
   VAPID_SUBJECT: string;
+  INTEGRATION_JWKS?: string;
+  INTEGRATION_JWT_ISSUER?: string;
+  INTEGRATION_JWT_AUDIENCE?: string;
+  INTEGRATION_USER_ID?: string;
 }
 
 type SyncRecord = { key: string; value: unknown; updatedAt: string; deletedAt?: string | null };
@@ -79,6 +84,7 @@ const handleApi = async (request: Request, env: Env) => {
   if (url.pathname === "/api/auth/logout" && request.method === "POST") {
     return json({ ok: true }, 200, { "set-cookie": expiredSessionCookie() });
   }
+  if (url.pathname.startsWith("/api/integrations/")) return handleIntegrationApi(request, env);
 
   let userId: string;
   try { userId = await authenticate(request, env); }
