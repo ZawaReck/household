@@ -27,3 +27,5 @@ dist-ssr
 amounts.csv
 client_secret_*.apps.googleusercontent.com.json
 .wrangler/
+.dev.vars*
+.env*
