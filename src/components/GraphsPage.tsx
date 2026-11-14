@@ -121,6 +121,147 @@ const variedInvestmentPreviewData = (asOf: string, assets: InvestmentAsset[]): R
     return point;
   });
 };
+type InvestmentChartPoint = Record<string, number | string>;
+type InvestmentTickTransition = { ticks: number[]; start: number[]; end: number[]; progress: number };
+
+const InvestmentAreaChart = React.memo(({
+  points,
+  assets,
+  hiddenIds,
+  timeDomain,
+  periodKey,
+  snapshots,
+  formatYen,
+  formatAxisAmount,
+}: {
+  points: InvestmentChartPoint[];
+  assets: InvestmentAsset[];
+  hiddenIds: Set<string>;
+  timeDomain: [number, number];
+  periodKey: string;
+  snapshots: InvestmentState["snapshots"];
+  formatYen: (value: unknown) => string;
+  formatAxisAmount: (value: unknown) => string;
+}) => {
+  const [weights, setWeights] = React.useState<Record<string, number>>(() =>
+    Object.fromEntries(assets.map((asset) => [asset.id, hiddenIds.has(asset.id) ? 0 : 1])),
+  );
+  const weightsRef = React.useRef(weights);
+  const [domainOverride, setDomainOverride] = React.useState<[number, number] | null>(null);
+  const domainOverrideRef = React.useRef<[number, number] | null>(null);
+  const [tickTransition, setTickTransition] = React.useState<InvestmentTickTransition | null>(null);
+  const animationRef = React.useRef<number | null>(null);
+  const previousRef = React.useRef({ hiddenIds, periodKey, snapshots, assets });
+
+  React.useEffect(() => {
+    const previous = previousRef.current;
+    previousRef.current = { hiddenIds, periodKey, snapshots, assets };
+    const assetIds = assets.map((asset) => asset.id);
+    if (previous.periodKey !== periodKey || previous.snapshots !== snapshots || previous.assets !== assets) {
+      if (animationRef.current !== null) cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+      const nextWeights = Object.fromEntries(assetIds.map((id) => [id, hiddenIds.has(id) ? 0 : 1]));
+      weightsRef.current = nextWeights;
+      domainOverrideRef.current = null;
+      setWeights(nextWeights);
+      setDomainOverride(null);
+      setTickTransition(null);
+      return;
+    }
+    if (previous.hiddenIds === hiddenIds) return;
+    if (animationRef.current !== null) cancelAnimationFrame(animationRef.current);
+    const startWeights = Object.fromEntries(assetIds.map((id) => [id, weightsRef.current[id] ?? (previous.hiddenIds.has(id) ? 0 : 1)]));
+    const targetWeights = Object.fromEntries(assetIds.map((id) => [id, hiddenIds.has(id) ? 0 : 1]));
+    const wasEmpty = assetIds.every((id) => previous.hiddenIds.has(id));
+    const willBeEmpty = assetIds.every((id) => hiddenIds.has(id));
+    const startDomain = domainOverrideRef.current ?? investmentPlotDomain(points, assetIds, startWeights);
+    const targetDomain = investmentPlotDomain(points, assetIds, targetWeights);
+    const startTicks = wasEmpty ? [0] : investmentAxisTicks(startDomain);
+    const endTicks = willBeEmpty ? [0] : investmentAxisTicks(targetDomain);
+    const ticks = [...new Set([...startTicks, ...endTicks])].sort((a, b) => a - b);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      weightsRef.current = targetWeights;
+      setWeights(targetWeights);
+      const domain = willBeEmpty ? startDomain : null;
+      domainOverrideRef.current = domain;
+      setDomainOverride(domain);
+      setTickTransition(willBeEmpty ? { ticks: [0], start: [0], end: [0], progress: 1 } : null);
+      return;
+    }
+    const startTime = performance.now();
+    let lastRenderedAt = startTime - 32;
+    const animate = (now: number) => {
+      const progress = Math.min((now - startTime) / 640, 1);
+      if (progress < 1 && now - lastRenderedAt < 32) {
+        animationRef.current = requestAnimationFrame(animate);
+        return;
+      }
+      lastRenderedAt = now;
+      const eased = progress < 0.5 ? 2 * progress * progress : 1 - 2 * (1 - progress) * (1 - progress);
+      const frameWeights = Object.fromEntries(assetIds.map((id) => [id, startWeights[id] + (targetWeights[id] - startWeights[id]) * eased]));
+      weightsRef.current = frameWeights;
+      setWeights(frameWeights);
+      // Keep the last visible scale while the final area collapses to zero.
+      const domain: [number, number] | null = willBeEmpty
+        ? startDomain
+        : wasEmpty && progress < 1
+          ? [startDomain[0] + (targetDomain[0] - startDomain[0]) * eased, startDomain[1] + (targetDomain[1] - startDomain[1]) * eased]
+          : null;
+      domainOverrideRef.current = domain;
+      setDomainOverride(domain);
+      setTickTransition(progress < 1
+        ? { ticks, start: startTicks, end: endTicks, progress: eased }
+        : willBeEmpty ? { ticks: [0], start: [0], end: [0], progress: 1 } : null);
+      animationRef.current = progress < 1 ? requestAnimationFrame(animate) : null;
+    };
+    animationRef.current = requestAnimationFrame(animate);
+  }, [hiddenIds, periodKey, snapshots, assets, points]);
+
+  React.useEffect(() => () => {
+    if (animationRef.current !== null) cancelAnimationFrame(animationRef.current);
+  }, []);
+
+  const displayedPoints = points.map((point) => {
+    const displayedPoint = { ...point };
+    assets.forEach((asset) => {
+      displayedPoint[asset.id] = Number(point[asset.id] ?? 0) * (weights[asset.id] ?? 1);
+    });
+    return displayedPoint;
+  });
+  const domain = domainOverride ?? investmentPlotDomain(points, assets.map((asset) => asset.id), weights);
+  const ticks = tickTransition?.ticks ?? investmentAxisTicks(domain);
+  const tickOpacity = (value: number) => {
+    if (!tickTransition) return 1;
+    const { start, end, progress } = tickTransition;
+    return start.includes(value) ? (end.includes(value) ? 1 : 1 - progress) : progress;
+  };
+
+  return <ResponsiveContainer width="100%" height={190}>
+    <AreaChart data={displayedPoints} margin={{ top: 10, right: 6, bottom: 0, left: 0 }}>
+      <CartesianGrid horizontal={false} vertical={false} />
+      <XAxis type="number" dataKey="timestamp" scale="time" domain={timeDomain} tick={{ fontSize: 9 }} tickFormatter={formatInvestmentChartDate} />
+      <YAxis
+        width={48}
+        domain={domain}
+        allowDataOverflow
+        ticks={ticks}
+        interval={0}
+        tick={({ x, y, payload }) => (
+          <text x={Number(x) - 4} y={y} textAnchor="end" dominantBaseline="middle" fill="#666" fontSize={8} opacity={tickOpacity(Number(payload.value))}>
+            {formatAxisAmount(payload.value)}
+          </text>
+        )}
+      />
+      {ticks.map((value) => (
+        <ReferenceLine key={value} y={value} stroke="#ccc" strokeDasharray="3 3" strokeOpacity={tickOpacity(value)} ifOverflow="hidden" />
+      ))}
+      <Tooltip labelFormatter={(timestamp) => formatInvestmentChartDate(Number(timestamp))} formatter={(value, _name, item) => hiddenIds.has(String(item.dataKey)) ? null : formatYen(value)} />
+      {assets.map((asset) => (
+        <Area key={asset.id} type="monotone" dataKey={asset.id} name={asset.name} stackId="1" stroke={accountColor(asset.name)} fill={accountColor(asset.name)} fillOpacity={0.78} isAnimationActive={false} />
+      ))}
+    </AreaChart>
+  </ResponsiveContainer>;
+});
 const getMonthlyValueLabelFontSize = (label: string) => {
   const widthUnits = Array.from(label).reduce((sum, character) => {
     if (/\d/.test(character)) return sum + 0.59;
@@ -644,15 +785,6 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const [investmentChartMode, setInvestmentChartMode] = React.useState<"area" | "profit" | "pie">("area");
   const [investmentPeriodMonths, setInvestmentPeriodMonths] = React.useState<"3" | "6" | "12" | "all">("12");
   const [hiddenInvestmentAssetIds, setHiddenInvestmentAssetIds] = React.useState<Set<string>>(() => new Set());
-  const [investmentChartWeights, setInvestmentChartWeights] = React.useState<Record<string, number>>({});
-  const investmentChartWeightsRef = React.useRef<Record<string, number>>({});
-  const [investmentDomainOverride, setInvestmentDomainOverride] = React.useState<[number, number] | null>(null);
-  const investmentDomainOverrideRef = React.useRef<[number, number] | null>(null);
-  const [investmentTickTransition, setInvestmentTickTransition] = React.useState<{ ticks: number[]; start: number[]; end: number[]; progress: number } | null>(null);
-  const investmentChartAnimationRef = React.useRef<number | null>(null);
-  React.useEffect(() => () => {
-    if (investmentChartAnimationRef.current !== null) cancelAnimationFrame(investmentChartAnimationRef.current);
-  }, []);
   const [investmentMonthKey, setInvestmentMonthKey] = React.useState(() => {
     const requested = new URLSearchParams(window.location.search).get("month") ?? "";
     return /^\d{4}-\d{2}$/.test(requested) ? requested : currentMonthKey;
@@ -825,52 +957,12 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     openingValue: account.openingBalance,
   })), [historicalInvestmentAccounts]);
   const toggleInvestmentChartAsset = (assetId: string) => {
-    const nextHidden = new Set(hiddenInvestmentAssetIds);
-    if (nextHidden.has(assetId)) nextHidden.delete(assetId);
-    else nextHidden.add(assetId);
-    setHiddenInvestmentAssetIds(nextHidden);
-
-    if (investmentChartAnimationRef.current !== null) cancelAnimationFrame(investmentChartAnimationRef.current);
-    const assetIds = historicalInvestmentAssets.map((asset) => asset.id);
-    const startWeights = Object.fromEntries(assetIds.map((id) => [id, investmentChartWeightsRef.current[id] ?? (hiddenInvestmentAssetIds.has(id) ? 0 : 1)]));
-    const targetWeights = Object.fromEntries(assetIds.map((id) => [id, nextHidden.has(id) ? 0 : 1]));
-    const wasEmpty = assetIds.every((id) => hiddenInvestmentAssetIds.has(id));
-    const willBeEmpty = assetIds.every((id) => nextHidden.has(id));
-    const startDomain = investmentDomainOverrideRef.current ?? investmentPlotDomain(filteredInvestmentChartData, assetIds, startWeights);
-    const targetDomain = investmentPlotDomain(filteredInvestmentChartData, assetIds, targetWeights);
-    const startTicks = wasEmpty ? [0] : investmentAxisTicks(startDomain);
-    const endTicks = willBeEmpty ? [0] : investmentAxisTicks(targetDomain);
-    const ticks = [...new Set([...startTicks, ...endTicks])].sort((a, b) => a - b);
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      investmentChartWeightsRef.current = targetWeights;
-      setInvestmentChartWeights(targetWeights);
-      const domain = willBeEmpty ? startDomain : null;
-      investmentDomainOverrideRef.current = domain;
-      setInvestmentDomainOverride(domain);
-      setInvestmentTickTransition(willBeEmpty ? { ticks: [0], start: [0], end: [0], progress: 1 } : null);
-      return;
-    }
-    const startTime = performance.now();
-    const animate = (now: number) => {
-      const progress = Math.min((now - startTime) / 640, 1);
-      const eased = progress < 0.5 ? 2 * progress * progress : 1 - 2 * (1 - progress) * (1 - progress);
-      const weights = Object.fromEntries(assetIds.map((id) => [id, startWeights[id] + (targetWeights[id] - startWeights[id]) * eased]));
-      investmentChartWeightsRef.current = weights;
-      setInvestmentChartWeights(weights);
-      // Keep the last visible scale while the final area collapses to zero.
-      const domain: [number, number] | null = willBeEmpty
-        ? startDomain
-        : wasEmpty && progress < 1
-          ? [startDomain[0] + (targetDomain[0] - startDomain[0]) * eased, startDomain[1] + (targetDomain[1] - startDomain[1]) * eased]
-          : null;
-      investmentDomainOverrideRef.current = domain;
-      setInvestmentDomainOverride(domain);
-      setInvestmentTickTransition(progress < 1
-        ? { ticks, start: startTicks, end: endTicks, progress: eased }
-        : willBeEmpty ? { ticks: [0], start: [0], end: [0], progress: 1 } : null);
-      investmentChartAnimationRef.current = progress < 1 ? requestAnimationFrame(animate) : null;
-    };
-    investmentChartAnimationRef.current = requestAnimationFrame(animate);
+    setHiddenInvestmentAssetIds((current) => {
+      const next = new Set(current);
+      if (next.has(assetId)) next.delete(assetId);
+      else next.add(assetId);
+      return next;
+    });
   };
 
   const handleSaveSnapshot = (date: string, values: Record<string, number>) => {
@@ -945,20 +1037,6 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   });
   const investmentPeriodStart = investmentPeriodStartDate(investmentAsOf, investmentPeriodMonths);
   const filteredInvestmentChartData = investmentChartData.filter((point) => !investmentPeriodStart || String(point.date) >= investmentPeriodStart);
-  const displayedInvestmentChartData = filteredInvestmentChartData.map((point) => {
-    const displayedPoint = { ...point };
-    historicalInvestmentAssets.forEach((asset) => {
-      displayedPoint[asset.id] = Number(point[asset.id] ?? 0) * (investmentChartWeights[asset.id] ?? 1);
-    });
-    return displayedPoint;
-  });
-  const investmentChartValueDomain = investmentDomainOverride ?? investmentPlotDomain(filteredInvestmentChartData, historicalInvestmentAssets.map((asset) => asset.id), investmentChartWeights);
-  const investmentChartTicks = investmentTickTransition?.ticks ?? investmentAxisTicks(investmentChartValueDomain);
-  const investmentTickOpacity = (value: number) => {
-    if (!investmentTickTransition) return 1;
-    const { start, end, progress } = investmentTickTransition;
-    return start.includes(value) ? (end.includes(value) ? 1 : 1 - progress) : progress;
-  };
   const investmentChartTimeDomain = investmentChartDomain(
     filteredInvestmentChartData.map((point) => Number(point.timestamp)),
   );
@@ -2167,58 +2245,16 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
             filteredInvestmentChartData.length === 0 ? (
               <p className="muted">選択期間に評価額の記録がありません。期間を広げるか、現在額更新から登録してください。</p>
             ) : (
-              <ResponsiveContainer width="100%" height={190}>
-                <AreaChart data={displayedInvestmentChartData} margin={{ top: 10, right: 6, bottom: 0, left: 0 }}>
-                  <CartesianGrid horizontal={false} vertical={false} />
-                  <XAxis
-                    type="number"
-                    dataKey="timestamp"
-                    scale="time"
-                    domain={investmentChartTimeDomain}
-                    tick={{ fontSize: 9 }}
-                    tickFormatter={formatInvestmentChartDate}
-                  />
-                  <YAxis
-                    width={48}
-                    domain={investmentChartValueDomain}
-                    allowDataOverflow
-                    ticks={investmentChartTicks}
-                    interval={0}
-                    tick={({ x, y, payload }) => (
-                      <text x={Number(x) - 4} y={y} textAnchor="end" dominantBaseline="middle" fill="#666" fontSize={8} opacity={investmentTickOpacity(Number(payload.value))}>
-                        {formatAxisAmount(payload.value)}
-                      </text>
-                    )}
-                  />
-                  {investmentChartTicks.map((value) => (
-                    <ReferenceLine
-                      key={value}
-                      y={value}
-                      stroke="#ccc"
-                      strokeDasharray="3 3"
-                      strokeOpacity={investmentTickOpacity(value)}
-                      ifOverflow="hidden"
-                    />
-                  ))}
-                  <Tooltip
-                    labelFormatter={(timestamp) => formatInvestmentChartDate(Number(timestamp))}
-                    formatter={(value, _name, item) => hiddenInvestmentAssetIds.has(String(item.dataKey)) ? null : formatYen(value)}
-                  />
-                  {historicalInvestmentAssets.map((asset) => (
-                    <Area
-                      key={asset.id}
-                      type="monotone"
-                      dataKey={asset.id}
-                      name={asset.name}
-                      stackId="1"
-                      stroke={accountColor(asset.name)}
-                      fill={accountColor(asset.name)}
-                      fillOpacity={0.78}
-                      isAnimationActive={false}
-                    />
-                  ))}
-                </AreaChart>
-              </ResponsiveContainer>
+              <InvestmentAreaChart
+                points={filteredInvestmentChartData}
+                assets={historicalInvestmentAssets}
+                hiddenIds={hiddenInvestmentAssetIds}
+                timeDomain={investmentChartTimeDomain}
+                periodKey={`${investmentAsOf}:${investmentPeriodMonths}:${previewVariedInvestments}`}
+                snapshots={investmentSnapshots}
+                formatYen={formatYen}
+                formatAxisAmount={formatAxisAmount}
+              />
             )
           ) : investmentChartMode === "profit" ? (
             filteredInvestmentProfitData.length === 0 ? (
