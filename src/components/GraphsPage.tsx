@@ -84,6 +84,43 @@ const formatYen = (value: unknown) => {
   return `${Math.round(Number(resolved ?? 0)).toLocaleString()}円`;
 };
 const formatYenNumber = (value: number) => `${Math.round(value).toLocaleString()}円`;
+const investmentStackDomain = (points: Record<string, number | string>[], assetIds: string[], weights: Record<string, number>): [number, number] =>
+  points.reduce<[number, number]>((domain, point) => {
+    const totals = assetIds.reduce((sum, id) => {
+      const value = Number(point[id] ?? 0) * (weights[id] ?? 1);
+      if (value >= 0) sum.positive += value;
+      else sum.negative += value;
+      return sum;
+    }, { positive: 0, negative: 0 });
+    return [Math.min(domain[0], totals.negative), Math.max(domain[1], totals.positive)];
+  }, [0, 1]);
+const investmentPlotDomain = (points: Record<string, number | string>[], assetIds: string[], weights: Record<string, number>): [number, number] => {
+  const [min, max] = investmentStackDomain(points, assetIds, weights);
+  return [min < 0 ? min * 1.12 : 0, max > 1 ? max * 1.12 : 1];
+};
+const investmentAxisTicks = ([min, max]: [number, number]) => {
+  if (min === 0 && max <= 1) return [0];
+  const roughStep = (max - min) / 4;
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const step = [1, 2, 5, 10].map((unit) => unit * magnitude).find((value) => value >= roughStep) ?? 10 * magnitude;
+  const ticks: number[] = [];
+  for (let index = Math.ceil(min / step); index <= Math.floor(max / step); index += 1) ticks.push(Number((index * step).toPrecision(12)));
+  return ticks;
+};
+const variedInvestmentPreviewData = (asOf: string, assets: InvestmentAsset[]): Record<string, number | string>[] => {
+  const asOfTime = Date.parse(`${asOf}T00:00:00Z`);
+  const totalPattern = [1, 1.13, 0.88, 1.21, 0.94, 0.79, 1.16, 0.96, 1.28, 1.05, 0.87, 1.19];
+  return totalPattern.map((multiplier, pointIndex) => {
+    const date = new Date(asOfTime - (totalPattern.length - 1 - pointIndex) * 30 * 86_400_000).toISOString().slice(0, 10);
+    const point: Record<string, number | string> = { date, timestamp: investmentChartTimestamp(date) };
+    assets.forEach((asset, assetIndex) => {
+      const base = 170_000 / (1 + assetIndex * 0.38);
+      const individualVariation = 1 + 0.14 * Math.sin(pointIndex * 1.7 + assetIndex * 0.8);
+      point[asset.id] = Math.round(base * multiplier * individualVariation);
+    });
+    return point;
+  });
+};
 const getMonthlyValueLabelFontSize = (label: string) => {
   const widthUnits = Array.from(label).reduce((sum, character) => {
     if (/\d/.test(character)) return sum + 0.59;
@@ -603,8 +640,19 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   const [investmentState, setInvestmentState] = React.useState<InvestmentState>(() =>
     loadInvestmentState()
   );
+  const previewVariedInvestments = (import.meta.env.DEV || __DEPLOY_ENV__ === "staging") && new URLSearchParams(window.location.search).get("preview") === "varied";
   const [investmentChartMode, setInvestmentChartMode] = React.useState<"area" | "profit" | "pie">("area");
   const [investmentPeriodMonths, setInvestmentPeriodMonths] = React.useState<"3" | "6" | "12" | "all">("12");
+  const [hiddenInvestmentAssetIds, setHiddenInvestmentAssetIds] = React.useState<Set<string>>(() => new Set());
+  const [investmentChartWeights, setInvestmentChartWeights] = React.useState<Record<string, number>>({});
+  const investmentChartWeightsRef = React.useRef<Record<string, number>>({});
+  const [investmentDomainOverride, setInvestmentDomainOverride] = React.useState<[number, number] | null>(null);
+  const investmentDomainOverrideRef = React.useRef<[number, number] | null>(null);
+  const [investmentTickTransition, setInvestmentTickTransition] = React.useState<{ ticks: number[]; start: number[]; end: number[]; progress: number } | null>(null);
+  const investmentChartAnimationRef = React.useRef<number | null>(null);
+  React.useEffect(() => () => {
+    if (investmentChartAnimationRef.current !== null) cancelAnimationFrame(investmentChartAnimationRef.current);
+  }, []);
   const [investmentMonthKey, setInvestmentMonthKey] = React.useState(() => {
     const requested = new URLSearchParams(window.location.search).get("month") ?? "";
     return /^\d{4}-\d{2}$/.test(requested) ? requested : currentMonthKey;
@@ -776,6 +824,54 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
     initialPrincipal: investmentOpeningFlows(account).deposits,
     openingValue: account.openingBalance,
   })), [historicalInvestmentAccounts]);
+  const toggleInvestmentChartAsset = (assetId: string) => {
+    const nextHidden = new Set(hiddenInvestmentAssetIds);
+    if (nextHidden.has(assetId)) nextHidden.delete(assetId);
+    else nextHidden.add(assetId);
+    setHiddenInvestmentAssetIds(nextHidden);
+
+    if (investmentChartAnimationRef.current !== null) cancelAnimationFrame(investmentChartAnimationRef.current);
+    const assetIds = historicalInvestmentAssets.map((asset) => asset.id);
+    const startWeights = Object.fromEntries(assetIds.map((id) => [id, investmentChartWeightsRef.current[id] ?? (hiddenInvestmentAssetIds.has(id) ? 0 : 1)]));
+    const targetWeights = Object.fromEntries(assetIds.map((id) => [id, nextHidden.has(id) ? 0 : 1]));
+    const wasEmpty = assetIds.every((id) => hiddenInvestmentAssetIds.has(id));
+    const willBeEmpty = assetIds.every((id) => nextHidden.has(id));
+    const startDomain = investmentDomainOverrideRef.current ?? investmentPlotDomain(filteredInvestmentChartData, assetIds, startWeights);
+    const targetDomain = investmentPlotDomain(filteredInvestmentChartData, assetIds, targetWeights);
+    const startTicks = wasEmpty ? [0] : investmentAxisTicks(startDomain);
+    const endTicks = willBeEmpty ? [0] : investmentAxisTicks(targetDomain);
+    const ticks = [...new Set([...startTicks, ...endTicks])].sort((a, b) => a - b);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      investmentChartWeightsRef.current = targetWeights;
+      setInvestmentChartWeights(targetWeights);
+      const domain = willBeEmpty ? startDomain : null;
+      investmentDomainOverrideRef.current = domain;
+      setInvestmentDomainOverride(domain);
+      setInvestmentTickTransition(willBeEmpty ? { ticks: [0], start: [0], end: [0], progress: 1 } : null);
+      return;
+    }
+    const startTime = performance.now();
+    const animate = (now: number) => {
+      const progress = Math.min((now - startTime) / 640, 1);
+      const eased = progress < 0.5 ? 2 * progress * progress : 1 - 2 * (1 - progress) * (1 - progress);
+      const weights = Object.fromEntries(assetIds.map((id) => [id, startWeights[id] + (targetWeights[id] - startWeights[id]) * eased]));
+      investmentChartWeightsRef.current = weights;
+      setInvestmentChartWeights(weights);
+      // Keep the last visible scale while the final area collapses to zero.
+      const domain: [number, number] | null = willBeEmpty
+        ? startDomain
+        : wasEmpty && progress < 1
+          ? [startDomain[0] + (targetDomain[0] - startDomain[0]) * eased, startDomain[1] + (targetDomain[1] - startDomain[1]) * eased]
+          : null;
+      investmentDomainOverrideRef.current = domain;
+      setInvestmentDomainOverride(domain);
+      setInvestmentTickTransition(progress < 1
+        ? { ticks, start: startTicks, end: endTicks, progress: eased }
+        : willBeEmpty ? { ticks: [0], start: [0], end: [0], progress: 1 } : null);
+      investmentChartAnimationRef.current = progress < 1 ? requestAnimationFrame(animate) : null;
+    };
+    investmentChartAnimationRef.current = requestAnimationFrame(animate);
+  };
 
   const handleSaveSnapshot = (date: string, values: Record<string, number>) => {
     const id = `is_${date}`;
@@ -808,7 +904,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
 
   const investmentFlows = (account: Account, date: string) => investmentFlowsAsOf(account, transactions, date);
 
-  const investmentChartData = visibleInvestmentSnapshots.map((snapshot) => {
+  const investmentChartData = previewVariedInvestments ? variedInvestmentPreviewData(investmentAsOf, historicalInvestmentAssets) : visibleInvestmentSnapshots.map((snapshot) => {
     const point: Record<string, number | string> = {
       date: snapshot.date,
       timestamp: investmentChartTimestamp(snapshot.date),
@@ -849,6 +945,20 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
   });
   const investmentPeriodStart = investmentPeriodStartDate(investmentAsOf, investmentPeriodMonths);
   const filteredInvestmentChartData = investmentChartData.filter((point) => !investmentPeriodStart || String(point.date) >= investmentPeriodStart);
+  const displayedInvestmentChartData = filteredInvestmentChartData.map((point) => {
+    const displayedPoint = { ...point };
+    historicalInvestmentAssets.forEach((asset) => {
+      displayedPoint[asset.id] = Number(point[asset.id] ?? 0) * (investmentChartWeights[asset.id] ?? 1);
+    });
+    return displayedPoint;
+  });
+  const investmentChartValueDomain = investmentDomainOverride ?? investmentPlotDomain(filteredInvestmentChartData, historicalInvestmentAssets.map((asset) => asset.id), investmentChartWeights);
+  const investmentChartTicks = investmentTickTransition?.ticks ?? investmentAxisTicks(investmentChartValueDomain);
+  const investmentTickOpacity = (value: number) => {
+    if (!investmentTickTransition) return 1;
+    const { start, end, progress } = investmentTickTransition;
+    return start.includes(value) ? (end.includes(value) ? 1 : 1 - progress) : progress;
+  };
   const investmentChartTimeDomain = investmentChartDomain(
     filteredInvestmentChartData.map((point) => Number(point.timestamp)),
   );
@@ -1948,7 +2058,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               </div>
               <strong className="investment-assets-total">{formatYen(latestInvestmentTotal)}</strong>
             </div>
-            {investmentAccounts.length === 0 ? (
+            {historicalInvestmentAccounts.length === 0 ? (
               <p className="muted">設定で投資口座を登録してください。</p>
             ) : (
               <div className="investment-account-list">
@@ -1961,10 +2071,18 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                   return (
                     <section className="investment-account-row" key={account.id}>
                       <div className="investment-account-main">
-                        <span className="portfolio-account-name">
-                          <i style={{ backgroundColor: accountColor(account.name) }} />
-                          {account.name}
-                        </span>
+                        <label className="investment-account-chart-toggle">
+                          <input
+                            type="checkbox"
+                            checked={!hiddenInvestmentAssetIds.has(account.id)}
+                            onChange={() => toggleInvestmentChartAsset(account.id)}
+                            aria-label={`${account.name}を評価額推移に表示`}
+                          />
+                          <span className="portfolio-account-name">
+                            <i style={{ backgroundColor: hiddenInvestmentAssetIds.has(account.id) ? "#fff" : accountColor(account.name), borderColor: accountColor(account.name) }} aria-hidden="true" />
+                            {account.name}
+                          </span>
+                        </label>
                         <strong>{formatYen(current)}</strong>
                       </div>
                       <div className="investment-performance-row">
@@ -1983,6 +2101,20 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     </section>
                   );
                 })}
+                {historicalInvestmentAccounts.filter((account) => !account.isActive).map((account) => (
+                  <label className="investment-account-chart-toggle investment-inactive-account-toggle" key={account.id}>
+                    <input
+                      type="checkbox"
+                      checked={!hiddenInvestmentAssetIds.has(account.id)}
+                      onChange={() => toggleInvestmentChartAsset(account.id)}
+                      aria-label={`${account.name}を評価額推移に表示`}
+                    />
+                    <span className="portfolio-account-name">
+                      <i style={{ backgroundColor: hiddenInvestmentAssetIds.has(account.id) ? "#fff" : accountColor(account.name), borderColor: accountColor(account.name) }} aria-hidden="true" />
+                      {account.name}（過去の口座）
+                    </span>
+                  </label>
+                ))}
               </div>
             )}
           </section>
@@ -2008,7 +2140,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
 
         <div className="card chart-card investment-chart-card">
           <div className="investment-chart-heading">
-            <h3>{investmentChartMode === "area" ? "評価額推移" : investmentChartMode === "profit" ? "損益額 / 損益率" : "現在構成"}</h3>
+            <h3>{investmentChartMode === "area" ? "評価額推移" : investmentChartMode === "profit" ? "損益額 / 損益率" : "現在構成"}{previewVariedInvestments && investmentChartMode === "area" ? "（サンプル）" : ""}</h3>
             <div
               ref={investmentModeDrag.ref}
               className={`app-segmented-control investment-chart-mode-control${investmentModeDrag.isDragging ? " is-dragging" : ""}`}
@@ -2020,6 +2152,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               <button type="button" className={investmentChartMode === "pie" ? "active" : ""} onClick={() => setInvestmentChartMode("pie")}>円</button>
             </div>
           </div>
+          {previewVariedInvestments && investmentChartMode === "area" && <p className="muted investment-preview-note">評価額推移のみ架空データで表示しています。保存データには反映されません。</p>}
           {investmentChartMode !== "pie" && (
             <div
               ref={investmentPeriodDrag.ref}
@@ -2035,8 +2168,8 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
               <p className="muted">選択期間に評価額の記録がありません。期間を広げるか、現在額更新から登録してください。</p>
             ) : (
               <ResponsiveContainer width="100%" height={190}>
-                <AreaChart data={filteredInvestmentChartData} margin={{ top: 10, right: 6, bottom: 0, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <AreaChart data={displayedInvestmentChartData} margin={{ top: 10, right: 6, bottom: 0, left: 0 }}>
+                  <CartesianGrid horizontal={false} vertical={false} />
                   <XAxis
                     type="number"
                     dataKey="timestamp"
@@ -2045,10 +2178,31 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                     tick={{ fontSize: 9 }}
                     tickFormatter={formatInvestmentChartDate}
                   />
-                  <YAxis width={48} tick={{ fontSize: 8 }} tickFormatter={formatAxisAmount} />
+                  <YAxis
+                    width={48}
+                    domain={investmentChartValueDomain}
+                    allowDataOverflow
+                    ticks={investmentChartTicks}
+                    interval={0}
+                    tick={({ x, y, payload }) => (
+                      <text x={Number(x) - 4} y={y} textAnchor="end" dominantBaseline="middle" fill="#666" fontSize={8} opacity={investmentTickOpacity(Number(payload.value))}>
+                        {formatAxisAmount(payload.value)}
+                      </text>
+                    )}
+                  />
+                  {investmentChartTicks.map((value) => (
+                    <ReferenceLine
+                      key={value}
+                      y={value}
+                      stroke="#ccc"
+                      strokeDasharray="3 3"
+                      strokeOpacity={investmentTickOpacity(value)}
+                      ifOverflow="hidden"
+                    />
+                  ))}
                   <Tooltip
                     labelFormatter={(timestamp) => formatInvestmentChartDate(Number(timestamp))}
-                    formatter={(value) => formatYen(value)}
+                    formatter={(value, _name, item) => hiddenInvestmentAssetIds.has(String(item.dataKey)) ? null : formatYen(value)}
                   />
                   {historicalInvestmentAssets.map((asset) => (
                     <Area
@@ -2060,6 +2214,7 @@ export const GraphsPage: React.FC<Props> = ({ transactions, showFutureTransactio
                       stroke={accountColor(asset.name)}
                       fill={accountColor(asset.name)}
                       fillOpacity={0.78}
+                      isAnimationActive={false}
                     />
                   ))}
                 </AreaChart>
