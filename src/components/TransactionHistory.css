@@ -59,26 +59,29 @@
 
 /* 中身を1行レイアウトに（スワイプ本体の中） */
 .row-layout{
+  --history-category-column: 7em;
   display: grid;
-  grid-template-columns: 6em 8em 1fr auto; /* cat / name / amount / badge */
+  grid-template-columns: var(--history-category-column) minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 0.6ch;
   width: 100%;
 }
 
-/* category: 7文字ぶん確保 */
+/* カテゴリ名の長さに関係なく、摘要列の開始位置を固定する。 */
 .cat {
-  width: 7em;
+  width: auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  overflow: hidden;
   white-space: nowrap;
-
   text-align: left;
-  /* white-space: nowrap; */
 }
 
 .category-text {
+  min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -94,7 +97,8 @@
 
 /* name: 8文字ぶん確保。長い場合は改行して表示 */
 .nm {
-  width: 10em;
+  width: auto;
+  min-width: 0;
   text-align: left;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -219,7 +223,7 @@
   .history-list .swipe-front { z-index: 2; box-sizing: border-box; width: 100%; }
   .history-list .row-layout,
   .history-list .group-total-row .row-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+    --history-category-column: 96px;
     column-gap: 8px;
   }
 
@@ -249,7 +253,7 @@
 }
 
 .group-total-row .row-layout{
-  grid-template-columns: 6em 8em 1fr auto;
+  grid-template-columns: var(--history-category-column) minmax(0, 1fr) auto;
 }
 
 @media (max-width: 767px) {
@@ -376,7 +380,8 @@
 
   .history-list .row-layout,
   .history-list .group-total-row .row-layout {
-    grid-template-columns: 90px minmax(0, 1fr) 106px;
+    --history-category-column: 90px;
+    grid-template-columns: var(--history-category-column) minmax(0, 1fr) 106px;
     column-gap: 0;
   }
 
